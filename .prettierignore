@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+.next
+node_modules
+screenshots
+test-results
+playwright-report
+
+# Documentos do proprietário: formatação é intencional, não reflowar.
+*.md
