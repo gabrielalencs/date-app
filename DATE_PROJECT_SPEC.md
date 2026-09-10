@@ -406,7 +406,7 @@ Priorizar:
 
 Não implementar tudo num único passo.
 
-Seguir `docs/10_ROADMAP.md`.
+Seguir `docs/ROADMAP.md`.
 
 Cada fase:
 1. ler docs;

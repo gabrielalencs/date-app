@@ -4,23 +4,21 @@ Este documento substitui a referência a `docs/10_ROADMAP.md`.
 
 ## Regra de execução
 
-Um bloco por vez. Um bloco = uma branch = um review = um merge.
+Um bloco por vez. Todo trabalho acontece na `develop`; `main` é a branch estável.
 
 ```
-branch feat/bXX-nome
+develop
    ↓
-implementação pelo Claude Code
+implementação pelo agente
    ↓
-review do Codex (read-only)
-   ↓
-correções
+auto-verificação do bloco
    ↓
 Definition of Done atendida
    ↓
 merge em main pelo proprietário
 ```
 
-Nenhum bloco começa com o anterior sem merge. Nenhum agente abre dois blocos simultâneos.
+Nenhum bloco começa com o anterior incompleto. Nenhum agente abre dois blocos simultâneos. A auditoria independente é um comando sob demanda do proprietário, não uma etapa fixa do fluxo — ver D-013 e D-014.
 
 ---
 

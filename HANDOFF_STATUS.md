@@ -63,4 +63,4 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 
 ## Próxima ação
 
-Ler `DATE_PROJECT_SPEC.md`, `CLAUDE.md`, `AGENTS.md` e `docs/09_BOOTSTRAP.md`; em seguida executar o bootstrap de forma segura dentro do repositório já existente.
+Ler `DATE_PROJECT_SPEC.md`, `CLAUDE.md`, `AGENTS.md` e `prompts/BLOCO_00_FUNDACAO.md`; em seguida executar o bootstrap de forma segura dentro do repositório já existente.

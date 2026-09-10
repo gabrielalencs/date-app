@@ -33,7 +33,7 @@ Este documento substitui a referência a `docs/11_DEFINITION_OF_DONE.md`.
 
 ## 4. Git
 
-- [ ] trabalho feito em branch `feat/bXX-nome`
+- [ ] trabalho feito na branch `develop`
 - [ ] commits pequenos, um por unidade lógica
 - [ ] `main` não recebeu push direto nem force-push
 - [ ] `git status` limpo ao final
@@ -56,9 +56,9 @@ Nada nesse relatório pode ser afirmado sem ter sido executado. Se algo não foi
 
 ## 6. Review
 
-Todo bloco passa pelo Codex antes do merge, com o prompt de review correspondente. O Codex não escreve arquivo. O veredito é `APROVADO`, `APROVADO COM RESSALVAS` ou `REPROVADO`, com achados classificados em bloqueante, importante e cosmético.
+Não existe revisor externo (D-013). Todo bloco encerra com a auto-verificação declarada no prompt do bloco, executada e reportada item a item. A auditoria independente é um comando que o proprietário roda quando quiser, com o prompt de auditoria; o veredito é `SAUDÁVEL`, `ATENÇÃO` ou `PROBLEMA SÉRIO`, com achados classificados em crítico, importante e menor.
 
-Bloqueante impede merge. Importante vira item do bloco seguinte se o proprietário aceitar adiar. Cosmético é registrado e ignorado até fazer sentido.
+Crítico impede merge. Importante vira item do bloco seguinte se o proprietário aceitar adiar. Menor é registrado e ignorado até fazer sentido.
 
 ## 7. Regra de origem de instrução
 

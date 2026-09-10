@@ -39,7 +39,7 @@ Não recrie estes recursos:
 
 ## Objetivo desta execução
 
-Você deve conduzir o bootstrap e a implementação por fases, conforme `docs/09_BOOTSTRAP.md` e `docs/10_ROADMAP.md`.
+Você deve conduzir o bootstrap e a implementação por fases, conforme `prompts/BLOCO_00_FUNDACAO.md` e `docs/ROADMAP.md`.
 
 Comece pela fundação. Não faça big-bang.
 

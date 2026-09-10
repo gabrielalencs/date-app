@@ -184,4 +184,4 @@ parar e pedir confirmação ao proprietário.
 
 Nunca declarar uma fase pronta apenas porque "renderizou".
 
-Ver `docs/11_DEFINITION_OF_DONE.md`.
+Ver `docs/DEFINITION_OF_DONE.md`.
