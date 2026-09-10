@@ -4,6 +4,15 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-028 — Activity feed append-only na camada de aplicação
+**10/09/2026.** Na V1 não haverá trigger/RLS para impedir update/delete de `activity_events`; a camada de acesso simplesmente não expõe essas operações.
+
+### D-027 — Driver transacional do banco
+**10/09/2026.** Runtime usa `drizzle-orm/neon-serverless` com `Pool` de `@neondatabase/serverless`; `DATABASE_URL` é pooled. Migrations e seed usam `DATABASE_URL_UNPOOLED`. A escolha existe porque o produto exige transações interativas.
+
+### D-026 — Concretizações do schema B2
+**10/09/2026.** O schema usa oito enums; `profiles` e `workspaces` são as duas exceções à regra de `workspace_id`; `memory_ratings.would_repeat` é nullable; coordenadas usam double precision; categoria permanece text; `media.object_key` é unique global.
+
 ### D-025 — Dinheiro em centavos, tempo em UTC
 **10/09/2026.** Valor monetário é inteiro de centavos, moeda fixa em BRL: `numeric` volta como string no driver e float perde centavo. Coluna de moeda só existe quando existir um segundo país. Tempo é sempre `timestamptz` em UTC; `America/Sao_Paulo` é decisão de apresentação, aplicada na borda com date-fns.
 

@@ -9,10 +9,11 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts",
     "shots": "playwright test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/migrate.ts",
-    "db:seed": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/seed.ts",
+    "db:migrate": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/migrate.ts",
+    "db:seed": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/seed.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

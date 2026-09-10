@@ -27,4 +27,9 @@ const pool = new Pool({ connectionString: pooledUrl() });
 
 export const db = drizzle(pool, { schema });
 
+/** Encerra o pool em processos finitos, como o teste de integração. */
+export async function closeDatabasePool(): Promise<void> {
+  await pool.end();
+}
+
 export type Db = typeof db;

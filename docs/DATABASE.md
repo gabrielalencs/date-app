@@ -8,7 +8,7 @@ Substitui a referência a `docs/05_DATABASE.md`. Normativo.
 
 **Code-first.** O schema Drizzle é a fonte da verdade. Nada é criado pelo Neon Console. Toda mudança gera migration versionada em Git.
 
-**`workspace_id` em toda tabela de negócio**, mesmo quando o valor é derivável pelo pai. É denormalização deliberada: torna a autorização um predicado único e transforma IDOR em erro de compilação em vez de erro de revisão. Uma consulta que esquece o `workspace_id` deve ser visivelmente errada.
+**`workspace_id` em toda tabela de negócio**, mesmo quando o valor é derivável pelo pai. É denormalização deliberada: torna a autorização um predicado único e transforma IDOR em erro de compilação em vez de erro de revisão. Uma consulta que esquece o `workspace_id` deve ser visivelmente errada. As únicas exceções são `profiles`, que representa identidade local espelhada do Neon Auth, e `workspaces`, que é a própria raiz do escopo.
 
 **Dinheiro é inteiro em centavos.** `numeric` vira string no driver e float perde centavo. Moeda fixa em BRL na V1; a coluna de moeda não existe até existir um segundo país.
 
@@ -63,6 +63,8 @@ O centro do produto.
 
 `archived_at` é ocultação; `cancelled` é status. Não são a mesma coisa e não se confundem.
 
+`category` permanece `text`; a taxonomia será validada no boundary da aplicação a partir do B4. `lat` e `lng` usam `double precision`.
+
 ### `plan_links`
 
 `id` · `workspace_id` · `plan_id` · `type` (enum) · `url` · `label` · `position` · `created_at`
@@ -101,6 +103,8 @@ Gasto real. O orçamento estimado mora em `plans`. Não existe divisão de conta
 
 `object_key` é sempre gerado pelo servidor e nunca aceito do cliente. Formato: `{workspace_id}/{plan_id|misc}/{uuid}.{ext}`.
 
+O `UNIQUE` de `object_key` é global. Como a chave começa pelo `workspace_id`, não existe unique composto adicional.
+
 ### `memories`
 
 `id` · `workspace_id` · `plan_id` (FK, único) · `highlight` · `notes` · `created_at` · `updated_at`
@@ -112,6 +116,8 @@ Uma memória por plano, existindo só depois de `completed`.
 `id` · `workspace_id` · `memory_id` (FK) · `profile_id` (FK) · `rating` (smallint 1–5, CHECK) · `would_repeat` (enum `yes` | `maybe` | `no`) · `created_at` · `updated_at`
 Único em (`memory_id`, `profile_id`).
 
+`would_repeat` é nullable: a avaliação pode existir antes de a pessoa responder se repetiria a experiência.
+
 Tabela separada porque são duas pessoas avaliando de forma independente, e colar isso em colunas `rating_user_a`/`rating_user_b` seria exatamente o tipo de atalho que trava a V2.
 
 ### `activity_events`
@@ -120,9 +126,13 @@ Tabela separada porque são duas pessoas avaliando de forma independente, e cola
 
 Append-only. Sem update, sem delete, sem FK para o sujeito — o evento sobrevive ao plano apagado.
 
+Na V1, append-only é contrato da camada de aplicação: a camada de acesso não expõe update/delete de `activity_events`. Não há trigger ou RLS para isso nesta fase.
+
 ---
 
 ## 5. Enums
+
+São oito enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos distintos porque representam conceitos diferentes e podem divergir no futuro.
 
 - `plan_status`: `idea` · `deciding` · `planned` · `reserved` · `completed` · `cancelled`
 - `vote_value` e `repeat_answer`: `yes` · `maybe` · `no`
@@ -148,9 +158,9 @@ Além das PKs e dos únicos já citados: `workspace_id` em todas as tabelas de n
 
 O produto precisa de transação de verdade: registrar voto e mover status, reordenar checklist, confirmar data e emitir evento. Isso tem que ser atômico.
 
-O driver HTTP do Neon não cobre transação com múltiplos statements da mesma forma que a conexão por WebSocket. Verifique na documentação atual do Drizzle e do `@neondatabase/serverless` qual combinação suporta transação interativa na versão instalada, escolha essa, e reporte o que descobriu. Não presuma pelo que você lembra.
+O runtime usa `drizzle-orm/neon-serverless` com `Pool` de `@neondatabase/serverless`, combinação que suporta transações interativas. `DATABASE_URL` aponta para o endpoint pooled.
 
-Migrations usam a connection string direta (unpooled). O runtime usa a pooled. São duas variáveis distintas no ambiente.
+Migrations e seed usam `DATABASE_URL_UNPOOLED`, a connection string direta. São duas variáveis distintas no ambiente porque esses processos finitos não usam o pooler do runtime.
 
 ---
 

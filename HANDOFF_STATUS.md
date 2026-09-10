@@ -2,13 +2,18 @@
 
 Data do handoff: **10/09/2026**
 
-Este arquivo registra exatamente onde o projeto está antes do primeiro scaffold de código.
+Este arquivo registra o estado factual atual para a continuidade da implementação.
 
 ## Já concluído pelo proprietário
 
 - Nome do produto: **DATE**
 - Direção visual aprovada e congelada para a V1
 - Repositório GitHub **privado já criado**
+- Scaffold Next.js 16 com TypeScript strict, ESLint, Tailwind CSS 4, Vitest e Playwright
+- B1 concluído: design system, tema e app shell existem
+- B2 concluído: schema Drizzle com 14 tabelas e migration inicial versionada
+- Migration inicial aplicada somente na branch Neon `development`
+- Seed fictício idempotente executado duas vezes e validado por teste de integração
 - Ambiente local já preparado e atualizado:
   - Git
   - Node.js
@@ -32,14 +37,11 @@ Este arquivo registra exatamente onde o projeto está antes do primeiro scaffold
 
 ## Ainda NÃO concluído
 
-- O repositório ainda precisa receber o scaffold do Next.js.
 - Vercel ainda precisa ser conectada/deployada.
-- Não existem tabelas de negócio do DATE.
-- Não existem migrations Drizzle.
+- Auth e autorização do B3 ainda não foram implementados.
 - Não existem credenciais R2 da aplicação.
-- Não existem variáveis `.env.local` do projeto.
 - Os dois usuários finais ainda não devem ser criados/ativados até o fluxo de auth estar implementado e testado.
-- Não há UI de produto implementada.
+- Não há CRUD ou outra UI de produto implementada além do app shell e da kitchen sink do design system.
 
 ## Regra de ambientes
 
@@ -63,4 +65,4 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 
 ## Próxima ação
 
-Ler `DATE_PROJECT_SPEC.md`, `CLAUDE.md`, `AGENTS.md` e `prompts/BLOCO_00_FUNDACAO.md`; em seguida executar o bootstrap de forma segura dentro do repositório já existente.
+B3 — Auth e autorização. Exigirá as configurações humanas do Managed Better Auth descritas no prompt do bloco, sem criar usuários reais antes de o fluxo estar protegido e testado.
