@@ -1,4 +1,6 @@
 allowBuilds:
+  # Postinstall transitivo de compatibilidade; o pacote já distribui artefatos prontos.
+  core-js: false
   # O drizzle-kit roda em cima do esbuild e precisa do binário de plataforma.
   esbuild: true
   sharp: false
