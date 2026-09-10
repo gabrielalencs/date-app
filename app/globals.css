@@ -1,1 +1,237 @@
 @import "tailwindcss";
+
+/* Tema escuro por classe: `system` é resolvido em JS e escreve .dark na raiz. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Única fonte de verdade de cor do projeto. Nenhum componente repete hex. */
+:root {
+  --bg: #f6ede4;
+  --surface: #ffffff;
+  --surface-sunken: #efe4d7;
+  --border: rgb(30 45 61 / 0.12);
+  --border-strong: rgb(30 45 61 / 0.22);
+  --text: #1e2d3d;
+  --text-muted: #5c6b78;
+  --accent: #e76f51;
+  --accent-hover: #d65c3e;
+  --accent-fg: #ffffff;
+  --positive: #7e9673;
+  --danger: #9e3b2e;
+  --ring: rgb(231 111 81 / 0.45);
+
+  --shadow-raised: 0 2px 6px rgb(0 0 0 / 0.08);
+  --shadow-overlay: 0 16px 48px rgb(0 0 0 / 0.24);
+  --scrim: rgb(14 23 29 / 0.5);
+
+  --duration-micro: 120ms;
+  --duration-standard: 200ms;
+  --duration-enter: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  --bg: #0e171d;
+  --surface: #15232c;
+  --surface-sunken: #0a1116;
+  --border: rgb(241 231 220 / 0.12);
+  --border-strong: rgb(241 231 220 / 0.22);
+  --text: #f1e7dc;
+  --text-muted: #9aaab6;
+  --accent: #e76f51;
+  --accent-hover: #f0805f;
+  --accent-fg: #ffffff;
+  --positive: #a7b89f;
+  --danger: #c4574a;
+  --ring: rgb(231 111 81 / 0.55);
+
+  --scrim: rgb(5 10 13 / 0.66);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border-subtle: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-positive: var(--positive);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-raised: var(--shadow-raised);
+  --shadow-overlay: var(--shadow-overlay);
+}
+
+/* Sobrescreve a escala default do Tailwind: nada acima de 14px de raio. */
+@theme {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --aspect-4\/5: 4 / 5;
+}
+
+/* Entradas de sheet e dialog. Anima só opacity e transform, uma iteração. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--bg);
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Anel de foco definido uma única vez; componente nunca remove outline. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+  }
+}
+
+/* Escala tipográfica da seção 3. Fraunces nunca abaixo de 20px, nada abaixo de 12px. */
+@layer components {
+  .type-display-xl,
+  .type-display-l,
+  .type-title {
+    font-family: var(--font-fraunces), Georgia, "Times New Roman", serif;
+    font-optical-sizing: auto;
+  }
+
+  .type-display-xl {
+    font-size: 2.75rem;
+    line-height: 1.02;
+    letter-spacing: -0.025em;
+    font-weight: 500;
+  }
+
+  .type-display-l {
+    font-size: 2rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+
+  .type-title {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    font-weight: 500;
+  }
+
+  .type-heading {
+    font-size: 1.125rem;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  .type-body {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .type-body-s {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .type-meta {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .type-label {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  @media (min-width: 768px) {
+    .type-display-xl {
+      font-size: 4rem;
+    }
+
+    .type-display-l {
+      font-size: 2.5rem;
+    }
+
+    .type-title {
+      font-size: 1.75rem;
+    }
+  }
+
+  /* "Memórias" com tracking de 0.12em não cabe numa coluna de 66px a 320px.
+     O tracking da marca volta a partir de 360px. Conflito reportado. */
+  .type-label-nav {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  @media (max-width: 359px) {
+    .type-label-nav {
+      letter-spacing: 0;
+    }
+  }
+
+  /* Número que alinha em coluna: preço, data, contagem. */
+  .tnum {
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+/* Implementação única de reduced-motion: anula transform e deixa fade curto. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-property: opacity !important;
+    transition-duration: 100ms !important;
+    animation-duration: 100ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
