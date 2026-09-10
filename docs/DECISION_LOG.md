@@ -4,6 +4,30 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-025 — Dinheiro em centavos, tempo em UTC
+**10/09/2026.** Valor monetário é inteiro de centavos, moeda fixa em BRL: `numeric` volta como string no driver e float perde centavo. Coluna de moeda só existe quando existir um segundo país. Tempo é sempre `timestamptz` em UTC; `America/Sao_Paulo` é decisão de apresentação, aplicada na borda com date-fns.
+
+### D-024 — RLS fora da V1
+**10/09/2026.** Data API desligada, banco acessado só pelo servidor, autorização num helper central obrigatório. Ligar RLS agora significaria manter uma segunda camada de regra sincronizada sem existir um atacante que ela impeça. Reavaliar se a Data API for ligada.
+
+### D-023 — Identidade em `profiles`, sem FK entre schemas
+**10/09/2026.** Os usuários vivem em `neon_auth.user`, gerenciado pelo Neon. Uma tabela local `profiles` espelha o `id` do Neon Auth, criada por upsert no primeiro login autorizado, e toda FK de autoria aponta para ela. Custa uma tabela e evita FK para um schema que o provedor pode recriar.
+
+### D-022 — shadcn/ui não é usado
+**10/09/2026.** Radix headless direto, com a aparência escrita contra os nossos tokens. O CLI do shadcn traria `--background`/`--primary` e mais três dependências (`clsx`, `tailwind-merge`, `cva`) para entregar o mesmo comportamento. Revisa o D-016: a intenção dele era evitar um segundo vocabulário de cor, e pular o shadcn é mais fiel a isso do que usá-lo.
+
+### D-021 — `/agenda` como seção única
+**10/09/2026.** `/agenda` concentra a seção, com alternância interna entre lista e calendário. `/planos` foi removida e a navegação passa a ser idêntica nos dois breakpoints: Início · Ideias · Agenda · Memórias, mais a ação Novo e o Perfil. Corrige a divergência entre "Agenda" no mobile e "Calendário" no desktop.
+
+### D-020 — Nenhuma cor da paleta é usada como texto
+**10/09/2026.** Generaliza o D-017 para toda a paleta: coral, sage e o resto entram como ponto, preenchimento ou borda; rótulo sempre em `--text` ou `--text-muted`. Sage sobre areia tem contraste pior que coral, e badge e pill são 12px.
+
+### D-019 — Sem spinner no produto
+**10/09/2026.** Espera se comunica por rótulo e estado desabilitado — "Salvando" no lugar de "Salvar". Spinner é animação em loop e não existe no DATE.
+
+### D-018 — Loop proibido apenas quando decorativo
+**10/09/2026.** A proibição da seção 9 do design system era imprecisa. Feedback funcional é exceção: o skeleton tem pulso sutil de opacidade. Sob `prefers-reduced-motion` a animação é desligada por inteiro, ficando estática — `animation-iteration-count: 1` é pior que os dois extremos e saiu da regra global.
+
 ### D-017 — Coral proibido como cor de texto
 **10/09/2026.** O contraste de `#E76F51` sobre `#F6EDE4` fica em torno de 2,7:1, ilegível por qualquer critério. Coral aparece como preenchimento sólido, ponto, ícone acompanhado de rótulo ou borda — nunca como palavra. Rótulo branco sobre preenchimento coral só a partir de 19px semibold, onde 3:1 satisfaz AA para texto grande. A prancha de marca não é argumento contra isso.
 

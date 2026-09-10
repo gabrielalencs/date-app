@@ -29,6 +29,17 @@ for (const viewport of VIEWPORTS) {
       await page.goto("/kitchen-sink");
       await page.waitForLoadState("networkidle");
 
+      // Sem isso o fullPage desenha os elementos fixos na altura do viewport e
+      // mente sobre o layout. A bottom nav vai para o fim do fluxo; a sidebar
+      // usa absolute para acompanhar a altura real do documento.
+      await page.addStyleTag({
+        content: `
+          body > div { position: relative !important; }
+          nav[aria-label="Navegação principal"] { position: static !important; }
+          aside { position: absolute !important; }
+        `,
+      });
+
       await page.screenshot({
         path: `screenshots/kitchen-sink-${viewport.name}-${theme}.png`,
         fullPage: true,

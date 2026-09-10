@@ -202,4 +202,6 @@ Sem emoji em qualquer lugar da interface. Sem exclamação, salvo em confirmaç�
 
 ## 9. Proibições
 
-Glassmorphism · brilho neon · gradiente como plano de fundo · `backdrop-filter` · sombra colorida · emoji como ícone · card dentro de card · raio acima de 14px · coral em texto · animação em loop · ícone sem rótulo em navegação · outline de foco removido · texto abaixo de 12px · cor como único portador de significado.
+Glassmorphism · brilho neon · gradiente como plano de fundo · `backdrop-filter` · sombra colorida · emoji como ícone · card dentro de card · raio acima de 14px · **qualquer cor da paleta como texto** (D-020) · **animação decorativa em loop** (D-018) · spinner (D-019) · ícone sem rótulo em **destino** de navegação · outline de foco removido · texto abaixo de 12px · cor como único portador de significado.
+
+Feedback funcional em loop é exceção: o skeleton pulsa, e desliga sob `prefers-reduced-motion`. O `+` da bottom nav é ação, não destino, então nome acessível basta.

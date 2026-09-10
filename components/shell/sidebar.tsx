@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
-import { DESKTOP_NAV, isActivePath, NEW_PLAN_HREF } from "@/lib/nav";
+import { isActivePath, NAV, NEW_PLAN_HREF, PROFILE_HREF } from "@/lib/nav";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -34,7 +34,7 @@ export function Sidebar() {
 
       <nav aria-label="Navegação principal" className="mt-6 flex-1 px-3">
         <ul className="flex flex-col gap-1">
-          {DESKTOP_NAV.map((item) => {
+          {NAV.map((item) => {
             const active = isActivePath(pathname, item.href);
             const Icon = item.icon;
 
@@ -68,7 +68,7 @@ export function Sidebar() {
       <div className="border-border-subtle flex flex-col gap-3 border-t p-4">
         <ThemeToggle />
         <Link
-          href="/perfil"
+          href={PROFILE_HREF}
           className="type-body-s text-text-muted hover:bg-surface-sunken hover:text-text flex min-h-11 items-center gap-3 rounded-md px-3"
         >
           <User aria-hidden="true" className="size-5" />

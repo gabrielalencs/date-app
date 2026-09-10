@@ -5,12 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/cn";
-import { isActivePath, MOBILE_NAV, NEW_PLAN_HREF } from "@/lib/nav";
+import { isActivePath, NAV, NEW_PLAN_HREF } from "@/lib/nav";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const left = MOBILE_NAV.slice(0, 2);
-  const right = MOBILE_NAV.slice(2);
+  const left = NAV.slice(0, 2);
+  const right = NAV.slice(2);
 
   return (
     <nav
@@ -46,7 +46,7 @@ function NavSlot({
   item,
   pathname,
 }: {
-  item: (typeof MOBILE_NAV)[number];
+  item: (typeof NAV)[number];
   pathname: string;
 }) {
   const active = isActivePath(pathname, item.href);

@@ -1,9 +1,9 @@
 import { cn } from "@/lib/cn";
 
 /**
- * Estático de propósito: a seção 9 proíbe animação em loop, então não há pulse.
- * Contradição com "respeita reduced-motion" da tabela da seção 6 reportada ao
- * proprietário — sem animação, a preferência é respeitada trivialmente.
+ * Pulso sutil de opacidade: feedback funcional é exceção à proibição de loop
+ * (D-018). Sob prefers-reduced-motion a regra global zera a animação, deixando
+ * o bloco estático — não rodando o loop uma vez.
  */
 const SHAPES = {
   line: "h-4 w-full rounded-sm",
@@ -21,7 +21,11 @@ export function Skeleton({
   return (
     <div
       role="presentation"
-      className={cn("bg-surface-sunken", SHAPES[shape], className)}
+      className={cn(
+        "bg-surface-sunken animate-[skeleton-pulse_1.6s_var(--ease-standard)_infinite]",
+        SHAPES[shape],
+        className,
+      )}
     />
   );
 }

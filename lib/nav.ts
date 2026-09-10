@@ -1,6 +1,5 @@
 import {
   CalendarDays,
-  ClipboardList,
   House,
   Images,
   Lightbulb,
@@ -13,24 +12,20 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-/** Bottom nav: Início · Ideias · + · Agenda · Memórias (o + não é item de rota). */
-export const MOBILE_NAV: readonly NavItem[] = [
+/**
+ * Navegação idêntica nos dois breakpoints (D-021). `/agenda` é a seção única —
+ * a alternância interna entre lista e calendário é do B7, quando houver plano
+ * para listar. `/planos` não existe mais.
+ */
+export const NAV: readonly NavItem[] = [
   { href: "/", label: "Início", icon: House },
   { href: "/ideias", label: "Ideias", icon: Lightbulb },
   { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/memorias", label: "Memórias", icon: Images },
 ];
 
-/** Sidebar desktop. "Calendário" aponta para a mesma rota que "Agenda" no mobile. */
-export const DESKTOP_NAV: readonly NavItem[] = [
-  { href: "/", label: "Início", icon: House },
-  { href: "/ideias", label: "Ideias", icon: Lightbulb },
-  { href: "/planos", label: "Planos", icon: ClipboardList },
-  { href: "/agenda", label: "Calendário", icon: CalendarDays },
-  { href: "/memorias", label: "Memórias", icon: Images },
-];
-
 export const NEW_PLAN_HREF = "/novo";
+export const PROFILE_HREF = "/perfil";
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") {
