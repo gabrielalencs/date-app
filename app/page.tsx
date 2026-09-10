@@ -1,7 +1,3 @@
-export default function Home() {
-  return (
-    <main>
-      <div>Hello world!</div>
-    </main>
-  );
+export default function Page() {
+  return <h1 className="type-display-l text-text">Início</h1>;
 }

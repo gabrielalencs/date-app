@@ -4,10 +4,11 @@ import { describe, expect, it } from "vitest";
 import Home from "@/app/page";
 
 describe("rota raiz", () => {
-  it("renderiza markup sem lançar", () => {
+  it("renderiza o título da Início sem lançar", () => {
     const markup = renderToStaticMarkup(<Home />);
 
-    expect(markup).toContain("<main>");
-    expect(markup).toContain("Hello world!");
+    expect(markup).toContain("<h1");
+    expect(markup).toContain("type-display-l");
+    expect(markup).toContain("Início");
   });
 });
