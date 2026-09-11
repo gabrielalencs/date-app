@@ -27,6 +27,14 @@ import {
  */
 const REQUIRED_BRANCH = "development";
 
+/**
+ * O serviço recusa o cadastro com "Origin header is required when callbackURL
+ * is not an absolute URL". O SDK preenche isso a partir do contexto da
+ * requisição (`ctx.getOrigin()`); num script não existe requisição, então vai
+ * a origem de desenvolvimento local.
+ */
+const DEV_ORIGIN = process.env.DATE_DEV_ORIGIN ?? "http://localhost:3000";
+
 function requireDevelopment(baseUrl: string): void {
   const branch = process.env.NEON_BRANCH;
   const host = (() => {
@@ -65,7 +73,10 @@ async function createUser(
 
   const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Origin: DEV_ORIGIN,
+    },
     body: JSON.stringify({
       email: credential.email,
       password: credential.password,
