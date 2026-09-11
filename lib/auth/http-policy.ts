@@ -4,6 +4,11 @@ const ALLOWED_AUTH_OPERATIONS = new Set([
   "POST:sign-out",
 ]);
 
-export function isAllowedAuthOperation(method: string, path: readonly string[]): boolean {
-  return ALLOWED_AUTH_OPERATIONS.has(`${method.toUpperCase()}:${path.join("/")}`);
+export function isAllowedAuthOperation(
+  method: string,
+  path: readonly string[],
+): boolean {
+  return ALLOWED_AUTH_OPERATIONS.has(
+    `${method.toUpperCase()}:${path.join("/")}`,
+  );
 }

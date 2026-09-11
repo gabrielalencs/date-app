@@ -4,6 +4,21 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-033 — Provisionamento explícito
+**10/09/2026.** Contas Auth são criadas administrativamente no Neon Console, nunca por rota temporária. `pnpm auth:bootstrap-dev` liga as contas autorizadas a profiles e `workspace_members`, com guarda de branch, exigência de exatamente um workspace e upsert idempotente. O runtime normal nunca concede membership.
+
+### D-032 — Proxy é camada otimista
+**10/09/2026.** `proxy.ts` protege navegação e redireciona ausência de sessão para `/login`, mas não consulta `workspace_members` e não é autoridade. A autorização real acontece de novo no servidor, perto da query, via `requireAuthorizedContext()`. Configuração inválida faz o proxy negar por redirecionamento em vez de estourar 500.
+
+### D-031 — Autorização central
+**10/09/2026.** Toda operação de domínio futura deriva `workspaceId` de `workspace_members` através de um `AuthorizedContext` server-only. A assinatura do resolver não aceita workspace do caller, então input do browser não participa da decisão. Sessão válida sem membership é 403.
+
+### D-030 — Signup bloqueado na fronteira HTTP
+**10/09/2026.** `auth.handler()` encaminha toda a superfície do provedor — `sign-up/email`, social, magic link, OTP, `delete-user` e `admin/*`, incluindo `create-user` e `impersonate-user`. A rota não o reexporta: uma allowlist positiva de três operações (`get-session`, `sign-in/email`, `sign-out`) decide antes, e o resto recebe 404 sem chegar ao Neon. O webhook `user.before_create` continua obrigatório antes de production.
+
+### D-029 — SDK Auth no Next
+**10/09/2026.** Managed Better Auth via `@neondatabase/auth` 0.5.0-beta, instância por `createNeonAuth()` de `@neondatabase/auth/next/server`. O segredo de cookie é `NEON_AUTH_COOKIE_SECRET`, com mínimo de 32 caracteres exigido pelo próprio SDK; o nome provisório `NEON_AUTH_SECRET` do B2 foi corrigido.
+
 ### D-028 — Activity feed append-only na camada de aplicação
 **10/09/2026.** Na V1 não haverá trigger/RLS para impedir update/delete de `activity_events`; a camada de acesso simplesmente não expõe essas operações.
 

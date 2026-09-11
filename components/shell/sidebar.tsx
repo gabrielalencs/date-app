@@ -4,6 +4,7 @@ import { Plus, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/cn";
 import { isActivePath, NAV, NEW_PLAN_HREF, PROFILE_HREF } from "@/lib/nav";
@@ -74,6 +75,7 @@ export function Sidebar() {
           <User aria-hidden="true" className="size-5" />
           Perfil
         </Link>
+        <SignOutButton />
       </div>
     </aside>
   );

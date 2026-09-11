@@ -20,7 +20,9 @@ function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function parseAllowedEmails(value: string | undefined): readonly [string, string] {
+export function parseAllowedEmails(
+  value: string | undefined,
+): readonly [string, string] {
   if (!value) {
     throw new Error("ALLOWED_EMAILS deve conter exatamente dois e-mails.");
   }
@@ -50,7 +52,11 @@ function parseBaseUrl(value: string | undefined): string {
   }
 
   const url = new URL(result.data);
-  if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
+  if (
+    url.protocol !== "https:" &&
+    url.hostname !== "localhost" &&
+    url.hostname !== "127.0.0.1"
+  ) {
     throw new Error("NEON_AUTH_BASE_URL deve usar HTTPS fora de localhost.");
   }
 
@@ -82,7 +88,10 @@ export function parseAuthConfig(input: AuthEnvInput): AuthConfig {
   };
 }
 
-export function isAllowedEmail(email: string, allowedEmails: readonly string[]): boolean {
+export function isAllowedEmail(
+  email: string,
+  allowedEmails: readonly string[],
+): boolean {
   return allowedEmails.includes(normalizeEmail(email));
 }
 

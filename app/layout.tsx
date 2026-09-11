@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { fraunces, inter } from "@/app/fonts";
-import { AppShell } from "@/components/shell/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeScript } from "@/components/theme-script";
 
@@ -12,6 +11,10 @@ export const metadata: Metadata = {
   description: "Organizador de experiências para duas pessoas.",
 };
 
+/**
+ * Só tema e fontes. O shell de navegação vive no grupo (private), para /login
+ * não herdar bottom nav e sidebar — esconder por CSS não seria proteção.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -23,9 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeScript />
       </head>
       <body>
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

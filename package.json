@@ -10,11 +10,14 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:db": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts",
-    "shots": "playwright test",
+    "shots": "playwright test tests/e2e/kitchen-sink.spec.ts tests/e2e/login.spec.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/migrate.ts",
     "db:seed": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/seed.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "shots:auth": "playwright test tests/e2e/login.spec.ts",
+    "test:http": "playwright test tests/e2e/auth-boundary.spec.ts tests/e2e/login-errors.spec.ts",
+    "auth:bootstrap-dev": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-bootstrap.ts"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",
