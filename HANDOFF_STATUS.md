@@ -49,7 +49,6 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- `pnpm test:crud` deixa planos na branch e quebra o `pnpm test:db`, que afirma que o workspace tem exatamente os oito ids do seed. O e2e arquiva em vez de apagar, e arquivar não remove a linha. Defeito herdado do B4, ainda aberto.
 - Próximo bloco: **B6 — Datas e votação**.
 
 ## Regra de ambientes
