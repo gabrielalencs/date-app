@@ -99,11 +99,22 @@ Gasto real. O orçamento estimado mora em `plans`. Não existe divisão de conta
 
 ### `media`
 
-`id` · `workspace_id` · `object_key` (text, único) · `mime_type` · `size_bytes` · `width` · `height` · `purpose` (enum `cover` | `gallery` | `memory` | `avatar`) · `plan_id` (FK nullable) · `position` · `uploaded_by` · `created_at`
+`id` · `workspace_id` · `object_key` (text, único) · `thumb_object_key` (text) · `mime_type` · `size_bytes` · `width` · `height` · `purpose` (enum `cover` | `gallery` | `memory` | `avatar`) · `plan_id` (FK nullable) · `position` · `uploaded_by` · `created_at`
 
-`object_key` é sempre gerado pelo servidor e nunca aceito do cliente. Formato: `{workspace_id}/{plan_id|misc}/{uuid}.{ext}`.
+As duas chaves são sempre geradas pelo servidor e nunca aceitas do cliente. Formato (D-054, `docs/MEDIA_R2.md` seção 4):
 
-O `UNIQUE` de `object_key` é global. Como a chave começa pelo `workspace_id`, não existe unique composto adicional.
+```text
+{workspace_id}/{plan_id}/{uuid}/full.webp
+{workspace_id}/{plan_id}/{uuid}/thumb.webp
+```
+
+Cada foto tem duas saídas: `object_key` guarda a do `full`, `thumb_object_key` a da miniatura. `NOT NULL` nas duas, porque a linha só nasce depois de `HeadObject` confirmar os dois objetos no R2.
+
+O `UNIQUE` de `object_key` é global. Como a chave começa pelo `workspace_id`, não existe unique composto adicional — e ele cobre as duas, porque `full` e `thumb` compartilham o segmento uuid, então thumb duplicado implicaria full duplicado.
+
+Qual foto é a capa de um plano é decidido por `plans.cover_media_id`, não por `purpose`. O `purpose` registra por onde a foto entrou e é normalizado por `setPlanCover` na mesma transação, para que exista no máximo um `cover` por plano.
+
+O formato anterior descrito aqui, `{workspace_id}/{plan_id|misc}/{uuid}.{ext}`, foi substituído no B5 e não existe em lugar nenhum do código.
 
 ### `memories`
 
