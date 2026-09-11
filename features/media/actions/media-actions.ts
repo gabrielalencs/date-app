@@ -10,7 +10,6 @@ import {
 } from "@/features/media/constants";
 import type { MediaResult, StartedUpload } from "@/features/media/contract";
 import {
-  clearPlanCover,
   confirmUpload,
   removeMedia,
   reorderPlanMedia,
@@ -52,7 +51,6 @@ const confirmSchema = z.object({
 
 const removeSchema = z.object({ planId: uuid, mediaId: uuid });
 const coverSchema = z.object({ planId: uuid, mediaId: uuid });
-const clearSchema = z.object({ planId: uuid });
 const reorderSchema = z.object({
   planId: uuid,
   orderedMediaIds: z.array(uuid).min(1).max(60),
@@ -149,25 +147,6 @@ export async function setCoverAction(
 
   try {
     await setPlanCover(ctx, parsed.data.planId, parsed.data.mediaId);
-    revalidatePlan(parsed.data.planId);
-    return { ok: true, data: undefined };
-  } catch (error) {
-    return { ok: false, error: toMessage(error) };
-  }
-}
-
-export async function clearCoverAction(
-  input: unknown,
-): Promise<MediaResult<undefined>> {
-  const ctx = await requireAuthorizedContext();
-  const parsed = clearSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return invalid();
-  }
-
-  try {
-    await clearPlanCover(ctx, parsed.data.planId);
     revalidatePlan(parsed.data.planId);
     return { ok: true, data: undefined };
   } catch (error) {

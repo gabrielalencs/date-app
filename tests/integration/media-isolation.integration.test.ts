@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as schema from "@/db/schema/index.ts";
 import {
-  clearPlanCover,
   removeMedia,
   reorderPlanMedia,
   setPlanCover,
@@ -188,15 +187,6 @@ describe("escrita de mídia não atravessa o workspace", () => {
     await expect(
       setPlanCover(ctxA, PLANO_DO_SEED_A, midiaDeB2),
     ).rejects.toBeInstanceOf(NotFoundError);
-  });
-
-  it("clearPlanCover do A não limpa a capa do plano do B", async () => {
-    await expect(clearPlanCover(ctxA, planoDeB)).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
-
-    const plano = await getPlan(ctxB, planoDeB);
-    expect(plano.coverMediaId).toBe(midiaDeB1);
   });
 
   it("reorderPlanMedia do A não reordena a galeria do B", async () => {

@@ -235,31 +235,6 @@ export async function setPlanCover(
   });
 }
 
-/** Tira a capa sem apagar a foto: ela volta a ser uma da galeria. */
-export async function clearPlanCover(
-  ctx: AuthorizedContext,
-  planId: string,
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [plano] = await tx
-      .update(plans)
-      .set({ coverMediaId: null, updatedAt: new Date() })
-      .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
-      .returning({ id: plans.id });
-
-    if (!plano) {
-      throw new NotFoundError("Plano");
-    }
-
-    await tx
-      .update(media)
-      .set({ purpose: "gallery" })
-      .where(
-        and(eq(media.workspaceId, ctx.workspaceId), eq(media.planId, planId)),
-      );
-  });
-}
-
 /**
  * Reordena a galeria. Recebe a ordem inteira, não um par de índices: enviar a
  * lista fechada evita que uma reordenação concorrente componha duas trocas

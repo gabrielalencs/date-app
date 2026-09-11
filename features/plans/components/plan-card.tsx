@@ -60,7 +60,7 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
             </span>
             <p
               className={cn(
-                "type-heading text-text line-clamp-2",
+                "type-title text-text line-clamp-2",
                 riscado && "line-through",
               )}
             >

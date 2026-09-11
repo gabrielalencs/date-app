@@ -9,15 +9,10 @@ import nextTs from "eslint-config-next/typescript";
  * workspace: compila, passa no lint e vaza o workspace inteiro. Aqui a
  * consulta sem escopo deixa de ser erro de revisão e vira erro de build.
  */
-/* Teste alcança o banco porque precisa montar o estado que vai provar — o que a
-   zona protege é código de produto, não a suíte. O `tests/integration/**` já
-   estabelecia isso; o `tests/e2e/**` entra no B5 para o teste da rota de mídia
-   poder criar a mídia de outro workspace que ele precisa não conseguir ler. */
 const DB_CLIENT_ZONE = [
   "db/**",
   "features/*/data/**",
   "tests/integration/**",
-  "tests/e2e/**",
   "tests/r2/**",
 ];
 

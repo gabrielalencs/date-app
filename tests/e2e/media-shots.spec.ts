@@ -1,10 +1,8 @@
-import { eq } from "drizzle-orm";
 import { expect, test, type Page } from "@playwright/test";
 
-import { db } from "@/db/client";
-import * as schema from "@/db/schema/index.ts";
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";
+import { closeFixtureDb, limparMidiaDosPlanos } from "./db-fixture.ts";
 import { pngComExif } from "./exif-fixture.ts";
 
 /**
@@ -33,8 +31,6 @@ const THEMES: readonly ResolvedTheme[] = ["light", "dark"];
 const PLANO_COM_FOTO = "22222222-0000-4000-8000-000000000005";
 const PLANO_SEM_FOTO = "22222222-0000-4000-8000-000000000006";
 
-const criadas: string[] = [];
-
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
   await page.fill('input[name="email"]', account.email);
@@ -60,43 +56,22 @@ async function enviarFoto(page: Page): Promise<void> {
   });
 }
 
-test.beforeAll(async () => {
-  if (process.env.NEON_BRANCH !== "development") {
-    throw new Error("ABORTADO: este teste exige NEON_BRANCH=development.");
-  }
-});
-
 test.afterAll(async () => {
-  await db.delete(schema.media).where(eq(schema.media.planId, PLANO_COM_FOTO));
-
-  for (const id of criadas) {
-    await db.delete(schema.media).where(eq(schema.media.id, id));
-  }
+  // Linhas e objetos: a branch não guarda mídia de teste depois da captura.
+  await limparMidiaDosPlanos([PLANO_COM_FOTO]);
+  await closeFixtureDb();
 });
 
 test("prepara: duas fotos no plano de captura", async ({ page }) => {
   await signIn(page);
+  await limparMidiaDosPlanos([PLANO_COM_FOTO]);
   await page.goto(`/planos/${PLANO_COM_FOTO}`);
 
   // Uma vira capa, a outra fica na galeria — as duas telas ficam completas.
   await enviarFoto(page);
   await enviarFoto(page);
 
-  const ids = await page
-    .locator('img[src^="/api/media/"]')
-    .evaluateAll((imagens) =>
-      imagens
-        .map(
-          (img) =>
-            /\/api\/media\/([0-9a-f-]{36})/.exec(
-              (img as HTMLImageElement).getAttribute("src") ?? "",
-            )?.[1],
-        )
-        .filter((id): id is string => Boolean(id)),
-    );
-
-  criadas.push(...ids);
-  expect(ids.length).toBeGreaterThanOrEqual(2);
+  await expect(page.locator('img[src^="/api/media/"]')).toHaveCount(2);
 });
 
 for (const viewport of VIEWPORTS) {

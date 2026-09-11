@@ -94,8 +94,11 @@ export function PlanPhotos({
         </figure>
       ) : null}
 
+      {/* Galeria em uma coluna no celular: quatro alvos de 44px não cabem em
+          meia largura de 320px, e encolher o alvo não é opção. Foto grande no
+          telefone também é o que o design system pede. */}
       {resto.length > 0 ? (
-        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {resto.map((photo) => (
             <li key={photo.id} className="flex flex-col gap-2">
               <div className="border-border-subtle relative aspect-square w-full overflow-hidden rounded-md border">
@@ -103,7 +106,7 @@ export function PlanPhotos({
                   mediaId={photo.id}
                   alt={`Foto de ${planTitle}`}
                   variant="thumb"
-                  sizes="(min-width: 640px) 12rem, 45vw"
+                  sizes="(min-width: 1024px) 14rem, (min-width: 640px) 45vw, 92vw"
                 />
               </div>
               <PhotoActions
