@@ -27,7 +27,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           "fixed top-1/2 left-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
-          "border-border-subtle bg-surface flex-col gap-4 rounded-lg border p-6",
+          "border-border-subtle bg-surface max-h-[85dvh] flex-col gap-5 overflow-y-auto rounded-lg border p-6",
           "shadow-[var(--shadow-overlay)]",
           "data-[state=open]:animate-[dialog-in_var(--duration-enter)_var(--ease-enter)]",
           className,

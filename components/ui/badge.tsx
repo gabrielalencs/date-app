@@ -24,8 +24,13 @@ export function Badge({
   return (
     <span
       className={cn(
-        "bg-surface-sunken inline-flex items-center gap-1.5 rounded-full px-2.5 py-1",
-        "type-label text-text",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1",
+        "text-text text-xs font-medium",
+        tone === "positive"
+          ? "bg-sage-soft"
+          : tone === "accent"
+            ? "bg-blush-soft"
+            : "bg-surface-sunken",
         className,
       )}
     >

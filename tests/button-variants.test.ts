@@ -8,8 +8,9 @@ import {
 
 describe("resolveButtonSize", () => {
   it("força md nos preenchidos, porque rótulo branco sobre coral exige 19px (D-017)", () => {
-    expect(resolveButtonSize("primary", "sm")).toBe("md");
-    expect(resolveButtonSize("danger", "sm")).toBe("md");
+    expect(resolveButtonSize("accent", "sm")).toBe("md");
+    expect(resolveButtonSize("primary", "sm")).toBe("sm");
+    expect(resolveButtonSize("danger", "sm")).toBe("sm");
   });
 
   it("permite sm nos não preenchidos", () => {
@@ -25,7 +26,8 @@ describe("resolveButtonSize", () => {
 describe("isFilledVariant", () => {
   it("separa preenchimento sólido de borda e ghost", () => {
     expect(isFilledVariant("primary")).toBe(true);
-    expect(isFilledVariant("danger")).toBe(true);
+    expect(isFilledVariant("accent")).toBe(true);
+    expect(isFilledVariant("danger")).toBe(false);
     expect(isFilledVariant("secondary")).toBe(false);
     expect(isFilledVariant("ghost")).toBe(false);
   });
@@ -45,20 +47,20 @@ describe("buttonClasses", () => {
 
   it("pinta o primary com o token de acento, não com hex", () => {
     const classes = buttonClasses({ variant: "primary" });
-    expect(classes).toContain("bg-accent");
-    expect(classes).toContain("text-accent-fg");
+    expect(classes).toContain("bg-brand");
+    expect(classes).toContain("text-brand-fg");
     expect(classes).not.toMatch(/#[0-9a-f]{3,6}/i);
   });
 
   it("dá borda ao secondary e nenhum preenchimento ao ghost", () => {
     expect(buttonClasses({ variant: "secondary" })).toContain(
-      "border-border-strong",
+      "border-border-subtle",
     );
     expect(buttonClasses({ variant: "ghost" })).toContain("bg-transparent");
   });
 
   it("mantém o tamanho de 19px semibold no coral mesmo pedindo sm", () => {
-    const classes = buttonClasses({ variant: "primary", size: "sm" });
+    const classes = buttonClasses({ variant: "accent", size: "sm" });
     expect(classes).toContain("text-[1.1875rem]");
     expect(classes).toContain("font-semibold");
   });

@@ -19,11 +19,17 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "bg-surface-sunken flex flex-col items-center gap-4 rounded-lg px-6 py-12 text-center",
+        "bg-mist-soft flex flex-col items-center gap-5 rounded-lg px-6 py-10 text-center",
         className,
       )}
     >
-      <Icon aria-hidden="true" className="text-text-muted size-6" />
+      <span className="bg-surface grid size-14 place-items-center rounded-full">
+        <Icon
+          aria-hidden="true"
+          className="text-text size-6"
+          strokeWidth={1.5}
+        />
+      </span>
       <div className="flex flex-col gap-2">
         <p className="type-title text-text">{title}</p>
         <p className="type-body-s text-text-muted mx-auto max-w-[36ch]">

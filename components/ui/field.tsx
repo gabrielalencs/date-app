@@ -2,21 +2,19 @@ import {
   useId,
   type InputHTMLAttributes,
   type TextareaHTMLAttributes,
+  Children,
+  isValidElement,
+  type ReactNode,
 } from "react";
-
+import { type LucideIcon } from "lucide-react";
+import { DateSelect, type SelectOption } from "@/components/ui/select";
 import { cn } from "@/lib/cn";
 
-const CONTROL =
-  "w-full min-h-11 rounded-sm border bg-surface px-3 py-2 type-body text-text " +
-  "placeholder:text-text-muted transition-[opacity] duration-[var(--duration-micro)] " +
-  "disabled:cursor-not-allowed disabled:opacity-50";
-
-type FieldShellProps = {
+type FieldProps = {
   label: string;
   error?: string;
   hint?: string;
-  controlId: string;
-  children: React.ReactNode;
+  icon?: LucideIcon;
 };
 
 function FieldShell({
@@ -25,19 +23,23 @@ function FieldShell({
   hint,
   controlId,
   children,
-}: FieldShellProps) {
+}: FieldProps & { controlId: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={controlId} className="type-label text-text-muted">
+    <div className="flex min-w-0 flex-col gap-2.5">
+      <label
+        id={controlId + "-label"}
+        htmlFor={controlId}
+        className="type-label text-text-muted"
+      >
         {label}
       </label>
       {children}
       {error ? (
-        <p id={`${controlId}-error`} className="type-meta text-danger">
+        <p id={controlId + "-error"} className="type-meta text-danger">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${controlId}-hint`} className="type-meta text-text-muted">
+        <p id={controlId + "-hint"} className="type-meta text-text-muted">
           {hint}
         </p>
       ) : null}
@@ -45,39 +47,36 @@ function FieldShell({
   );
 }
 
-type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
-  label: string;
-  error?: string;
-  hint?: string;
-};
-
-export function Input({ label, error, hint, className, ...rest }: InputProps) {
+export function Input({
+  label,
+  error,
+  hint,
+  icon: Icon,
+  className,
+  ...rest
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & FieldProps) {
   const id = useId();
-
   return (
     <FieldShell label={label} error={error} hint={hint} controlId={id}>
-      <input
-        id={id}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={
-          error ? `${id}-error` : hint ? `${id}-hint` : undefined
-        }
-        className={cn(
-          CONTROL,
-          error ? "border-danger" : "border-border-strong",
-          className,
-        )}
-        {...rest}
-      />
+      <div className="field-frame" data-invalid={!!error}>
+        {Icon ? (
+          <span className="field-icon">
+            <Icon aria-hidden="true" className="size-4" strokeWidth={1.6} />
+          </span>
+        ) : null}
+        <input
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={
+            error ? id + "-error" : hint ? id + "-hint" : undefined
+          }
+          className={cn("field-control", className)}
+          {...rest}
+        />
+      </div>
     </FieldShell>
   );
 }
-
-type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> & {
-  label: string;
-  error?: string;
-  hint?: string;
-};
 
 export function Textarea({
   label,
@@ -86,24 +85,78 @@ export function Textarea({
   className,
   rows = 4,
   ...rest
-}: TextareaProps) {
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> & FieldProps) {
   const id = useId();
-
   return (
     <FieldShell label={label} error={error} hint={hint} controlId={id}>
-      <textarea
+      <div className="field-frame" data-invalid={!!error}>
+        <textarea
+          id={id}
+          rows={rows}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={
+            error ? id + "-error" : hint ? id + "-hint" : undefined
+          }
+          className={cn("field-control resize-y", className)}
+          {...rest}
+        />
+      </div>
+    </FieldShell>
+  );
+}
+
+/** Adapta as opções declarativas ao Select DATE, sem select nativo visível. */
+export function SelectField({
+  label,
+  error,
+  hint,
+  icon: Icon,
+  className,
+  children,
+  defaultValue,
+  ...rest
+}: FieldProps & {
+  name?: string;
+  defaultValue?: string;
+  disabled?: boolean;
+  required?: boolean;
+  className?: string;
+  children: ReactNode;
+  onValueChange?: (value: string) => void;
+}) {
+  const id = useId();
+  const options: SelectOption[] = Children.toArray(children).flatMap(
+    (child) => {
+      if (
+        !isValidElement<{
+          value?: string;
+          children?: ReactNode;
+          disabled?: boolean;
+        }>(child) ||
+        child.type !== "option"
+      )
+        return [];
+      return [
+        {
+          value: String(child.props.value ?? ""),
+          label: String(child.props.children ?? ""),
+          disabled: child.props.disabled,
+        },
+      ];
+    },
+  );
+  return (
+    <FieldShell label={label} error={error} hint={hint} controlId={id}>
+      <DateSelect
+        key={defaultValue}
         id={id}
-        rows={rows}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={
-          error ? `${id}-error` : hint ? `${id}-hint` : undefined
-        }
-        className={cn(
-          CONTROL,
-          "resize-y",
-          error ? "border-danger" : "border-border-strong",
-          className,
-        )}
+        labelId={id + "-label"}
+        descriptionId={error ? id + "-error" : hint ? id + "-hint" : undefined}
+        invalid={!!error}
+        options={options}
+        defaultValue={defaultValue}
+        className={className}
+        icon={Icon ? <Icon className="size-4" strokeWidth={1.6} /> : undefined}
         {...rest}
       />
     </FieldShell>

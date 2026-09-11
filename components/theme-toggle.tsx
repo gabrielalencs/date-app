@@ -19,7 +19,7 @@ export function ThemeToggle() {
     <div
       role="group"
       aria-label="Tema"
-      className="bg-surface-sunken flex items-center gap-1 rounded-md p-1"
+      className="bg-surface-soft border-border-subtle flex items-center gap-1 rounded-md border p-1"
     >
       {THEME_PREFERENCES.map((option) => {
         const { label, icon: Icon } = META[option];
@@ -34,9 +34,9 @@ export function ThemeToggle() {
             aria-pressed={active}
             onClick={() => setPreference(option)}
             className={cn(
-              "inline-grid size-11 place-items-center rounded-sm transition-opacity duration-[var(--duration-micro)]",
+              "inline-grid min-h-11 flex-1 place-items-center rounded-sm transition-opacity duration-[var(--duration-micro)]",
               active
-                ? "bg-surface text-text"
+                ? "bg-brand text-brand-fg"
                 : "text-text-muted hover:text-text",
             )}
           >

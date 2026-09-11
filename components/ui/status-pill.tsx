@@ -9,10 +9,10 @@ import {
 } from "@/lib/status";
 
 const TONE_CLASSES = {
-  muted: "text-text-muted",
-  neutral: "text-text",
-  dot: "text-text",
-  positive: "text-text",
+  muted: "bg-surface-sunken text-text-muted",
+  neutral: "bg-mist-soft text-text",
+  dot: "bg-blush-soft text-text",
+  positive: "bg-sage-soft text-text",
 } as const;
 
 const DOT_CLASSES = {
@@ -39,8 +39,8 @@ export function StatusPill({
       data-status={status}
       className={cn(
         // w-fit para a pill não esticar quando o pai é um flex column.
-        "bg-surface-sunken inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1",
-        "type-label",
+        "inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1",
+        "text-xs leading-relaxed font-medium",
         TONE_CLASSES[tone],
         className,
       )}

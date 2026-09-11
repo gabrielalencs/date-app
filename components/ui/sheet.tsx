@@ -30,7 +30,7 @@ export function SheetContent({
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[var(--scrim)] data-[state=open]:animate-[fade-in_var(--duration-standard)_var(--ease-standard)]" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col gap-4",
+          "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col gap-5 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[32rem] sm:rounded-lg sm:border",
           "border-border-subtle bg-surface rounded-t-lg border-t p-5",
           "pb-[calc(1.25rem+env(safe-area-inset-bottom))]",
           "shadow-[var(--shadow-overlay)]",

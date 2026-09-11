@@ -5,19 +5,29 @@
 
 /* Única fonte de verdade de cor do projeto. Nenhum componente repete hex. */
 :root {
-  --bg: #f6ede4;
+  --bg: #fbf7f2;
   --surface: #ffffff;
-  --surface-sunken: #efe4d7;
-  --border: rgb(30 45 61 / 0.12);
+  --surface-sunken: #f2e9e1;
+  --surface-soft: #f7f3ee;
+  --sage-soft: #e5ebe1;
+  --mist-soft: #e7edf0;
+  --blush-soft: #f7e6dd;
+  --taupe-soft: #ece2da;
+  --brand: #1e2d3d;
+  --brand-hover: #31495b;
+  --brand-fg: #ffffff;
+  --on-photo: #ffffff;
+  --photo-shade: rgb(14 23 29 / 0.76);
+  --border: #e4ddd6;
   --border-strong: rgb(30 45 61 / 0.22);
   --text: #1e2d3d;
-  --text-muted: #5c6b78;
+  --text-muted: #586673;
   --accent: #e76f51;
   --accent-hover: #d65c3e;
   --accent-fg: #ffffff;
   --positive: #7e9673;
   --danger: #9e3b2e;
-  --ring: rgb(231 111 81 / 0.45);
+  --ring: #637e8e;
 
   --shadow-raised: 0 2px 6px rgb(0 0 0 / 0.08);
   --shadow-overlay: 0 16px 48px rgb(0 0 0 / 0.24);
@@ -35,16 +45,24 @@
   --surface: #15232c;
   /* No escuro, afundado é mais claro que o fundo: não há espaço abaixo do quase-preto. */
   --surface-sunken: #1c2a34;
+  --surface-soft: #192831;
+  --sage-soft: #283b35;
+  --mist-soft: #273c49;
+  --blush-soft: #42332f;
+  --taupe-soft: #373531;
+  --brand: #c4d4dd;
+  --brand-hover: #e0e9ed;
+  --brand-fg: #15232c;
   --border: rgb(241 231 220 / 0.12);
   --border-strong: rgb(241 231 220 / 0.22);
   --text: #f1e7dc;
   --text-muted: #9aaab6;
   --accent: #e76f51;
-  --accent-hover: #f0805f;
+  --accent-hover: #d65c3e;
   --accent-fg: #ffffff;
   --positive: #a7b89f;
-  --danger: #c4574a;
-  --ring: rgb(231 111 81 / 0.55);
+  --danger: #ee9f92;
+  --ring: #a6bfcd;
 
   --scrim: rgb(5 10 13 / 0.66);
 }
@@ -53,6 +71,15 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
+  --color-surface-soft: var(--surface-soft);
+  --color-sage-soft: var(--sage-soft);
+  --color-mist-soft: var(--mist-soft);
+  --color-blush-soft: var(--blush-soft);
+  --color-taupe-soft: var(--taupe-soft);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-on-photo: var(--on-photo);
   --color-border-subtle: var(--border);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
@@ -71,11 +98,11 @@
   --shadow-overlay: var(--shadow-overlay);
 }
 
-/* Sobrescreve a escala default do Tailwind: nada acima de 14px de raio. */
+/* R1: campos precisos, superfícies editoriais com mais respiro. */
 @theme {
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
@@ -116,6 +143,27 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  button,
+  summary,
+  select {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
   /* Anel de foco definido uma única vez; componente nunca remove outline. */
   :focus-visible {
     outline: 2px solid var(--ring);
@@ -123,8 +171,8 @@
   }
 
   ::selection {
-    background-color: var(--accent);
-    color: var(--accent-fg);
+    background-color: var(--brand);
+    color: var(--brand-fg);
   }
 }
 
@@ -202,25 +250,198 @@
     }
   }
 
-  /* "Memórias" com tracking de 0.12em não cabe numa coluna de 66px a 320px.
-     O tracking da marca volta a partir de 360px. Conflito reportado. */
+  /* Navegação em caixa normal, sem tracking extra, inclusive em 320px. */
   .type-label-nav {
     font-size: 0.75rem;
     line-height: 1.4;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
     font-weight: 500;
-  }
-
-  @media (max-width: 359px) {
-    .type-label-nav {
-      letter-spacing: 0;
-    }
   }
 
   /* Número que alinha em coluna: preço, data, contagem. */
   .tnum {
     font-feature-settings: "tnum" 1;
+  }
+}
+
+@layer components {
+  .page-stack {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2rem, 4vw, 3rem);
+  }
+  .panel {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: clamp(1.25rem, 3vw, 2rem);
+  }
+  .section-heading {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  .editorial-rule {
+    display: block;
+    width: 2.75rem;
+    height: 3px;
+    border-radius: 100%;
+    background: var(--accent);
+    transform: rotate(-7deg);
+  }
+  .photo-story {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--mist-soft);
+    color: var(--on-photo);
+  }
+  .photo-story::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(0deg, var(--photo-shade), transparent 85%);
+  }
+  .photo-story > img {
+    z-index: -2;
+  }
+  .field-frame {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+  }
+  .field-frame:focus-within {
+    border-color: var(--ring);
+    background: var(--surface);
+  }
+  .field-frame[data-invalid="true"] {
+    border-color: var(--danger);
+  }
+  .field-icon {
+    display: grid;
+    width: 3rem;
+    flex-shrink: 0;
+    align-self: stretch;
+    place-items: center;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+  }
+  .field-control {
+    width: 100%;
+    min-height: 3.25rem;
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    background: transparent;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .field-control::placeholder {
+    color: var(--text-muted);
+  }
+  .field-control:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .field-control[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+  .interactive-lift {
+    transition:
+      transform var(--duration-standard) var(--ease-standard),
+      opacity var(--duration-standard) var(--ease-standard);
+  }
+  .interactive-lift:active {
+    transform: scale(0.99);
+  }
+  .plan-art {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+  .plan-art > svg[data-horizon] {
+    position: absolute;
+    width: 100%;
+    bottom: 0;
+    left: 0;
+    opacity: 0.35;
+    z-index: -1;
+  }
+  .editor-disclosure > summary {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    list-style: none;
+  }
+  .editor-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+  .editor-disclosure[open] > summary {
+    margin-bottom: 1.5rem;
+  }
+  .editor-disclosure[open] > summary > svg:last-child {
+    transform: rotate(180deg);
+  }
+  .check-control,
+  .radio-control {
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: var(--surface);
+  }
+  .check-control:checked,
+  .radio-control:checked {
+    background: var(--brand);
+    border-color: var(--brand);
+  }
+  .check-control:checked::before {
+    content: "";
+    width: 5px;
+    height: 9px;
+    border: solid var(--brand-fg);
+    border-width: 0 2px 2px 0;
+    transform: translateY(-1px) rotate(45deg);
+  }
+  .radio-control {
+    border-radius: 50%;
+  }
+  .radio-control:checked::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--brand-fg);
+  }
+  .field-frame:hover:not(:has(:disabled)) {
+    border-color: var(--ring);
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .interactive-lift:hover {
+      transform: translateY(-2px);
+    }
+    .group:hover .photo-zoom {
+      transform: scale(1.015);
+    }
+  }
+  .photo-zoom {
+    transition: transform 500ms var(--ease-enter);
   }
 }
 
@@ -242,5 +463,8 @@
     transition-duration: 100ms !important;
     animation: none !important;
     scroll-behavior: auto !important;
+  }
+  .interactive-lift:active {
+    transform: none;
   }
 }

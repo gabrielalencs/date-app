@@ -1,41 +1,44 @@
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant =
+  "primary" | "accent" | "secondary" | "outline" | "ghost" | "danger";
 export type ButtonSize = "md" | "sm";
 
-/** Variantes de preenchimento sólido, onde o rótulo é branco sobre cor. */
+/** Variantes de preenchimento sólido, com foreground próprio por tema. */
 export function isFilledVariant(variant: ButtonVariant): boolean {
-  return variant === "primary" || variant === "danger";
+  return variant === "primary" || variant === "accent";
 }
 
 /**
  * D-017: rótulo branco sobre coral só a partir de 19px semibold, então botão
- * preenchido não tem tamanho pequeno. Pedir `sm` num preenchido é ignorado.
+ * accent não tem tamanho pequeno. Primary navy permite o tamanho sm.
  */
 export function resolveButtonSize(
   variant: ButtonVariant,
   size: ButtonSize = "md",
 ): ButtonSize {
-  return isFilledVariant(variant) ? "md" : size;
+  return variant === "accent" ? "md" : size;
 }
 
 const BASE =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-md " +
   "transition-[opacity,transform] duration-[var(--duration-micro)] ease-standard " +
-  "active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
+  "motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
 
 const SIZES: Record<ButtonSize, string> = {
-  // 19px/600 é o piso do rótulo sobre preenchimento coral.
-  md: "px-5 text-[1.1875rem] font-semibold",
+  md: "min-h-12 px-5 text-base font-medium",
   sm: "px-3 text-sm font-medium",
 };
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-accent-fg hover:bg-accent-hover",
+  primary: "bg-brand text-brand-fg hover:bg-brand-hover",
+  accent: "bg-accent text-accent-fg hover:bg-accent-hover",
   secondary:
-    "border border-border-strong bg-surface text-text hover:bg-surface-sunken",
+    "border border-border-subtle bg-surface-sunken text-text hover:bg-taupe-soft",
+  outline:
+    "border border-border-strong bg-surface text-text hover:bg-mist-soft",
   ghost: "bg-transparent text-text hover:bg-surface-sunken",
-  danger: "bg-danger text-accent-fg hover:opacity-90",
+  danger: "border border-danger bg-surface text-danger hover:bg-blush-soft",
 };
 
 export function buttonClasses(options: {
@@ -51,6 +54,7 @@ export function buttonClasses(options: {
     BASE,
     SIZES[size],
     VARIANTS[variant],
+    variant === "accent" && "text-[1.1875rem] font-semibold",
     options.fullWidth && "w-full",
     options.loading && "pointer-events-none opacity-70",
   );

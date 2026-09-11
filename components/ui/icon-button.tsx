@@ -14,7 +14,7 @@ type IconButtonProps = Omit<
 
 const VARIANTS = {
   ghost: "bg-transparent text-text hover:bg-surface-sunken",
-  solid: "bg-accent text-accent-fg hover:bg-accent-hover",
+  solid: "bg-brand text-brand-fg hover:bg-brand-hover",
 } as const;
 
 export function IconButton({
@@ -31,7 +31,7 @@ export function IconButton({
       className={cn(
         "inline-grid size-11 place-items-center rounded-md",
         "ease-standard transition-[opacity,transform] duration-[var(--duration-micro)]",
-        "active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+        "disabled:pointer-events-none disabled:opacity-50 motion-safe:active:scale-[0.98]",
         VARIANTS[variant],
         className,
       )}
