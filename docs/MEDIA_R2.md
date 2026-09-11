@@ -49,6 +49,8 @@ Antes de qualquer upload, no browser:
 - reencodar em **WebP**, qualidade em torno de 0.82;
 - gerar também uma miniatura de **640px** no maior lado.
 
+**Escada de qualidade.** Um WebP de 2000px a 0.82 quase sempre cabe no teto de 2 MB, mas não sempre. Em vez de recusar uma foto legítima, o cliente cai um degrau e tenta de novo: **0.82 → 0.7 → 0.58**. Três tentativas e para — reencodar até caber é loop disfarçado, e uma foto que não cabe a 0.58 tem um problema que qualidade não resolve.
+
 Duas saídas por foto: `full` e `thumb`. A miniatura existe porque uma grade de vinte ideias servindo a imagem cheia é inviável no celular.
 
 Reencodar descarta EXIF por construção — não existe etapa separada de limpeza de metadado, e não deve existir, porque etapa separada é etapa que alguém esquece.
@@ -97,7 +99,9 @@ A cada requisição ela resolve o `AuthorizedContext`, busca a linha escopada po
 
 Não se usa URL assinada de leitura. Uma URL assinada continua válida depois que a pessoa fecha a aba, é compartilhável por acidente, e muda a cada render — o que destrói cache e complica o `next/image`.
 
-A rota aceita `?v=thumb` para a miniatura. Cabeçalho `Cache-Control: private, max-age=31536000, immutable`: a chave é um uuid e o conteúdo nunca muda, e `private` impede cache compartilhado.
+A rota aceita `?v=thumb` para a miniatura. Cabeçalho `Cache-Control: private, max-age=604800, immutable`: a chave é um uuid e o conteúdo nunca muda, e `private` impede cache compartilhado.
+
+Sete dias, e não um ano: `immutable` está certo, mas em celular o cache é despejado muito antes disso, então o prazo longo não comprava desempenho — só alargava a janela em que a foto fica no disco depois do logout.
 
 `next/image` com `unoptimized`, porque as dimensões já foram decididas no cliente e o otimizador da Vercel não carrega o cookie da pessoa ao buscar a origem. Sem `remotePatterns` — o host do R2 não precisa ser conhecido pelo browser.
 
@@ -126,7 +130,9 @@ Guarda espelhando a do banco: se `NEON_BRANCH` for `development` e o bucket conf
 
 O token de desenvolvimento é limitado ao bucket de desenvolvimento. O de produção só existe no B12.
 
-CORS do bucket restrito às origens reais — `http://localhost:3000` e, no B12, o domínio do DATE. Nunca `*`, nem temporariamente, nem "só para testar".
+CORS do bucket restrito às origens reais — `http://localhost:3000`, `http://localhost:3100` e, no B12, o domínio do DATE. Nunca `*`, nem temporariamente, nem "só para testar".
+
+A 3100 é a porta do `webServer` do Playwright (`playwright.config.ts`). Sem ela, a verificação em navegador falha por CORS e o diagnóstico aponta para o lugar errado.
 
 Variáveis, todas server-only:
 

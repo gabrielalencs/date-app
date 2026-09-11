@@ -188,7 +188,7 @@ test("a rota serve a imagem com o cabeçalho de cache privado", async ({
   expect(resposta.status()).toBe(200);
   expect(resposta.headers()["content-type"]).toBe("image/webp");
   expect(resposta.headers()["cache-control"]).toBe(
-    "private, max-age=31536000, immutable",
+    "private, max-age=604800, immutable",
   );
   expect(resposta.headers()["x-content-type-options"]).toBe("nosniff");
 });

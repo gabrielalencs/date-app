@@ -26,6 +26,13 @@ Leia `CLAUDE.md`, `DATE_PROJECT_SPEC.md`, `docs/DEFINITION_OF_DONE.md` e `docs/D
 
 **Segredos.** Varra código, testes, docs, fixtures, `.env.example` e histórico de commits por credencial real, connection string, token ou chave. Varra por variável sensível com prefixo `NEXT_PUBLIC_`.
 
+**Cruzamento de variáveis de ambiente.** Item fixo, a rodar sempre — não só quando alguém desconfia. Extraia todo `process.env.X` do código e compare com as chaves do `.env.example`, nos dois sentidos:
+
+- variável **lida pelo código e ausente do `.env.example`** é armadilha para a próxima máquina, que vai descobrir o buraco em runtime;
+- variável **no `.env.example` e lida por ninguém** é instrução obsoleta: alguém vai preenchê-la, achar que importa, e manter sincronizada uma coisa morta.
+
+Os dois casos apareceram no B5 (`DATE_DEV_ORIGIN` e `DATE_TEST_PASSWORD`) e nenhum dos dois quebrava teste. As duas listas têm que dar diferença zero.
+
 **Autorização.** Toda query e mutation de entidade atravessa o helper central e é escopada por workspace? Existe rota, action ou handler que consulta o banco sem validar sessão e workspace? Esse é o risco de IDOR e o achado mais grave possível neste projeto.
 
 **Ambiente.** Existe algum ponto onde o código pode acabar falando com Neon `production` ou com `date-media-prod` a partir do localhost?

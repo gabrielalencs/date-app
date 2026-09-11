@@ -4,6 +4,30 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-066 — Cache de mídia reduzido para 7 dias
+**11/09/2026.** `immutable` permanece, porque a chave é uuid e o conteúdo nunca muda. O prazo cai de um ano para `max-age=604800`: em celular o cache é despejado muito antes disso, então o ano não comprava desempenho — só alargava a janela em que a foto fica no disco depois do logout. Revisa a seção 6 do `docs/MEDIA_R2.md`.
+
+### D-065 — Limite de opções e duplicata vivem na aplicação
+**11/09/2026.** O teto de 10 opções por plano e a recusa de opção duplicada são validados na camada de dados, não no schema. São limites de usabilidade, e virar constraint significaria migration para mudar de ideia. Contraste deliberado com o único parcial de `is_confirmed`, que é invariante de correção — duas datas oficiais seriam um estado impossível — e por isso vive no banco.
+
+### D-064 — Desconfirmar só a partir de `planned`
+**11/09/2026.** De `reserved` não se desconfirma: existe reserva presa àquela data, e desfazer sem tratar a reserva deixaria os dois em desacordo sobre o que está marcado. Quem quiser trocar a data de um plano reservado volta para `planned` de forma explícita, e aí desconfirma. A recusa é da camada de dados, não da interface.
+
+### D-063 — Transições automáticas de status na mesma transação
+**11/09/2026.** Criar a primeira opção move `idea` → `deciding`; confirmar move `deciding` → `planned`; desconfirmar volta para `deciding`. Sempre na transação da escrita que as causou, e sempre emitindo evento — ninguém descobre depois que o status mudou sozinho e não ficou registrado. Acrescenta também a pré-condição que o `DATA_ACCESS.md` antecipava: `deciding` → `planned` manual exige opção confirmada, porque sem data confirmada `planned` é um estado que mente.
+
+### D-062 — Os dois votos são sempre visíveis
+**11/09/2026.** Esconder o voto da outra pessoa até você votar evitaria ancoragem, que é um efeito real. Mas são duas pessoas decidindo juntas, e a transparência é o produto: ver que a outra pessoa marcou "talvez" é informação para conversar, não viés a eliminar. Decisão consciente, registrada para não ser relida como omissão.
+
+### D-061 — `all_day` é dia do calendário, não instante
+**11/09/2026.** Guardado como a meia-noite daquele dia em `America/Sao_Paulo` convertida para UTC, e renderizado de volta no mesmo fuso, o que devolve o mesmo dia. Comparação de dia civil — "é hoje?", "é futuro?" — nunca por aritmética de milissegundos: os dois lados vão para o fuso do app e comparam-se os campos de calendário.
+
+### D-060 — Testes de tempo rodam em três fusos
+**11/09/2026.** `TZ=UTC`, `TZ=America/New_York` e o fuso local. Teste de data que só roda no fuso de quem escreveu não testa nada — e este projeto é escrito em São Paulo e roda na Vercel em UTC, que é exatamente o par que produz o "sábado vira sexta". O Node 24 honra `TZ` no Windows, mas o Git Bash descarta a variável para zonas IANA nomeadas, então o runner é um script Node que passa `TZ` ao processo filho em vez de uma linha de shell.
+
+### D-059 — `lib/datetime.ts` é o único dono do tempo
+**11/09/2026.** Todo formato e toda interpretação de data e hora passam por ele, com `America/Sao_Paulo` declarado explicitamente. Fora dele o ESLint proíbe `toLocaleDateString`, `toLocaleTimeString`, `toLocaleString`, `Intl.DateTimeFormat` e os leitores locais de `Date` (`getHours`, `getDate`, `getDay`, `getMonth`, `getFullYear`, …). Mesma forma do D-037 e pelo mesmo motivo: formatar sem declarar o fuso funciona na máquina de quem escreve e quebra em produção, e nenhum teste local acusa. Convenção em documento não sobrevive a seis blocos de distância.
+
 ### D-058 — Código de produção não muda por teste vermelho
 **11/09/2026.** Enquanto não estiver provado que o teste mede o que se pensa que ele mede, o vermelho é hipótese sobre o teste, não diagnóstico do produto. No B4 o `proxy.ts` foi alterado com base num teste que estava clicando no botão errado; a alteração foi revertida depois da verificação. Primeiro prova-se o instrumento, depois se toca no código.
 

@@ -19,7 +19,7 @@ import { NotFoundError } from "@/lib/errors";
  */
 export const dynamic = "force-dynamic";
 
-const CACHE = "private, max-age=31536000, immutable";
+const CACHE = "private, max-age=604800, immutable";
 
 function notFound(): Response {
   return new Response("Imagem não encontrada.", {
