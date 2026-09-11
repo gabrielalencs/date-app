@@ -91,6 +91,21 @@ test("métodos de escrita não exportados respondem 405", async ({ request }) =>
   }
 });
 
+test("a vitrine só existe sob a variável, e sem ela é 404 de verdade", async ({
+  request,
+}) => {
+  const habilitada = process.env.DATE_ENABLE_KITCHEN_SINK === "true";
+  const response = await request.get("/kitchen-sink", { maxRedirects: 0 });
+
+  if (habilitada) {
+    // Quando existe, precisa abrir sem sessão — é o que o pnpm shots usa.
+    expect(response.status()).toBe(200);
+  } else {
+    // Sem a variável não é rota protegida: some (D-034).
+    expect(response.status()).toBe(404);
+  }
+});
+
 test("assets estáticos continuam públicos, sem passar por redirect", async ({
   request,
 }) => {

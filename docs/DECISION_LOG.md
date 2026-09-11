@@ -4,8 +4,26 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-046 — O Neon Auth valida a origem, e `127.0.0.1` não é `localhost`
+**10/09/2026.** O serviço responde 403 `Invalid origin` para `http://127.0.0.1:3100` e 200 para `http://localhost:3100`, na mesma porta, com a mesma credencial. Sem `Origin` também é 403. O `baseURL` do Playwright passou a usar `localhost`, senão o teste live acusaria login quebrado com a aplicação correta. Consequência para o B12: o domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do primeiro deploy.
+
+### D-045 — Provisionamento exige header `Origin`
+**10/09/2026.** O `sign-up/email` recusa a chamada com "Origin header is required when callbackURL is not an absolute URL". O SDK preenche isso a partir do contexto da requisição; num script não existe requisição, então vai a origem local, sobrescritível por `DATE_DEV_ORIGIN`.
+
+### D-044 — Credencial do teste live tem fonte única
+**10/09/2026.** O `test:auth` deriva a senha de `DATE_DEV_USER_CREDENTIALS`, a mesma variável que criou a conta, e usa `DATE_TEST_EMAIL` apenas para escolher qual das duas contas usar. Manter uma segunda variável de senha criava dessincronia silenciosa: o teste falhava por senha divergente e não por defeito do produto.
+
 ### D-043 — `NEON_AUTH_BASE_URL` é dado sensível
 **10/09/2026.** Fica demonstrado que o serviço do Neon aceita cadastro de qualquer origem que conheça a base URL — é exatamente o que o script de provisionamento explora. A `NEON_AUTH_BASE_URL` passa a ser tratada como dado sensível, e o webhook `user.before_create` deixa de ser item de checklist do B12 para ser **pré-condição do primeiro deploy**. A allowlist da nossa rota protege o nosso domínio; ela não protege o serviço.
+
+### D-036 — Provisionamento de development por `DATE_DEV_AUTH_USERS`
+**10/09/2026.** O bootstrap recebe os ids das contas por variável, sem usar a API de admin do provedor — que passaria pela mesma fronteira que a allowlist fecha. Produção terá caminho próprio no B12.
+
+### D-035 — Login desktop em split editorial
+**10/09/2026.** Sem fotografia até o B5, quem sustenta a composição é a Fraunces. Um formulário centrado em 1280px de vazio lia como template genérico, que a verificação do bloco manda corrigir.
+
+### D-034 — `/kitchen-sink` existe apenas sob `DATE_ENABLE_KITCHEN_SINK`
+**10/09/2026.** Sem a variável a rota não existe — `notFound()` de verdade, não rota pública protegida. Tirá-la do `PUBLIC_PREFIXES` quebraria o `pnpm shots`, então a entrada permanece lá: quando a rota existe, ela precisa abrir sem sessão. A variável fica no `.env.local` e nunca vai para a Vercel.
 
 ### D-042 — Contas de development criadas por chamada direta ao provedor
 **10/09/2026.** O console do Neon cria usuário sem senha, e as APIs `admin/*` exigem sessão autenticada — que a conta sem senha não consegue obter. Impasse resolvido chamando `sign-up/email` do serviço diretamente, de script local guardado por branch, fora da aplicação. A allowlist de `lib/auth/http-policy.ts` não muda: o cadastro continua inalcançável pelo produto. O script não toca no banco; ligar conta a profile e membership segue sendo do `auth:bootstrap-dev`.

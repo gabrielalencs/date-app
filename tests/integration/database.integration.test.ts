@@ -96,7 +96,16 @@ describe("banco Neon development semeado", () => {
         schema.profiles,
         eq(schema.workspaceMembers.profileId, schema.profiles.id),
       )
-      .where(eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID));
+      /* Escopado aos ids do seed de propósito: desde o B3 o workspace também
+         tem as contas Auth reais, que são legítimas e não podem reprovar a
+         fixture. O que se afirma é que os dois profiles do seed continuam
+         ligados, não que a tabela inteira tenha só eles. */
+      .where(
+        and(
+          eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID),
+          inArray(schema.workspaceMembers.profileId, [...PROFILE_IDS]),
+        ),
+      );
 
     expect(workspace).toEqual([{ id: WORKSPACE_ID }]);
     expect(profiles.map(({ id }) => id).sort()).toEqual(

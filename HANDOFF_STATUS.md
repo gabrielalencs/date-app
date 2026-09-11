@@ -14,6 +14,10 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - B2 concluído: schema Drizzle com 14 tabelas e migration inicial versionada
 - Migration inicial aplicada somente na branch Neon `development`
 - Seed fictício idempotente executado duas vezes e validado por teste de integração
+- B3 concluído em `development`: sessão, login, logout e autorização por workspace
+- Duas contas de development provisionadas e autorizadas, ligadas a `profiles` e `workspace_members` — a do proprietário como `owner`, a outra como `member`
+- Signup público bloqueado na fronteira HTTP da aplicação por allowlist positiva, provado por teste
+- Login, sessão, contexto autorizado e logout validados contra o Neon Auth real (`pnpm test:auth`)
 - Ambiente local já preparado e atualizado:
   - Git
   - Node.js
@@ -38,10 +42,12 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 ## Ainda NÃO concluído
 
 - Vercel ainda precisa ser conectada/deployada.
-- Auth e autorização do B3 ainda não foram implementados.
-- Não existem credenciais R2 da aplicação.
-- Os dois usuários finais ainda não devem ser criados/ativados até o fluxo de auth estar implementado e testado.
-- Não há CRUD ou outra UI de produto implementada além do app shell e da kitchen sink do design system.
+- Não existem credenciais R2 da aplicação; mídia e upload são do B5.
+- Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
+- O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
+- `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
+- Não há CRUD ou outra UI de produto implementada além do app shell, da tela de login e da vitrine do design system.
+- Próximo bloco: **B4 — CRUD do DATE**.
 
 ## Regra de ambientes
 
