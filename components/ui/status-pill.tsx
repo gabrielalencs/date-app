@@ -34,6 +34,9 @@ export function StatusPill({
 
   return (
     <span
+      /* O rótulo é ambíguo para teste e para leitor automático: "Decidindo"
+         também é o nome de um botão de transição. O status cru resolve. */
+      data-status={status}
       className={cn(
         // w-fit para a pill não esticar quando o pai é um flex column.
         "bg-surface-sunken inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1",

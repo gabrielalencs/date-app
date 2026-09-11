@@ -330,19 +330,26 @@ for (const largura of LARGURAS) {
       `scroll horizontal: ${medidas.scrollWidth} > ${medidas.clientWidth}`,
     ).toBe(false);
 
-    // Foco visível: o anel não pode ter sido removido sem substituto.
-    const foco = page.getByRole("button", { name: "Remover foto" }).first();
-    await foco.focus();
-    const anel = await foco.evaluate((el) => {
-      const s = getComputedStyle(el);
+    /* Foco medido por TECLADO e não por .focus() programático: em Chromium um
+       botão só casa com :focus-visible depois de interação de teclado, então
+       focar por script mediria a ausência do anel em vez da presença dele. */
+    await page.keyboard.press("Tab");
+
+    const anel = await page.evaluate(() => {
+      const alvo = document.activeElement as HTMLElement | null;
+      if (!alvo || alvo === document.body) return null;
+      const s = getComputedStyle(alvo);
       return {
-        outlineWidth: s.outlineWidth,
+        elemento: alvo.tagName.toLowerCase(),
         outlineStyle: s.outlineStyle,
+        outlineWidth: s.outlineWidth,
         boxShadow: s.boxShadow,
       };
     });
+
+    expect(anel, "nada recebeu foco ao pressionar Tab").not.toBeNull();
     expect(
-      anel.outlineStyle !== "none" || anel.boxShadow !== "none",
+      anel!.outlineStyle !== "none" || anel!.boxShadow !== "none",
       `foco sem indicação visível: ${JSON.stringify(anel)}`,
     ).toBe(true);
 

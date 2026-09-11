@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Pool } from "@neondatabase/serverless";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 import * as schema from "@/db/schema/index.ts";
@@ -98,3 +98,60 @@ export async function limparMidiaDosPlanos(
 }
 
 export { schema };
+
+export type SnapshotDePlanos = {
+  restaurar: () => Promise<void>;
+};
+
+/**
+ * Fotografa o estado dos planos que o teste vai mexer, e devolve como voltar.
+ *
+ * Existe porque a primeira versão dos testes de data apagava as opções do seed
+ * e forçava o status para `idea` — o que quebrava o
+ * `database.integration.test.ts`, que afirma que o seed cobre os seis status.
+ * É a mesma armadilha do `test:crud` do B4: limpar não é apagar tudo, é
+ * devolver o que estava.
+ */
+export async function snapshotPlanos(
+  planIds: readonly string[],
+): Promise<SnapshotDePlanos> {
+  const db = fixtureDb();
+
+  const statusOriginal = await db
+    .select({ id: schema.plans.id, status: schema.plans.status })
+    .from(schema.plans)
+    .where(inArray(schema.plans.id, [...planIds]));
+
+  const opcoesOriginais = await db
+    .select({ id: schema.planDateOptions.id })
+    .from(schema.planDateOptions)
+    .where(inArray(schema.planDateOptions.planId, [...planIds]));
+
+  const conhecidas = new Set(opcoesOriginais.map((linha) => linha.id));
+
+  return {
+    async restaurar() {
+      const agora = await db
+        .select({ id: schema.planDateOptions.id })
+        .from(schema.planDateOptions)
+        .where(inArray(schema.planDateOptions.planId, [...planIds]));
+
+      const criadas = agora
+        .map((linha) => linha.id)
+        .filter((id) => !conhecidas.has(id));
+
+      if (criadas.length > 0) {
+        await db
+          .delete(schema.planDateOptions)
+          .where(inArray(schema.planDateOptions.id, criadas));
+      }
+
+      for (const plano of statusOriginal) {
+        await db
+          .update(schema.plans)
+          .set({ status: plano.status })
+          .where(eq(schema.plans.id, plano.id));
+      }
+    },
+  };
+}

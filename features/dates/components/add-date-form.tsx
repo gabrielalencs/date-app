@@ -30,6 +30,23 @@ export function AddDateForm({ planId }: { planId: string }) {
   const [aberto, setAberto] = useState(false);
   const [diaInteiro, setDiaInteiro] = useState(false);
 
+  /* Fecha ao salvar. Deixar aberto com os valores antigos faria a tela parecer
+     que não salvou, e o botão de sugerir some enquanto o formulário ocupa o
+     lugar dele. Fechar também limpa os campos, porque desmonta.
+
+     Ajuste durante a renderização, e não em efeito: é o padrão que o React
+     documenta para reagir a uma mudança de estado externo, e evita o render
+     extra com a tela na posição errada. */
+  const [ultimoResultado, setUltimoResultado] = useState(state);
+
+  if (state !== ultimoResultado) {
+    setUltimoResultado(state);
+    if (state.ok) {
+      setAberto(false);
+      setDiaInteiro(false);
+    }
+  }
+
   if (!aberto) {
     return (
       <Button

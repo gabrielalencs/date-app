@@ -25,7 +25,11 @@ import { InvalidTransitionError } from "@/lib/plan-status";
  * `lib/datetime.ts`, que é o único módulo autorizado a interpretar isso
  * (D-059). Nada aqui monta `Date` a partir de string por conta própria.
  */
-export type ActionState = { error?: string };
+export type ActionState = {
+  error?: string;
+  /** Sinaliza sucesso para a interface fechar o formulário. */
+  ok?: boolean;
+};
 
 const EMPTY: ActionState = {};
 
@@ -95,7 +99,7 @@ export async function createDateOptionAction(
   }
 
   revalidatePlan(planId);
-  return EMPTY;
+  return { ok: true };
 }
 
 const voteSchema = z.object({
