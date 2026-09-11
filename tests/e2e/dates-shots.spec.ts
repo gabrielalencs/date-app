@@ -2,9 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { expect, test, type Page } from "@playwright/test";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
+import { signInForFeature } from "./feature-session";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";
 import type { VoteValue } from "@/lib/consensus";
 import {
+  prepareOwnedPlans,
+  removeOwnedPlans,
   closeFixtureDb,
   fixtureDb,
   schema,
@@ -31,9 +34,9 @@ const account =
 const WORKSPACE = "11111111-1111-4111-8111-111111111111";
 const AUTOR = "seed_profile_alex";
 
-const PLANO_SEM_DATA = "22222222-0000-4000-8000-000000000001";
-const PLANO_DUAS = "22222222-0000-4000-8000-000000000003";
-const PLANO_CINCO = "22222222-0000-4000-8000-000000000004";
+const PLANO_SEM_DATA = crypto.randomUUID();
+const PLANO_DUAS = crypto.randomUUID();
+const PLANO_CINCO = crypto.randomUUID();
 const PLANOS = [PLANO_SEM_DATA, PLANO_DUAS, PLANO_CINCO] as const;
 
 const VIEWPORTS = [
@@ -45,13 +48,7 @@ const VIEWPORTS = [
 const THEMES: readonly ResolvedTheme[] = ["light", "dark"];
 
 async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
-  });
+  await signInForFeature(page, account);
 }
 
 /** Datas futuras e estáveis, para a captura não mudar de mês a cada execução. */
@@ -62,13 +59,14 @@ function diaDeCaptura(indice: number): Date {
 
 let snapshot: SnapshotDePlanos;
 
-/** Devolve os planos ao estado do seed, em vez de apagar tudo e forçar `idea`. */
+/** Restaura as fixtures próprias entre as capturas. */
 async function limpar(): Promise<void> {
   await snapshot.restaurar();
 }
 
 test.beforeAll(async () => {
   const db = fixtureDb();
+  await prepareOwnedPlans(PLANOS);
   snapshot = await snapshotPlanos(PLANOS);
   await limpar();
 
@@ -161,6 +159,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await limpar();
+  await removeOwnedPlans(PLANOS);
   await closeFixtureDb();
 });
 

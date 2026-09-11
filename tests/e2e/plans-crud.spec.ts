@@ -22,7 +22,7 @@ async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
   await page.fill('input[name="email"]', account.email);
   await page.fill('input[name="password"]', account.password);
-  await page.click('button[type="submit"]');
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL((url) => new URL(url).pathname === "/", {
     timeout: 30_000,
   });
@@ -43,7 +43,8 @@ test.afterAll(async () => {
 async function criarPlano(page: Page, titulo: string): Promise<string> {
   await page.goto("/novo");
   await page.fill('input[name="title"]', titulo);
-  await page.selectOption('select[name="category"]', "cultura");
+  await page.getByRole("combobox", { name: "Categoria", exact: true }).click();
+  await page.getByRole("option", { name: "Cultura", exact: true }).click();
   // Seletor por nome: a sidebar tem um submit ("Sair") antes do main no DOM.
   await page.getByRole("button", { name: "Salvar ideia" }).click();
   await page.waitForURL(/\/planos\/[0-9a-f-]+$/, { timeout: 30_000 });
@@ -68,10 +69,27 @@ test("cria, aparece na lista, edita e muda de status", async ({ page }) => {
 
   // Editar persiste.
   await page.goto(`/planos/${id}`);
+  await page.getByText("Editar detalhes", { exact: true }).click();
+  const category = page.getByRole("combobox", {
+    name: "Categoria",
+    exact: true,
+  });
+  await expect(category).toContainText("Cultura");
+  await category.click();
+  await page.getByRole("option", { name: "Viagem", exact: true }).click();
+  const priority = page.getByRole("combobox", {
+    name: "Prioridade",
+    exact: true,
+  });
+  await priority.click();
+  await page.getByRole("option", { name: "Alta", exact: true }).click();
   await page.fill('input[name="city"]', "Campos do Jordão");
   await page.click('button:has-text("Salvar alterações")');
   await page.waitForTimeout(2500);
   await page.reload();
+  await page.getByText("Editar detalhes", { exact: true }).click();
+  await expect(category).toContainText("Viagem");
+  await expect(priority).toContainText("Alta");
   await expect(page.locator('input[name="city"]')).toHaveValue(
     "Campos do Jordão",
   );
@@ -80,7 +98,10 @@ test("cria, aparece na lista, edita e muda de status", async ({ page }) => {
   await page.click('button:has-text("Decidindo")');
   await page.waitForTimeout(2500);
   await page.reload();
-  await expect(page.getByText("DECIDINDO")).toBeVisible();
+  await expect(page.locator("[data-status]")).toHaveAttribute(
+    "data-status",
+    "deciding",
+  );
 
   // Arquivar tira da lista sem cancelar.
   await page.click('button:has-text("Arquivar")');

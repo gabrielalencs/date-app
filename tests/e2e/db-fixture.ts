@@ -99,6 +99,30 @@ export async function limparMidiaDosPlanos(
 
 export { schema };
 
+/** Planos exclusivos da execução: testes de interface nunca apagam fotos do seed. */
+export async function prepareOwnedPlans(ids: readonly string[]): Promise<void> {
+  const db = fixtureDb();
+  await db.insert(schema.plans).values(
+    ids.map((id, index) => ({
+      id,
+      workspaceId: "11111111-1111-4111-8111-111111111111",
+      createdBy: "seed_profile_alex",
+      title: `Plano de teste ${index + 1}`,
+      category: "cultura",
+      status: "idea" as const,
+    })),
+  );
+}
+
+export async function removeOwnedPlans(ids: readonly string[]): Promise<void> {
+  await limparMidiaDosPlanos(ids);
+  const db = fixtureDb();
+  await db
+    .delete(schema.activityEvents)
+    .where(inArray(schema.activityEvents.subjectId, [...ids]));
+  await db.delete(schema.plans).where(inArray(schema.plans.id, [...ids]));
+}
+
 export type SnapshotDePlanos = {
   restaurar: () => Promise<void>;
 };

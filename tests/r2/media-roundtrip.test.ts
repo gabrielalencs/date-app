@@ -27,13 +27,12 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
  * Fica fora do `pnpm test` de propósito — roda por `pnpm test:media`, e o
  * portão continua verde numa máquina sem credencial de R2.
  *
- * Usa um plano do seed no workspace A e limpa a mídia que cria. Nenhum plano é
- * criado: o `database.integration.test.ts` afirma que o workspace tem
- * exatamente os oito ids do seed.
+ * Usa um plano temporário próprio no workspace A e limpa o plano e a mídia
+ * ao terminar. Executar separadamente da suíte de contagem do seed.
  */
 const WORKSPACE_A = "11111111-1111-4111-8111-111111111111";
 const PROFILE_A = "seed_profile_alex";
-const PLANO = "22222222-0000-4000-8000-000000000002";
+const PLANO = crypto.randomUUID();
 
 const ctx: AuthorizedContext = {
   userId: PROFILE_A,
@@ -110,9 +109,17 @@ beforeAll(async () => {
 
   databaseModule = await import("@/db/client.ts");
   database = databaseModule.db;
+  await database.insert(schema.plans).values({
+    id: PLANO,
+    workspaceId: WORKSPACE_A,
+    createdBy: PROFILE_A,
+    title: "Teste R2 isolado",
+    category: "outro",
+  });
 });
 
 afterAll(async () => {
+  if (!database) return;
   for (const id of criadas) {
     await removeMedia(ctx, id).catch(() => {});
   }
@@ -132,6 +139,7 @@ afterAll(async () => {
     await deleteObjects([keys.full, keys.thumb]);
   }
 
+  await database.delete(schema.plans).where(eq(schema.plans.id, PLANO));
   await databaseModule?.closeDatabasePool();
 });
 

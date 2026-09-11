@@ -2,8 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";
-import { closeFixtureDb, limparMidiaDosPlanos } from "./db-fixture.ts";
-import { pngComExif } from "./exif-fixture.ts";
+import {
+  prepareOwnedPlans,
+  removeOwnedPlans,
+  closeFixtureDb,
+  limparMidiaDosPlanos,
+} from "./db-fixture.ts";
 
 /**
  * Capturas de `/ideias` e `/planos/[id]` com foto e sem foto, nas três larguras
@@ -27,9 +31,9 @@ const VIEWPORTS = [
 
 const THEMES: readonly ResolvedTheme[] = ["light", "dark"];
 
-/** Dois planos do seed: um ganha foto, o outro fica sem, na mesma grade. */
-const PLANO_COM_FOTO = "22222222-0000-4000-8000-000000000005";
-const PLANO_SEM_FOTO = "22222222-0000-4000-8000-000000000006";
+/** Dois planos temporários próprios: um ganha foto, o outro fica sem. */
+const PLANO_COM_FOTO = crypto.randomUUID();
+const PLANO_SEM_FOTO = crypto.randomUUID();
 
 async function signIn(page: Page): Promise<void> {
   await page.goto("/login");
@@ -42,23 +46,28 @@ async function signIn(page: Page): Promise<void> {
 }
 
 async function enviarFoto(page: Page): Promise<void> {
-  const bytes = await pngComExif("public/brand/icons/icon-512.png");
   const antes = await page.locator('img[src^="/api/media/"]').count();
 
-  await page.locator('input[type="file"]').setInputFiles({
-    name: "foto.png",
-    mimeType: "image/png",
-    buffer: bytes,
-  });
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(
+      antes === 0
+        ? "public/brand/photos/table.webp"
+        : "public/brand/photos/coast.webp",
+    );
 
   await expect(page.locator('img[src^="/api/media/"]')).toHaveCount(antes + 1, {
     timeout: 60_000,
   });
 }
 
+test.beforeAll(async () => {
+  await prepareOwnedPlans([PLANO_COM_FOTO, PLANO_SEM_FOTO]);
+});
+
 test.afterAll(async () => {
   // Linhas e objetos: a branch não guarda mídia de teste depois da captura.
-  await limparMidiaDosPlanos([PLANO_COM_FOTO]);
+  await removeOwnedPlans([PLANO_COM_FOTO, PLANO_SEM_FOTO]);
   await closeFixtureDb();
 });
 

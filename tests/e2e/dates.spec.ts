@@ -2,7 +2,10 @@ import { eq } from "drizzle-orm";
 import { expect, test, type Page } from "@playwright/test";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
+import { signInForFeature } from "./feature-session";
 import {
+  prepareOwnedPlans,
+  removeOwnedPlans,
   closeFixtureDb,
   fixtureDb,
   schema,
@@ -24,23 +27,17 @@ const account =
     (c) => c.email === (process.env.DATE_TEST_EMAIL ?? "").toLowerCase(),
   ) ?? credentials[0]!;
 
-const PLANO = "22222222-0000-4000-8000-000000000002";
-const PLANO_MEDIDAS = "22222222-0000-4000-8000-000000000003";
+const PLANO = crypto.randomUUID();
+const PLANO_MEDIDAS = crypto.randomUUID();
 const PLANOS = [PLANO, PLANO_MEDIDAS] as const;
 
 async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
-  });
+  await signInForFeature(page, account);
 }
 
 let snapshot: SnapshotDePlanos;
 
-/** Devolve os planos ao estado do seed, em vez de apagar tudo e forçar `idea`. */
+/** Restaura as fixtures próprias entre os casos. */
 async function limpar(): Promise<void> {
   await snapshot.restaurar();
 }
@@ -63,12 +60,14 @@ async function sugerir(page: Page, dia: string, hora?: string): Promise<void> {
 }
 
 test.beforeAll(async () => {
+  await prepareOwnedPlans(PLANOS);
   snapshot = await snapshotPlanos(PLANOS);
   await limpar();
 });
 
 test.afterAll(async () => {
   await limpar();
+  await removeOwnedPlans(PLANOS);
   await closeFixtureDb();
 });
 

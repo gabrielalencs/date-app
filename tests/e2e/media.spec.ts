@@ -4,6 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { buildObjectKeys } from "@/features/media/r2/object-key";
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import {
+  prepareOwnedPlans,
+  removeOwnedPlans,
   closeFixtureDb,
   fixtureDb,
   limparMidiaDosPlanos,
@@ -25,14 +27,13 @@ const account =
     (c) => c.email === (process.env.DATE_TEST_EMAIL ?? "").toLowerCase(),
   ) ?? credentials[0]!;
 
-/* Um plano do seed por teste. Compartilhar um só faria cada teste herdar as
+/* Um plano temporário por teste. Compartilhar um só faria cada teste herdar as
    fotos do anterior, e a contagem passaria a medir a ordem de execução. */
-const PLANO_EXIF = "22222222-0000-4000-8000-000000000004";
-const PLANO_CABECALHO = "22222222-0000-4000-8000-000000000007";
-/* Precisa ser um plano ABERTO: /ideias filtra por status aberto por padrão, e
-   o 008 do seed é `cancelled` — ele nunca apareceria na grade. */
-const PLANO_CAPA = "22222222-0000-4000-8000-000000000001";
-const PLANO_MEDIDAS = "22222222-0000-4000-8000-000000000003";
+const PLANO_EXIF = crypto.randomUUID();
+const PLANO_CABECALHO = crypto.randomUUID();
+/* A fixture nasce aberta: /ideias filtra por status aberto por padrão. */
+const PLANO_CAPA = crypto.randomUUID();
+const PLANO_MEDIDAS = crypto.randomUUID();
 const PLANOS_USADOS = [
   PLANO_EXIF,
   PLANO_CABECALHO,
@@ -42,9 +43,9 @@ const PLANOS_USADOS = [
 
 /* Workspace de fora, montado direto no banco: a rota precisa responder "não
    encontrado" para a mídia dele, e para isso ela precisa existir. */
-const WORKSPACE_FORA = "77777777-7777-4777-8777-777777777777";
-const PROFILE_FORA = "e2e_profile_fora";
-const PLANO_FORA = "88888888-8888-4888-8888-888888888888";
+const WORKSPACE_FORA = crypto.randomUUID();
+const PROFILE_FORA = "e2e_profile_" + crypto.randomUUID();
+const PLANO_FORA = crypto.randomUUID();
 let midiaDeFora = "";
 
 async function signIn(page: Page): Promise<void> {
@@ -82,6 +83,7 @@ async function enviarFoto(page: Page, bytes: Buffer): Promise<string> {
 
 test.beforeAll(async () => {
   const db = fixtureDb();
+  await prepareOwnedPlans(PLANOS_USADOS);
 
   await db
     .insert(schema.workspaces)
@@ -137,7 +139,7 @@ test.afterAll(async () => {
   const db = fixtureDb();
 
   // Linhas e objetos: apagar só as linhas encheria o bucket de órfão.
-  await limparMidiaDosPlanos(PLANOS_USADOS);
+  await removeOwnedPlans(PLANOS_USADOS);
 
   // Cascata leva plano, mídia e membership do workspace de fora.
   await db
@@ -243,9 +245,16 @@ test("a foto vira a capa e substitui a capa tipográfica no card", async ({
   await expect(noCard).toBeVisible();
 
   // Remove e a capa tipográfica volta.
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.goto(`/planos/${PLANO_CAPA}`);
   await page.getByRole("button", { name: "Remover foto" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Remover esta foto?" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Manter foto" }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("button", { name: "Remover foto" }).first().click();
+  await dialog
+    .getByRole("button", { name: "Remover foto", exact: true })
+    .click();
   await expect(page.locator('img[src^="/api/media/"]')).toHaveCount(0, {
     timeout: 30_000,
   });

@@ -37,11 +37,13 @@ test("login válido leva para a Home autenticada", async ({ page }) => {
   expect(new URL(page.url()).pathname).toBe("/");
   // A Home privada renderiza o shell, que /login não tem.
   await expect(
-    page.locator("nav[aria-label='Navegação principal']"),
-  ).toHaveCount(
-    await page.locator("nav[aria-label='Navegação principal']").count(),
+    page
+      .locator("nav:visible")
+      .getByRole("link", { name: "Início", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Olá, vocês dois.",
   );
-  await expect(page.locator("h1")).toContainText("Início");
 });
 
 test("a sessão sobrevive à navegação e o contexto resolve o workspace", async ({
@@ -74,7 +76,10 @@ test("logout invalida a sessão e / volta a exigir login", async ({ page }) => {
   await signIn(page);
 
   await page.goto("/perfil");
-  await page.click('button:has-text("Sair")');
+  await page
+    .locator("main")
+    .getByRole("button", { name: "Sair", exact: true })
+    .click();
   await page.waitForURL((url) => new URL(url).pathname === "/login", {
     timeout: 30_000,
   });
