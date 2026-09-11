@@ -2,22 +2,29 @@ import { Lightbulb } from "lucide-react";
 
 import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
+import { NextDate } from "@/features/dates/components/next-date";
+import { getNextConfirmedDate } from "@/features/dates/data/queries";
 import { PlanCard } from "@/features/plans/components/plan-card";
 import { countPlansByStatus, listPlans } from "@/features/plans/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { PLAN_STATUSES, statusLabel } from "@/lib/status";
 
 /**
- * Home mínima e real: o que existe hoje é ideia e contagem. "Próximo DATE" e
- * contagem regressiva exigem data confirmada, que é B6 — inventar dado para
- * preencher a tela seria pior que a tela honesta.
+ * Home. O "Próximo DATE" só aparece quando existe plano com data confirmada em
+ * dia civil não passado; sem isso a seção não existe, em vez de existir vazia.
+ *
+ * `now` é uma referência única, do servidor, usada por toda a formatação da
+ * página — dois relógios produziriam divergência de hidratação.
  */
 export default async function Page() {
   const ctx = await requireAuthorizedContext();
 
-  const [recentes, contagens] = await Promise.all([
+  const now = new Date();
+
+  const [recentes, contagens, proximo] = await Promise.all([
     listPlans(ctx, { status: "open", sort: "recent", limit: 6 }),
     countPlansByStatus(ctx),
+    getNextConfirmedDate(ctx, now),
   ]);
 
   const porStatus = new Map(
@@ -33,6 +40,8 @@ export default async function Page() {
         <span className="type-label text-text-muted">Olá</span>
         <h1 className="type-display-l text-text">Início</h1>
       </header>
+
+      {proximo ? <NextDate next={proximo} now={now} /> : null}
 
       {comAlgum.length > 0 ? (
         <section className="flex flex-col gap-4">

@@ -4,8 +4,9 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { activityEvents, plans } from "@/db/schema/index.ts";
+import { countConfirmedOptions } from "@/features/dates/data/mutations";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { assertTransition } from "@/lib/plan-status";
 import type { PlanStatus } from "@/lib/status";
 
@@ -126,6 +127,17 @@ export async function changePlanStatus(
 
     // Lança InvalidTransitionError em vez de virar no-op silencioso.
     assertTransition(current.status, nextStatus);
+
+    /* Pré-condição do B6 (D-063): planejado sem data confirmada é um estado
+       que mente. A leitura acontece dentro da mesma transação que já travou o
+       plano, então não há janela entre a checagem e a escrita. */
+    if (current.status === "deciding" && nextStatus === "planned") {
+      if ((await countConfirmedOptions(tx, ctx, planId)) === 0) {
+        throw new ValidationError(
+          "Confirme uma das datas antes de marcar o plano como planejado.",
+        );
+      }
+    }
 
     const [plan] = await tx
       .update(plans)

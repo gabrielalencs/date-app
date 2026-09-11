@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { PlanDates } from "@/features/dates/components/plan-dates";
+import { listPlanDateOptions } from "@/features/dates/data/queries";
 import { PlanPhotos } from "@/features/media/components/plan-photos";
 import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
@@ -23,7 +25,14 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     throw error;
   });
 
-  const photos = await listPlanMedia(ctx, plan.id);
+  const [photos, dateOptions] = await Promise.all([
+    listPlanMedia(ctx, plan.id),
+    listPlanDateOptions(ctx, plan.id),
+  ]);
+
+  /* Uma referência de agora, vinda do servidor, para a formatação não depender
+     do relógio do navegador e não divergir na hidratação. */
+  const now = new Date();
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,6 +50,12 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             planTitle={plan.title}
             photos={photos}
             coverMediaId={plan.coverMediaId}
+          />
+          <PlanDates
+            planId={plan.id}
+            planStatus={plan.status}
+            options={dateOptions}
+            now={now}
           />
           <EditPlanForm plan={plan} />
         </div>
