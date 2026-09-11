@@ -67,13 +67,44 @@ Todo `where` de entidade começa por `eq(tabela.workspaceId, ctx.workspaceId)`. 
 
 ### Escrita
 
-Nunca buscar por id e depois atualizar. O predicado de workspace vai **dentro** do UPDATE:
+Nunca buscar por id **sem trava** e depois atualizar. O predicado de workspace vai **dentro** do UPDATE:
 
 ```sql
 UPDATE plans SET ... WHERE id = $1 AND workspace_id = $2 RETURNING *
 ```
 
-Zero linhas retornadas é `NotFoundError`. Fazer `select` e depois `update` cria uma janela entre a checagem e a escrita, e a janela é o bug.
+Zero linhas retornadas é `NotFoundError`. Um `select` sem trava seguido de `update` cria uma janela entre a checagem e a escrita, e a janela é o bug.
+
+#### Exceção sancionada: `FOR UPDATE` dentro de transação (D-055)
+
+O proibido é a janela, não a leitura. Quando a escrita depende do estado atual — validar uma transição de status, conferir uma pré-condição, calcular a próxima `position` —, o caminho correto é ler **com trava de linha, dentro da mesma transação**:
+
+```ts
+await db.transaction(async (tx) => {
+  const [atual] = await tx
+    .select({ id: plans.id, status: plans.status })
+    .from(plans)
+    .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
+    .for("update")
+    .limit(1);
+
+  if (!atual) throw new NotFoundError("Plano");
+  assertTransition(atual.status, proximo);
+
+  await tx
+    .update(plans)
+    .set({ status: proximo })
+    .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)));
+});
+```
+
+A linha fica travada da leitura até o commit, então não existe janela para outra transação escrever no meio. Três condições, todas obrigatórias:
+
+1. a leitura usa `.for("update")`;
+2. leitura e escrita acontecem na **mesma** transação;
+3. o predicado de workspace continua nas duas, e não só na leitura.
+
+Faltando qualquer uma das três, volta a ser o padrão proibido. Ler sem trava, fechar a transação entre as duas, ou confiar no `select` para o escopo e deixar o `update` só com o id — nenhum dos três é aceitável.
 
 ---
 
