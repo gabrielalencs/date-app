@@ -4,6 +4,21 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-071 — Fixtures mutáveis pertencem ao teste
+**11/09/2026.** As suítes de mídia, datas e capturas criam planos temporários com UUID próprio e limpam apenas seus registros/objetos em development. Evita apagar mídia adicionada pelo proprietário em planos do seed ao rodar regressão visual. Capturas de mídia usam as fotografias editoriais como uploads explícitos de teste, sem povoar o produto com dados permanentes.
+
+### D-070 — Fotografia editorial separada da mídia privada
+**11/09/2026.** Duas fotografias de marca geradas para o R1 ficam em WebP local, com origem em `docs/BRAND_ASSETS.md`. São inspiração estática, nunca substitutas silenciosas da capa de um plano. Capa real continua pela rota autenticada; plano sem foto usa tipografia, categoria e horizonte. Logos existentes são reutilizados integralmente, sem recomposição tipográfica.
+
+### D-069 — Motion pequeno, overlays com comportamento Radix
+**11/09/2026.** Motion entra no grupo editorial Reveal e no dropdown do Select; páginas de dados permanecem Server Components. CSS atende hover/press e entrada de sheets/dialogs. Reduced motion remove deslocamento e loops. A confirmação nativa de remover foto passa para Dialog DATE, preservando a ação e adicionando cancelamento/foco verificáveis.
+
+### D-068 — Select DATE headless com serialização explícita
+**11/09/2026.** `@radix-ui/react-select` entrega teclado, foco, Escape, portal e seleção; a aparência usa tokens DATE. A opção vazia dos filtros é mapeada internamente e enviada por hidden input com o valor real. Reset e disabled fazem parte do contrato. Playwright usa roles/options em vez de selectOption e verifica valor chegando à Server Action. Não instalar shadcn ou outra biblioteca visual: mantém D-022 e a stack existente.
+
+### D-067 — R1 substitui a direção de interface do B1
+**11/09/2026.** Rebrand solicitado pelo proprietário: editorial + lifestyle + planejamento pessoal + fotografia. Navy é primary; coral fica em CTA de marca e pequenos sinais; cream, white, sage, blue, blush e taupe ganham papéis semânticos nos dois temas. Revisa D-004: prancha e mockups fornecidos agora orientam a composição, preservando acessibilidade e o escopo funcional. O sistema permanente está em `docs/DESIGN_SYSTEM.md`; raio editorial pode chegar a 20px. O R1 foi solicitado entre B5/B6, mas B6 já estava implementado na base recebida: preservá-lo, sem iniciar B7 ou posteriores.
+
 ### D-066 — Cache de mídia reduzido para 7 dias
 **11/09/2026.** `immutable` permanece, porque a chave é uuid e o conteúdo nunca muda. O prazo cai de um ano para `max-age=604800`: em celular o cache é despejado muito antes disso, então o ano não comprava desempenho — só alargava a janela em que a foto fica no disco depois do logout. Revisa a seção 6 do `docs/MEDIA_R2.md`.
 

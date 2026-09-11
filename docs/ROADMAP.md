@@ -66,6 +66,14 @@ Upload via presigned URL curta, validação de MIME e tamanho no servidor, objec
 **Documento:** `docs/MEDIA_R2.md`.
 **Bloqueio humano:** Access Key do token limitado ao bucket dev.
 
+## R1 — Rebrand visual global (extraordinário)
+
+Bloco solicitado entre B5 e B6. Na base efetivamente recebida, B6 já estava implementado: o R1 preserva e reestiliza suas telas, sem adicionar funcionalidade de B7/B8/B9. A linguagem do B1 é substituída por composição editorial, fotografia, navy estrutural, coral pontual, superfícies sage/blue/blush/taupe, controles DATE, Select Radix e Motion.
+
+**Entrega:** sistema e nove telas atuais em claro/escuro; capturas abertas em 320/390/1280; comportamento acessível do Select e regressões de auth/HTTP/CRUD/mídia/datas verificados.
+
+**Documentos:** `docs/DESIGN_SYSTEM.md`, `docs/BRAND_ASSETS.md` e `docs/R1_VISUAL_REBRAND.md`. Estes padrões se aplicam a todos os blocos seguintes.
+
 ## B6 — Datas e votação
 
 Várias opções de data por plano. Voto `sim`/`talvez`/`não` por usuário. Consenso visível. Promoção de uma opção a data oficial, com efeito no status.

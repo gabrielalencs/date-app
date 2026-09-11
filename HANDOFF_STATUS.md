@@ -7,7 +7,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 ## Já concluído pelo proprietário
 
 - Nome do produto: **DATE**
-- Direção visual aprovada e congelada para a V1
+- Identidade de marca aprovada; linguagem de interface reformulada no R1 por solicitação do proprietário (ver `docs/DESIGN_SYSTEM.md`)
 - Repositório GitHub **privado já criado**
 - Scaffold Next.js 16 com TypeScript strict, ESLint, Tailwind CSS 4, Vitest e Playwright
 - B1 concluído: design system, tema e app shell existem
@@ -21,6 +21,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - B4 concluído: CRUD do plano com camada de dados fechada por construção
 - B5 concluído: mídia em `date-media-dev`, upload por URL assinada, capa e galeria
 - B6 concluído: opções de data, votos, consenso, confirmação e o acoplamento com a máquina de status
+- R1 implementado e verificado: rebrand das nove telas atuais, Select DATE, Motion, fotografia e sistema visual permanente. Ver `docs/R1_VISUAL_REBRAND.md` para testes e capturas; a avaliação estética final cabe ao proprietário.
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
 - Ambiente local já preparado e atualizado:
   - Git
@@ -50,7 +51,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Próximo bloco: **B6 — Datas e votação**.
+- Próximo bloco funcional: **B7 — Calendário**. B6 já existia na base recebida para o R1 e foi preservado.
 
 ## Regra de ambientes
 
@@ -85,6 +86,8 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
 
 ## Próxima ação
+
+A continuidade visual segue obrigatoriamente os tokens, primitives e padrões do R1 em `docs/DESIGN_SYSTEM.md`. O relatório de implementação, capturas e verificações está em `docs/R1_VISUAL_REBRAND.md`. `/kitchen-sink` demonstra o sistema novo; os mockups fornecidos são referência de direção, sem autorização para inventar features ou dados.
 
 B7 — Calendário. Nenhum bloqueio humano conhecido: banco, auth, mídia e datas já estão provados em `development`.
 

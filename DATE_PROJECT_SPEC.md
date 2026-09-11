@@ -349,6 +349,8 @@ Mínimo obrigatório:
 
 Marca: **date**.
 
+**Atualização R1 — 11/09/2026:** a implementação visual do B1 foi substituída por solicitação do proprietário. A referência permanente é `docs/DESIGN_SYSTEM.md`: navy estrutura, coral é accent, sage/blue/blush/taupe dão variedade, cream/sand sustentam o espaço e fotografia tem protagonismo. Usar assets oficiais de logo; controles com linguagem DATE; Select Radix customizado; Motion em wrappers pequenos; temas claro/escuro desenhados por tokens. A hierarquia dos mockups orienta as telas existentes, sem criar funcionalidades ou dados ausentes. B6 já existia na base recebida e foi preservado. Nenhuma mudança de Auth, API, banco ou R2 pertence ao R1.
+
 Símbolo:
 - calendário minimalista;
 - base com curva que sugere caminho/encontro;

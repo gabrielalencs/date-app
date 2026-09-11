@@ -21,6 +21,10 @@ Este documento substitui a referência a `docs/11_DEFINITION_OF_DONE.md`.
 - [ ] estados de carregando, vazio e erro implementados e com texto escrito por humano
 - [ ] navegação por teclado funciona; foco visível
 - [ ] nenhum emoji como ícone; nenhum glassmorphism; nenhum glow
+- [ ] linguagem R1: navy estrutural, coral pontual, superfícies de apoio e fotografia com função; sem composição de dashboard
+- [ ] zero Select nativo visível; controles complexos provados por teclado, Escape, foco, disabled e envio de formulário
+- [ ] capturas efetivamente abertas e avaliadas nos dois temas; defeitos corrigidos e telas afetadas recapturadas
+- [ ] novos componentes e padrões aparecem no kitchen sink e em `docs/DESIGN_SYSTEM.md`
 
 ## 3. Dados e segurança
 

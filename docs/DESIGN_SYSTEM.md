@@ -1,207 +1,140 @@
-# DATE — Design System
+# DATE — Design System · R1
 
-Substitui a referência a `docs/03_DESIGN_SYSTEM.md`. Este documento é normativo: o que estiver aqui vence improviso do agente.
+Referência permanente para todas as telas. O R1 substitui a direção visual do B1. Funcionalidades e autorização continuam regidas pelo DATE_PROJECT_SPEC.md e pelos documentos de cada feature.
 
----
+## Direção
 
-## 1. Princípio
+Editorial + lifestyle + planejamento pessoal + fotografia. Um aplicativo íntimo e adulto para duas pessoas, com espaço para as experiências. Navy estrutura; coral chama atenção; sage, blue, blush e taupe dão variedade; cream e sand deixam respirar; fotografia dá emoção.
 
-A interface é um suporte para fotografia e tipografia. Ela não compete com o conteúdo.
+Os mockups orientam composição, atmosfera e hierarquia. Não autorizam signup, rotas novas, calendário antecipado, checklist, favoritos ou dados fictícios no produto. O B6 já existia no repositório ao iniciar o R1 e sua interface recebe o mesmo sistema; nenhuma feature futura é antecipada.
 
-Três decisões carregam a identidade inteira:
+## Cor e superfícies
 
-1. **O fundo claro é areia, não branco.** Branco é superfície elevada. Isso é o que separa "editorial" de "SaaS".
-2. **Contraste tipográfico é a ferramenta principal.** Fraunces grande e apertada nos títulos, Inter pequena e espaçada nos rótulos. A tensão entre as duas é a assinatura visual.
-3. **Estrutura por borda, não por sombra.** Fio de 1px em baixo contraste. Sombra só para o que realmente flutua.
+A fonte de verdade executável é `app/globals.css`. HEX só vive nos tokens ou nos assets oficiais, nunca em páginas.
 
-Se uma tela ficar sem graça, a resposta é foto maior e título maior — nunca mais cor, mais sombra ou mais card.
+| Papel / token | Claro | Escuro |
+| --- | --- | --- |
+| Fundo `--bg` | Cream #FBF7F2 | #0E171D |
+| Superfície `--surface` | Branco #FFFFFF | Navy #15232C |
+| Campo / superfície suave `--surface-soft` | #F7F3EE | #192831 |
+| Superfície quente `--surface-sunken` | #F2E9E1 | #1C2A34 |
+| Estrutura interativa `--brand` | Navy #1E2D3D | Névoa #C4D4DD |
+| Hover estrutural `--brand-hover` | #31495B | #E0E9ED |
+| Texto sobre estrutura `--brand-fg` | #FFFFFF | #15232C |
+| Acento de marca `--accent` | Coral #E76F51 | Coral #E76F51 |
+| Apoio sage `--sage-soft` | #E5EBE1 | #283B35 |
+| Apoio blue `--mist-soft` | #E7EDF0 | #273C49 |
+| Apoio blush `--blush-soft` | #F7E6DD | #42332F |
+| Apoio taupe `--taupe-soft` | #ECE2DA | #373531 |
+| Borda `--border` | Warm Border #E4DDD6 | Creme a 12% |
+| Borda forte `--border-strong` | Navy a 22% | Creme a 22% |
+| Texto `--text` | #1E2D3D | #F1E7DC |
+| Texto secundário `--text-muted` | #586673 | #9AAAB6 |
+| Positivo `--positive` | #7E9673 | #A7B89F |
+| Erro / destrutivo `--danger` | #9E3B2E | #EE9F92 |
+| Foco `--ring` | #637E8E | #A6BFCD |
 
----
+A paleta da marca continua incluindo Sage #A7B89F, Sand #F6EDE4, Graphite #282B2B, Blush #F3D7CC, Soft Blue #B7C4CF e Warm Taupe #D7C4B8. As superfícies acima são suas versões de baixa intensidade, adaptadas a cada tema. Não usar os tons brutos como texto pequeno. Estados informam seu significado também por texto, check ou outra marca.
 
-## 2. Cores
+Coral é uma fração pequena da tela: logo, traço editorial, ponto de navegação e CTA de marca. Não é o primary estrutural, texto de filtro, fundo da página ou cor de todas as ações. Branco sobre coral exige 19px semibold por contraste (D-017); o componente `accent` garante esse piso. Erros usam o token danger, nunca coral.
 
-### Paleta bruta (congelada)
+Dark tem camadas navy distintas, superfícies de apoio escuras, texto creme e controles claros sobre navy. Fotografias preservam sua cor; nenhum filtro global ou inversão automática. O tema `system` continua sendo resolvido pelo ThemeProvider, com script inicial que evita flash.
 
-| Nome | Hex |
-|---|---|
-| Navy | `#1E2D3D` |
-| Coral | `#E76F51` |
-| Sage | `#A7B89F` |
-| Sand | `#F6EDE4` |
-| Graphite | `#282B2B` |
-| White | `#FFFFFF` |
-| Dark bg | `#0E171D` |
-| Dark surface | `#15232C` |
+## Tipografia
 
-Nenhum componente referencia esses valores diretamente. Tudo consome token semântico.
+Fraunces via next/font: display, H1, títulos editoriais, títulos de plano e grandes números. Eixo `opsz` mantido; não foi adicionada fonte manuscrita. Inter via next/font: corpo, formulários, controles, navegação, metadados e rótulos.
 
-### Tokens semânticos
+| Estilo | Mobile | Desktop | Entrelinha |
+| --- | --- | --- | --- |
+| display-xl | 44px | 64px | 1.02 |
+| display-l | 32px | 40px | 1.1 |
+| title | 24px | 28px | 1.2 |
+| section-heading | 24px | 24px | 1.2 |
+| body | 16px | 16px | 1.55 |
+| body-s | 14px | 14px | 1.5 |
+| meta | 13px | 13px | 1.45 |
+| label | 12px | 12px | 1.4 |
 
-| Token | Claro | Escuro | Uso |
-|---|---|---|---|
-| `--bg` | `#F6EDE4` | `#0E171D` | fundo da página |
-| `--surface` | `#FFFFFF` | `#15232C` | card, sheet, campo |
-| `--surface-sunken` | `#EFE4D7` | `#0A1116` | trilho, faixa, estado vazio |
-| `--border` | `#1E2D3D` @ 12% | `#F1E7DC` @ 12% | fio padrão |
-| `--border-strong` | `#1E2D3D` @ 22% | `#F1E7DC` @ 22% | foco, seleção, divisor forte |
-| `--text` | `#1E2D3D` | `#F1E7DC` | texto principal |
-| `--text-muted` | `#5C6B78` | `#9AAAB6` | metadado, legenda |
-| `--accent` | `#E76F51` | `#E76F51` | ação primária, ponto, destaque |
-| `--accent-hover` | `#D65C3E` | `#F0805F` | hover/press da ação primária |
-| `--accent-fg` | `#FFFFFF` | `#FFFFFF` | rótulo sobre coral |
-| `--positive` | `#7E9673` | `#A7B89F` | consenso, confirmado, sim |
-| `--danger` | `#9E3B2E` | `#C4574A` | destrutivo, erro |
-| `--ring` | `#E76F51` @ 45% | `#E76F51` @ 55% | anel de foco |
+Labels usam caixa alta e tracking 0.12em. Navegação e pills usam caixa normal para leitura confortável. Nada abaixo de 12px; Fraunces nunca abaixo de 20px. Valores alinhados usam tabular numbers. Títulos longos quebram dentro da coluna; cards limitam linhas, detalhe mostra o título inteiro.
 
-Declarados como custom properties em `app/globals.css`, expostos ao Tailwind 4 via `@theme`. Tema escuro por classe, com `@custom-variant`, nunca por `prefers-color-scheme` sozinho — `system` é resolvido em JS e escreve a classe.
+## Espaço, raio e elevação
 
-### Regra do coral
+Escala de 4px. Controles relacionados: 8–12px; grupos: 16–24px; seções: 32–48px; grandes divisões podem chegar a 72px. `.page-stack` define o ritmo responsivo; `.panel` define superfície e padding de 20–32px; `.section-heading` define o título de grupo.
 
-**Coral nunca é texto.** Sobre areia, `#E76F51` fica em torno de 2,7:1 — ilegível por qualquer critério.
+Raios: 10px em campo (`sm`), 14px em botão/controle (`md`), 20px em superfície editorial (`lg`), circular apenas em avatar, chip ou ação circular. Revoga o teto rígido de 14px do B1, mantendo proporção moderada.
 
-Coral aparece como preenchimento sólido, ponto, ícone acompanhado de rótulo em navy, ou borda. Nunca como palavra.
+Bordas quentes sutis no claro, creme translúcido no escuro. Sombra raised curta para dropdown e barra mobile; overlay para sheet/dialog. Cards comuns usam borda e deslocamento sutil. Sem sombra colorida, pilhas de caixas, vidro, glow ou backdrop-filter.
 
-Sobre preenchimento coral, o rótulo branco só é aceitável a partir de **19px semibold**, onde 3:1 satisfaz AA para texto grande. Botão coral menor que isso não existe no DATE. Ação secundária pequena usa navy sobre superfície, ou borda coral com rótulo navy.
+## Botões
 
-Essa restrição não é negociável para agradar a prancha de marca.
+`lib/button-variants.ts` é a fonte compartilhada por Button e ButtonLink.
 
----
+| Variant | Papel |
+| --- | --- |
+| accent | Coral, CTA de marca como Novo DATE e Salvar ideia; 19px semibold |
+| primary | Navy no claro e névoa no escuro; ação importante, 16px |
+| secondary | Superfície quente e rótulo contrastante |
+| outline | Superfície, borda navy discreta e texto contrastante |
+| ghost | Baixa ênfase, sem caixa permanente |
+| danger | Texto e borda semânticos, distintos de coral |
 
-## 3. Tipografia
+Tamanho normal mínimo 48px; pequeno mínimo 44px. O accent não aceita tamanho pequeno. IconButton tem 44px e nome acessível obrigatório. Pending desabilita a ação e troca o rótulo; sem spinner. Hover/tap sutis só quando apropriados; disabled tem contraste atenuado e permanece reconhecível.
 
-Duas famílias, carregadas por `next/font` com `display: swap` e variável CSS. Nada de `@import` de CDN.
+## Campos e Select DATE
 
-**Fraunces** — display, wordmark, títulos editoriais. É variável; usar eixo óptico coerente com o tamanho e manter WONK desligado, porque as formas excêntricas viram caricatura em corpo grande. Confirme o nome exato dos eixos na documentação atual do `next/font` antes de escrever e reporte o que usou.
+Input/Textarea/SelectField compartilham FieldShell, label real, helper e erro ligados por aria-describedby, aria-invalid, superfície quente, borda discreta e anel de foco. Altura 52px no controle de uma linha, fonte 16px para evitar zoom de teclado móvel. Slot de ícone é opcional e usa Lucide linear. Borda coral permanente é proibida.
 
-**Inter** — interface, corpo, dados, rótulos. `font-feature-settings` com `tnum` em qualquer número que se alinhe em coluna: preço, data, contagem.
+SelectField transforma opções declarativas em DateSelect, baseado em `@radix-ui/react-select` headless. O usuário vê trigger customizado com chevron Lucide, dropdown da superfície DATE, hover azul suave e check na seleção. Radix mantém setas, Home/End, busca por digitação, Enter, Escape, foco e portal. Motion faz entrada curta do dropdown. Altura disponível, collision padding e largura do trigger limitam o menu no mobile.
 
-### Escala
+A serialização usa input hidden com o valor real. A opção vazia de filtro continua vazia, sem enviar o sentinel interno do Radix. O select nativo auxiliar de acessibilidade do Radix permanece oculto. Nenhum select HTML padrão fica visível. Form reset restaura o default e disabled não envia valor. CRUD testa o valor chegando à Server Action.
 
-| Token | Família | Mobile | Desktop | Entrelinha | Tracking |
-|---|---|---|---|---|---|
-| `display-xl` | Fraunces | 44 | 64 | 1.02 | −0.025em |
-| `display-l` | Fraunces | 32 | 40 | 1.1 | −0.02em |
-| `title` | Fraunces | 24 | 28 | 1.2 | −0.015em |
-| `heading` | Inter 600 | 18 | 18 | 1.35 | −0.01em |
-| `body` | Inter 400 | 16 | 16 | 1.55 | 0 |
-| `body-s` | Inter 400 | 14 | 14 | 1.5 | 0 |
-| `meta` | Inter 400 | 13 | 13 | 1.45 | 0 |
-| `label` | Inter 500 | 12 | 12 | 1.4 | **0.12em, caixa alta** |
+O controle customizado depende de JavaScript para interação. URLs de filtro por GET e a renderização do formulário de login continuam funcionando sem JavaScript; não confundir isso com um Select interativo sem hidratação.
 
-O `label` em caixa alta com tracking largo é o elemento mais reconhecível da marca. Usar em rótulo de campo, categoria, cabeçalho de seção e status. Não usar em frase.
+Checkbox e radio conservam inputs nativos e labels reais, com desenho DATE via CSS; o label fornece alvo de toque de pelo menos 44px. Segmented controls usam navy e aria-pressed. Componentes complexos não reimplementam à mão o comportamento acessível do Radix.
 
-Nunca menos de 12px. Nunca Fraunces abaixo de 20px.
+## Fotografia, marca e cards
 
----
+Os SVGs oficiais de `public/brand/logos/` são usados por Wordmark. Não recompor date com texto, redesenhar o símbolo nem usar as referências luminosas como asset de interface. Preservar proporção e usar versão clara/escura adequada.
 
-## 4. Espaço, raio, elevação
+Fotografia privada de plano continua chegando por `/api/media/[id]`, autenticada, com next/image unoptimized e sem URL pública R2. Nenhuma mudança de acesso ou armazenamento pertence ao R1.
 
-**Espaçamento** em múltiplos de 4: `4 8 12 16 20 24 32 40 56 72`. Respiro entre seções nunca abaixo de 32 no mobile.
+Fotografia editorial estática de marca vive em `public/brand/photos/`; não representa uma experiência ou memória do usuário. Ver `docs/BRAND_ASSETS.md` para origem. Não preencher plano sem imagem com foto genérica de um lugar, nem criar records fictícios para completar layout.
 
-**Raio**: `sm 6` para campo e chip, `md 10` para botão e card pequeno, `lg 14` para card de conteúdo e sheet, `full` para pill e avatar. Nada acima de 14 — bolha arredondada é o visual genérico que a especificação proíbe.
+Hero de detalhe usa aproximadamente 16:8, destaque horizontal 16:9, card com fotografia usa 4:5, galeria 1:1. O enquadramento deve preservar assunto e reservar texto legível. Overlays são permitidos exclusivamente como scrim discreto de legibilidade sobre foto, sem gradiente chamativo como fundo da interface.
 
-**Elevação**, em três níveis e só três:
+Sem imagem, CategoryArt usa tipografia, ícone de categoria e desenho linear de horizonte em superfície sage/mist/blush/taupe. É um estado intencional, sem grande retângulo vazio. Metadados compactos e StatusPill mantêm a mesma linguagem nos cards com e sem fotografia. Hover amplia foto em 1.015 e move o card poucos pixels, somente em desktop e sem reduced-motion.
 
-- `flat` — sem sombra, borda `--border`. É o padrão. Card de ideia é flat.
-- `raised` — sombra curta e baixa opacidade, para menu e popover.
-- `overlay` — sombra ampla e difusa, exclusivo de sheet e dialog, sempre acompanhado de scrim.
+## Layouts atuais e futuros
 
-Proibido: sombra colorida, sombra dupla, brilho, borda de gradiente, `backdrop-filter`.
+Sidebar desktop de 240px: asset oficial com respiro, Novo DATE destacado, navegação com ícone/rótulo, superfície leve no ativo, tema e perfil no rodapé. Não adicionar destinos para imitar o mockup. Mobile: Início · Ideias · + · Agenda · Memórias, barra compacta, labels de 12px, alvos de 44px e safe area. Perfil acessível no cabeçalho mobile. Link de pular conteúdo para teclado.
 
-**Foto** ocupa a largura toda do seu container, sem raio no topo quando encosta na borda da tela. Proporções permitidas: `4/5` no card de ideia, `16/9` no destaque da home, `1/1` na grade de galeria. Sempre com `next/image`, `alt` escrito, e um plano de fundo `--surface-sunken` enquanto carrega.
+Conteúdo máximo 1360px incluindo padding; uma coluna mobile. Desktop usa coluna principal e rail apenas quando tem função. Espaço vazio deve servir à tipografia ou fotografia, nunca ser sobra de formulário estreito.
 
----
+- Login: fotografia e marca + área de acesso; hero compacto no celular, formulário com teclado adequado e sem autofocus que pule o hero. Nunca signup.
+- Home: saudação editorial, próximo DATE real quando disponível, inspiração estática e ideias existentes. Resumo discreto de status sem cartões de KPI. Não chamar contagens globais de resumo mensal.
+- Ideias: heading e introdução, controles integrados e grade visual. Filtros continuam GET, sem busca nova ou dados inventados.
+- Nova ideia: cadastro rápido e rail editorial de orientação; uma coluna mobile. Não antecipar campos de negócio.
+- Detalhe: capa, categoria, título, descrição e metadados; rail de status/ações; datas, galeria e edição recolhível. Mobile coloca o status antes das seções de trabalho.
+- Perfil: identidade institucional, papel, tema e logout existentes.
+- Agenda B7: o estado atual é honesto. O futuro calendário poderá ocupar a coluna principal, com rail opcional de planos reais. Não criar grade de datas fake.
+- Memórias B9: estado preparatório editorial; nenhuma memória falsa. A futura timeline reutiliza tipografia, fotografias, cards e superfícies daqui.
 
-## 5. Movimento
+## Movimento
 
-| Token | Duração | Curva | Uso |
-|---|---|---|---|
-| `micro` | 120ms | `cubic-bezier(0.2, 0, 0, 1)` | hover, press, checkbox |
-| `standard` | 200ms | `cubic-bezier(0.2, 0, 0, 1)` | troca de estado, fade |
-| `enter` | 320ms | `cubic-bezier(0.16, 1, 0.3, 1)` | sheet, dialog, entrada de página |
+Motion é usado em wrappers pequenos: Reveal para um grupo editorial e motion.div para dropdown. Páginas que consultam dados permanecem Server Components. CSS cobre hover/press de botões, cards, fotografia e animações dos overlays Radix.
 
-Anima-se `opacity` e `transform`. Nada mais. Sem animação de `height`, `width` ou `background-color` em lista.
+Micro: 120–180ms; dropdown: 180ms; entrada editorial: 280ms, deslocamento 8px; sheet/dialog: 320ms. Animar opacity/transform. Sem stagger de toda a tela, bounce, partículas, parallax ou loop decorativo. Skeleton pode pulsar como feedback funcional.
 
-Com `prefers-reduced-motion: reduce`, toda transição de transform é anulada e sobra fade de 100ms. Isso é implementado uma vez, na camada de tokens, e não repetido componente a componente.
+`useReducedMotion` remove deslocamentos do Motion e reduz o fade para 100ms. A regra CSS global desliga animações, limita transições a opacity e anula o press do card. Testar a preferência real do browser, não apenas a existência de uma media query.
 
-Animação decorativa em loop não existe no produto.
+## Estados e acessibilidade
 
----
+Foco visível 2px com offset; texto secundário legível em ambos os temas; ações nomeadas; estados não dependem apenas de cor. Empty states usam texto curto, ícone e ação existente. Não informar detalhes de implementação em copy de produto. Erros mantêm instrução de recuperação; sucesso é textual e discreto; loading usa rótulo/skeleton. Sheets/dialogs usam Radix para Escape, trap, retorno de foco e scroll lock.
 
-## 6. Componentes
+Portões de interface: 320, 390 e 1280px em claro/escuro; checar também 768 e 1440 quando possível. Zero overflow horizontal, alvos >=44px, nenhum native select visível, navegação por teclado, foto sem erro e reduced motion respeitado.
 
-### Origem
+## Catálogo e continuidade
 
-`shadcn/ui` entra **somente onde o valor é o comportamento do Radix**: `Sheet`, `Dialog`, `Select`, `Popover`, `Tooltip`, `DropdownMenu`. Acessibilidade de foco, escape e portal não se reescreve à mão.
+`/kitchen-sink` é o catálogo de tokens, tipos, botões, inputs, textarea, Select, checkbox, radio, filtros, cards, pills, loading, disabled, error, sheet e dialog. Continua condicionado a DATE_ENABLE_KITCHEN_SINK; não habilitar em produção. Novas features devem compor esses primitives e os padrões editoriais, sem criar outro vocabulário de tokens.
 
-Botão, campo, card, badge, skeleton e estado vazio são escritos do zero contra os nossos tokens. São trinta linhas cada e não têm aparência default para brigar. Instalar shadcn para isso significaria importar um segundo sistema de tokens (`--background`, `--primary`) competindo com o nosso.
-
-Onde shadcn for usado, os tokens dele são remapeados para os nossos. Não pode existir dois vocabulários de cor no projeto.
-
-### Inventário do B1
-
-| Componente | Variantes | Estados obrigatórios |
-|---|---|---|
-| `Button` | `primary` (coral), `secondary` (borda), `ghost`, `danger` | default, hover, active, focus-visible, disabled, loading |
-| `IconButton` | `ghost`, `solid` | idem, com `aria-label` obrigatório |
-| `Input` / `Textarea` | — | default, focus, error, disabled, com rótulo `label` e mensagem de erro |
-| `Card` | `flat`, `media` (com foto) | default, hover (só quando clicável), pressed |
-| `StatusPill` | um por status do produto | — |
-| `Badge` | `neutral`, `accent`, `positive` | — |
-| `Skeleton` | linha, bloco, mídia | respeita reduced-motion |
-| `EmptyState` | — | ícone Lucide, título Fraunces, uma frase, uma ação |
-| `Sheet` | bottom (mobile) | abre, fecha, arrasta, trava scroll, devolve foco |
-| `Dialog` | centro (desktop) | idem |
-
-Alvo de toque mínimo 44px em tudo que é clicável, mesmo quando o desenho parecer menor — a área cresce por padding invisível, não pelo pixel visível.
-
-Foco visível sempre, com anel `--ring` de 2px e offset de 2px. Remover outline sem substituir é proibido.
-
-### StatusPill
-
-Mapeamento fixo, em português na interface:
-
-| Status | Rótulo | Cor |
-|---|---|---|
-| `idea` | Ideia | neutro, `--text-muted` sobre `--surface-sunken` |
-| `deciding` | Decidindo | `--accent` como ponto, rótulo em `--text` |
-| `planned` | Planejado | `--positive` |
-| `reserved` | Reservado | `--positive`, com ícone |
-| `completed` | Realizado | `--text` sobre `--surface-sunken` |
-| `cancelled` | Cancelado | `--text-muted`, com riscado no título associado |
-
----
-
-## 7. App shell
-
-### Mobile
-
-Bottom nav fixa, cinco posições, com `padding-bottom` de safe-area: **Início · Ideias · `+` · Agenda · Memórias**.
-
-O `+` é o único elemento coral da barra, circular, elevado meio passo acima da barra. Os outros quatro são ícone Lucide com rótulo `label` embaixo, coral apenas quando ativo.
-
-Esta é a navegação definitiva. A prancha de marca mostra outra coisa (Início/Calendário/Planejar/Favoritos/Mais) e está errada — ver D-004.
-
-### Desktop
-
-Sidebar fixa à esquerda, 240px, fundo `--surface`, fio à direita: **Início · Ideias · Planos · Calendário · Memórias**, com um botão `Novo DATE` no topo e perfil no rodapé.
-
-Desktop não é mobile esticado. Conteúdo em coluna máxima de 1120px, grade de ideias em 3 colunas, e o painel de detalhe abre ao lado em vez de virar página cheia sempre que couber.
-
----
-
-## 8. Escrita
-
-Segunda pessoa, direto, sem entusiasmo fabricado. "Nenhuma ideia salva ainda" e não "Ops! Parece que aqui está vazinho 😊".
-
-Estado vazio diz o que aconteceu e oferece uma saída. Erro diz o que falhou e o que fazer. Carregando não fala nada — usa skeleton.
-
-Sem emoji em qualquer lugar da interface. Sem exclamação, salvo em confirmação genuína de algo bom.
-
----
-
-## 9. Proibições
-
-Glassmorphism · brilho neon · gradiente como plano de fundo · `backdrop-filter` · sombra colorida · emoji como ícone · card dentro de card · raio acima de 14px · **qualquer cor da paleta como texto** (D-020) · **animação decorativa em loop** (D-018) · spinner (D-019) · ícone sem rótulo em **destino** de navegação · outline de foco removido · texto abaixo de 12px · cor como único portador de significado.
-
-Feedback funcional em loop é exceção: o skeleton pulsa, e desliga sob `prefers-reduced-motion`. O `+` da bottom nav é ação, não destino, então nome acessível basta.
+Capturas de referência R1 ficam em `screenshots/r1/` (artefatos locais não versionados). A validação e decisões finais ficam em `docs/R1_VISUAL_REBRAND.md`.
