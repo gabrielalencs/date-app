@@ -10,11 +10,11 @@ import {
   type MediaVariant,
   type UploadablePurpose,
 } from "@/features/media/constants";
+import type { StartedUpload } from "@/features/media/contract";
 import {
   deleteObjects,
   headObject,
   signUpload,
-  type SignedUpload,
 } from "@/features/media/r2/client";
 import {
   assertKeyBelongsToWorkspace,
@@ -43,13 +43,6 @@ export type StartUploadInput = {
   contentType: string;
   /** Bytes medidos pelo browser. Entram na assinatura, não no banco. */
   sizes: Readonly<Record<MediaVariant, number>>;
-};
-
-export type StartedUpload = {
-  /** Opaco para o cliente: ele devolve isto na confirmação e nada mais. */
-  uploadId: string;
-  full: SignedUpload;
-  thumb: SignedUpload;
 };
 
 /**

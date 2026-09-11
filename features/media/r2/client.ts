@@ -14,9 +14,9 @@ import {
   MAX_BYTES,
   SIGNED_URL_TTL_SECONDS,
   isAllowedUploadMime,
-  type AllowedUploadMime,
   type MediaVariant,
 } from "@/features/media/constants";
+import type { SignedUpload } from "@/features/media/contract";
 import {
   resolveR2,
   type R2Config,
@@ -86,14 +86,6 @@ export class R2Error extends Error {
     this.name = "R2Error";
   }
 }
-
-export type SignedUpload = {
-  url: string;
-  /** O cliente precisa mandar exatamente estes dois, ou a assinatura quebra. */
-  contentType: AllowedUploadMime;
-  contentLength: number;
-  expiresInSeconds: number;
-};
 
 export async function signUpload(input: {
   objectKey: string;
