@@ -17,7 +17,8 @@
     "format": "prettier --write .",
     "shots:auth": "playwright test tests/e2e/login.spec.ts",
     "test:http": "playwright test tests/e2e/auth-boundary.spec.ts tests/e2e/login-errors.spec.ts",
-    "auth:bootstrap-dev": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-bootstrap.ts"
+    "auth:bootstrap-dev": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-bootstrap.ts",
+    "auth:create-dev-users": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-create-dev-users.ts"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",

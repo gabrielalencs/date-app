@@ -4,6 +4,12 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-043 — `NEON_AUTH_BASE_URL` é dado sensível
+**10/09/2026.** Fica demonstrado que o serviço do Neon aceita cadastro de qualquer origem que conheça a base URL — é exatamente o que o script de provisionamento explora. A `NEON_AUTH_BASE_URL` passa a ser tratada como dado sensível, e o webhook `user.before_create` deixa de ser item de checklist do B12 para ser **pré-condição do primeiro deploy**. A allowlist da nossa rota protege o nosso domínio; ela não protege o serviço.
+
+### D-042 — Contas de development criadas por chamada direta ao provedor
+**10/09/2026.** O console do Neon cria usuário sem senha, e as APIs `admin/*` exigem sessão autenticada — que a conta sem senha não consegue obter. Impasse resolvido chamando `sign-up/email` do serviço diretamente, de script local guardado por branch, fora da aplicação. A allowlist de `lib/auth/http-policy.ts` não muda: o cadastro continua inalcançável pelo produto. O script não toca no banco; ligar conta a profile e membership segue sendo do `auth:bootstrap-dev`.
+
 ### D-033 — Provisionamento explícito
 **10/09/2026.** Contas Auth são criadas administrativamente no Neon Console, nunca por rota temporária. `pnpm auth:bootstrap-dev` liga as contas autorizadas a profiles e `workspace_members`, com guarda de branch, exigência de exatamente um workspace e upsert idempotente. O runtime normal nunca concede membership.
 
