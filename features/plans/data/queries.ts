@@ -22,6 +22,8 @@ export type PlanSummary = {
   category: string | null;
   status: PlanStatus;
   city: string | null;
+  /** Capa real do plano. Nulo mantém a capa tipográfica do card (D-041). */
+  coverMediaId: string | null;
   priority: number;
   estimatedBudgetCents: number | null;
   archivedAt: Date | null;
@@ -90,6 +92,7 @@ export async function listPlans(
       category: plans.category,
       status: plans.status,
       city: plans.city,
+      coverMediaId: plans.coverMediaId,
       priority: plans.priority,
       estimatedBudgetCents: plans.estimatedBudgetCents,
       archivedAt: plans.archivedAt,
