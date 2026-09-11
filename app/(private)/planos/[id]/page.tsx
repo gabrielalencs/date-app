@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import { PlanPhotos } from "@/features/media/components/plan-photos";
+import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
 import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
 import { PlanStatusControl } from "@/features/plans/components/plan-status-control";
@@ -21,6 +23,8 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     throw error;
   });
 
+  const photos = await listPlanMedia(ctx, plan.id);
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
@@ -31,7 +35,15 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
       </header>
 
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <EditPlanForm plan={plan} />
+        <div className="flex flex-col gap-10">
+          <PlanPhotos
+            planId={plan.id}
+            planTitle={plan.title}
+            photos={photos}
+            coverMediaId={plan.coverMediaId}
+          />
+          <EditPlanForm plan={plan} />
+        </div>
 
         {/* No desktop vira painel lateral; no mobile empilha abaixo do form. */}
         <aside className="border-border-subtle flex flex-col gap-8 border-t pt-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
