@@ -4,6 +4,33 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-058 — Código de produção não muda por teste vermelho
+**11/09/2026.** Enquanto não estiver provado que o teste mede o que se pensa que ele mede, o vermelho é hipótese sobre o teste, não diagnóstico do produto. No B4 o `proxy.ts` foi alterado com base num teste que estava clicando no botão errado; a alteração foi revertida depois da verificação. Primeiro prova-se o instrumento, depois se toca no código.
+
+### D-057 — Linha de corte declarada antes do bloco
+**11/09/2026.** Todo prompt de bloco passa a nomear, em ordem, o que sai se o escopo esticar. Corte declarado no relatório é resultado; corte silencioso é dívida escondida. Nasce do escopo grande demais do B4.
+
+### D-056 — Mutations exigem JavaScript
+**11/09/2026.** Sem JS o DATE é navegável e privado — as páginas são Server Components e a autorização é do servidor —, mas não é operável: upload direto para o R2, reordenação e confirmação dependem do cliente. Não haverá esforço de progressive enhancement para escrita. Fecha a afirmação otimista do D-039.
+
+### D-055 — `FOR UPDATE` dentro de transação é exceção sancionada
+**11/09/2026.** A seção 3 do `docs/DATA_ACCESS.md` proibia ler-e-escrever por causa da janela entre a checagem e a escrita. Com a linha travada dentro da mesma transação a janela não existe, e escrita que depende do estado atual — validar transição, calcular a próxima `position` — precisa dessa forma. O proibido passa a ser leitura **sem trava** seguida de escrita.
+
+### D-054 — `media.thumb_object_key` como coluna própria
+**11/09/2026.** Cada foto tem duas saídas, `full` e `thumb`, e a miniatura precisa de chave própria em vez de ser derivada por convenção de string. É também a primeira migration incremental desde o B2: provar `generate → ler o SQL → aplicar em development` num caso de uma coluna vale antes de o B6 precisar do ciclo num caso grande.
+
+### D-053 — Remoção apaga a linha antes do objeto
+**11/09/2026.** O banco primeiro, o R2 depois. Se o R2 falhar sobra um objeto órfão, que custa alguns kilobytes; a ordem inversa deixaria uma linha apontando para objeto inexistente, que é imagem quebrada na tela. Coletor de órfãos é faxina futura, não correção — não entra agora.
+
+### D-052 — Leitura de mídia por rota autenticada, nunca por URL assinada
+**11/09/2026.** `/api/media/[id]` resolve o `AuthorizedContext` a cada requisição, busca a linha escopada por workspace e só então lê o objeto. URL assinada de leitura continua válida depois que a aba fecha, é compartilhável por acidente e muda a cada render, o que destrói cache. `next/image` com `unoptimized` e sem `remotePatterns`: o browser não precisa conhecer o host do R2.
+
+### D-051 — Redimensionamento e reencode no cliente
+**11/09/2026.** O browser decodifica, reduz para 2000px (e 640px na miniatura) e reencoda em WebP. Reencodar descarta o EXIF por construção, o que importa porque foto de celular carrega coordenada de GPS e um álbum de dates seria um mapa da casa do casal. Etapa separada de limpeza de metadado é etapa que alguém esquece. `sharp` permanece desligado no `pnpm-workspace.yaml`: o servidor não processa imagem.
+
+### D-050 — Upload direto do browser para o R2 por URL assinada curta
+**11/09/2026.** O limite de corpo de Server Action da Vercel é da ordem de 1 MB e foto de celular tem 3 a 8 MB. Passar pelo servidor exigiria levantar o limite, segurar o arquivo em memória de função e pagar duração por foto. A URL assinada expõe host e access key id na query string — inerente à assinatura e aceitável, porque vale para um método, uma object key e poucos minutos.
+
 ### D-049 — O seed não apaga o workspace
 **10/09/2026.** O seed apagava o workspace por id e recriava; a cascata levava junto as memberships das contas Auth ligadas pelo `auth:bootstrap-dev`, e o app ficava inacessível depois de cada seed. Agora a limpeza é escopada ao que o seed cria — planos, que cascateiam, e eventos, que não têm FK — e o workspace e as memberships sobrevivem.
 
