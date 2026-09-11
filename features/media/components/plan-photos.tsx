@@ -20,11 +20,13 @@ export function PlanPhotos({
   planTitle,
   photos,
   coverMediaId,
+  showCover = true,
 }: {
   planId: string;
   planTitle: string;
   photos: readonly PlanPhoto[];
   coverMediaId: string | null;
+  showCover?: boolean;
 }) {
   const ordem = photos.map((photo) => photo.id);
 
@@ -48,7 +50,7 @@ export function PlanPhotos({
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="type-label text-text-muted">Fotos</h2>
+        <h2 className="section-heading">Fotos do plano</h2>
         <PhotoPicker
           planId={planId}
           purpose={capa ? "gallery" : "cover"}
@@ -57,29 +59,31 @@ export function PlanPhotos({
       </div>
 
       {photos.length === 0 ? (
-        <div className="border-border-subtle bg-surface-sunken flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
+        <div className="bg-sage-soft flex flex-col items-center gap-3 rounded-lg px-6 py-8 text-center">
           <Camera
             aria-hidden="true"
             className="text-text-muted size-6"
             strokeWidth={1.5}
           />
           <p className="type-body-s text-text-muted max-w-xs">
-            Nenhuma foto ainda. A capa do card continua sendo o título até
-            entrar a primeira.
+            Nenhuma foto ainda. Adicione uma imagem que conte um pouco desse
+            plano.
           </p>
         </div>
       ) : null}
 
       {capa ? (
         <figure className="flex flex-col gap-3">
-          <div className="border-border-subtle relative aspect-4/5 w-full overflow-hidden rounded-lg border sm:aspect-16/9">
-            <MediaImage
-              mediaId={capa.id}
-              alt={`Capa de ${planTitle}`}
-              priority
-              sizes="(min-width: 1024px) 42rem, 100vw"
-            />
-          </div>
+          {showCover ? (
+            <div className="border-border-subtle relative aspect-4/5 w-full overflow-hidden rounded-lg border sm:aspect-16/9">
+              <MediaImage
+                mediaId={capa.id}
+                alt={`Capa de ${planTitle}`}
+                priority
+                sizes="(min-width: 1024px) 42rem, 100vw"
+              />
+            </div>
+          ) : null}
           <figcaption className="flex flex-wrap items-center justify-between gap-2">
             <span className="type-label text-text-muted">Capa</span>
             <PhotoActions

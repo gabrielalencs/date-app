@@ -1,5 +1,6 @@
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, Plus } from "lucide-react";
 
+import { PageIntro } from "@/components/brand/editorial";
 import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PlanCard } from "@/features/plans/components/plan-card";
@@ -40,13 +41,18 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
   });
 
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="type-display-l text-text">Ideias</h1>
-        <ButtonLink href="/novo" variant="primary">
-          Nova ideia
-        </ButtonLink>
-      </header>
+    <div className="page-stack">
+      <PageIntro
+        eyebrow="Lugares, vontades e possibilidades"
+        title="Ideias para viver"
+        description="Guardem o que inspira vocês. A próxima boa história pode começar por aqui."
+        action={
+          <ButtonLink href="/novo" variant="primary">
+            <Plus aria-hidden="true" className="size-4" />
+            Nova ideia
+          </ButtonLink>
+        }
+      />
 
       <PlanFilters
         status={status}
@@ -66,7 +72,7 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
           }
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan) => (
             <li key={plan.id}>
               <PlanCard plan={plan} />

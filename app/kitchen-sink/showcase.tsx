@@ -1,8 +1,12 @@
 "use client";
 
-import { Heart, Inbox, Search } from "lucide-react";
-import type { ReactNode } from "react";
+import { Heart, Inbox, Search, Shapes } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
+import Image from "next/image";
+import { CategoryArt } from "@/components/brand/category-art";
+import { EditorialNote } from "@/components/brand/editorial";
+import { CATEGORY_OPTIONS } from "@/lib/categories";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Textarea } from "@/components/ui/field";
+import { Input, Textarea, SelectField } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
 import {
   Sheet,
@@ -30,6 +34,12 @@ const COLOR_TOKENS = [
   "--bg",
   "--surface",
   "--surface-sunken",
+  "--surface-soft",
+  "--brand",
+  "--sage-soft",
+  "--mist-soft",
+  "--blush-soft",
+  "--taupe-soft",
   "--border",
   "--border-strong",
   "--text",
@@ -63,14 +73,18 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function KitchenSinkShowcase() {
+  const [selectedChip, setSelectedChip] = useState("Todos");
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-4">
         <h1 className="type-display-l text-text">Kitchen sink</h1>
         <p className="type-body text-text-muted">
-          Todas as primitivas do B1, nos dois temas. Página não linkada.
+          O sistema visual DATE — R1. Primitivas, estados e composições nos dois
+          temas.
         </p>
-        <ThemeToggle />
+        <div className="max-w-xs">
+          <ThemeToggle />
+        </div>
       </header>
 
       <Section title="Cor">
@@ -103,7 +117,9 @@ export function KitchenSinkShowcase() {
 
       <Section title="Button">
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="primary">Salvar</Button>
+          <Button variant="accent">Salvar ideia</Button>
+          <Button variant="primary">Continuar</Button>
+          <Button variant="outline">Ver detalhes</Button>
           <Button variant="secondary">Cancelar</Button>
           <Button variant="ghost">Depois</Button>
           <Button variant="danger">Excluir</Button>
@@ -171,8 +187,110 @@ export function KitchenSinkShowcase() {
         </div>
       </Section>
 
+      <Section title="Select DATE">
+        <form
+          data-testid="select-demo-form"
+          className="grid gap-5 sm:grid-cols-2"
+        >
+          <SelectField
+            label="Categoria"
+            icon={Shapes}
+            name="category"
+            defaultValue="gastronomia"
+          >
+            {CATEGORY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Categoria indisponível"
+            disabled
+            defaultValue="cultura"
+          >
+            <option value="cultura">Cultura</option>
+          </SelectField>
+          <SelectField
+            label="Categoria com erro"
+            error="Escolha uma categoria."
+            defaultValue="outro"
+          >
+            <option value="outro">Outro</option>
+          </SelectField>
+          <SelectField
+            label="Todas as categorias"
+            name="filter"
+            defaultValue=""
+          >
+            <option value="">Todas</option>
+            <option value="viagem">Viagem</option>
+          </SelectField>
+          <Button type="reset" variant="ghost" size="sm">
+            Restaurar seleção
+          </Button>
+        </form>
+      </Section>
+      <Section title="Escolhas e filtros">
+        <div className="flex flex-wrap gap-5">
+          <label className="flex min-h-12 items-center gap-3">
+            <input className="check-control" type="checkbox" defaultChecked />
+            Precisa de reserva
+          </label>
+          <label className="flex min-h-12 items-center gap-3 opacity-50">
+            <input className="check-control" type="checkbox" disabled />
+            Indisponível
+          </label>
+          <fieldset className="flex flex-wrap gap-3">
+            <legend className="sr-only">Horário preferido</legend>
+            {["De dia", "À noite"].map((label, index) => (
+              <label
+                key={label}
+                className="bg-surface-soft flex min-h-12 cursor-pointer items-center gap-2 rounded-md px-3"
+              >
+                <input
+                  type="radio"
+                  name="periodo"
+                  className="radio-control"
+                  defaultChecked={index === 0}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {["Todos", "Gastronomia", "Viagem", "Ar livre", "Cultura"].map(
+            (label, index) => (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={selectedChip === label}
+                onClick={() => setSelectedChip(label)}
+                className={
+                  "min-h-11 rounded-full px-4 text-sm transition-colors duration-[var(--duration-micro)] " +
+                  (selectedChip === label
+                    ? "bg-brand text-brand-fg"
+                    : [
+                        "bg-surface-sunken",
+                        "bg-blush-soft",
+                        "bg-mist-soft",
+                        "bg-sage-soft",
+                        "bg-taupe-soft",
+                      ][index])
+                }
+              >
+                {label}
+              </button>
+            ),
+          )}
+        </div>
+        <EditorialNote tone="sage">
+          Planos de hoje, memórias para sempre.
+        </EditorialNote>
+      </Section>
       <Section title="Card">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardBody>
               <span className="type-label text-text-muted">Restaurante</span>
@@ -184,16 +302,30 @@ export function KitchenSinkShowcase() {
           </Card>
 
           <Card variant="media" interactive>
-            <CardMedia ratio="4/5" />
+            <CardMedia ratio="4/5" className="relative">
+              <Image
+                src="/brand/photos/table.webp"
+                alt="Mesa para dois ao entardecer"
+                fill
+                sizes="400px"
+                className="object-cover"
+              />
+            </CardMedia>
             <CardBody>
-              <span className="type-label text-text-muted">Trilha</span>
-              <p className="type-heading text-text">Pedra do Baú</p>
+              <span className="type-label text-text-muted">Gastronomia</span>
+              <p className="type-title text-text">Uma mesa para dois</p>
               <p className="type-meta tnum text-text-muted">R$ 120,00</p>
             </CardBody>
           </Card>
 
           <Card variant="media">
-            <CardMedia ratio="16/9" />
+            <CardMedia ratio="16/9">
+              <CategoryArt
+                category="ar_livre"
+                title="Um dia lá fora"
+                className="h-full"
+              />
+            </CardMedia>
             <CardBody>
               <p className="type-heading text-text">Destaque 16/9</p>
             </CardBody>

@@ -41,7 +41,7 @@ export function VoteControl({
     <div className="flex flex-col gap-1">
       <form
         action={formAction}
-        className="border-border-subtle bg-surface inline-flex rounded-md border p-0.5"
+        className="border-border-subtle bg-surface-soft inline-flex rounded-md border p-1"
         aria-label="Seu voto nesta data"
       >
         <input type="hidden" name="planId" value={planId} />
@@ -64,7 +64,7 @@ export function VoteControl({
                 "transition-[opacity,transform] duration-[var(--duration-micro)]",
                 "active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60",
                 escolhido
-                  ? "bg-text text-surface"
+                  ? "bg-brand text-brand-fg"
                   : "text-text hover:bg-surface-sunken",
               )}
             >

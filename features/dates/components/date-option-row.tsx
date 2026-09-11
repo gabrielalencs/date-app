@@ -80,7 +80,7 @@ export function DateOptionRow({
     <li
       className={cn(
         "border-border-subtle flex flex-col gap-3 border-t py-4 first:border-t-0",
-        option.isConfirmed && "bg-surface-sunken -mx-4 px-4",
+        option.isConfirmed && "bg-sage-soft rounded-md px-4",
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

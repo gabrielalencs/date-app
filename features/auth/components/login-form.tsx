@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Mail, LockKeyhole, ArrowRight } from "lucide-react";
 
 import {
   signInAction,
@@ -18,16 +19,17 @@ export function LoginForm() {
     <form action={formAction} className="flex flex-col gap-5" noValidate>
       <Input
         label="E-mail"
+        icon={Mail}
         name="email"
         type="email"
         autoComplete="email"
         required
-        autoFocus
         placeholder="voce@exemplo.com"
       />
 
       <Input
         label="Senha"
+        icon={LockKeyhole}
         name="password"
         type="password"
         autoComplete="current-password"
@@ -49,6 +51,7 @@ export function LoginForm() {
         loadingLabel="Entrando"
       >
         Entrar
+        <ArrowRight aria-hidden="true" className="size-4" />
       </Button>
     </form>
   );

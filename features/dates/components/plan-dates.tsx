@@ -33,20 +33,20 @@ export function PlanDates({
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="type-label text-text-muted">Datas</h2>
+        <h2 className="section-heading">Datas para vocês</h2>
         {cheio || encerrado ? null : <AddDateForm planId={planId} />}
       </div>
 
       {options.length === 0 ? (
-        <div className="border-border-subtle bg-surface-sunken flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
+        <div className="bg-mist-soft flex flex-col items-center gap-3 rounded-lg px-6 py-8 text-center">
           <CalendarDays
             aria-hidden="true"
             className="text-text-muted size-6"
             strokeWidth={1.5}
           />
           <p className="type-body-s text-text-muted max-w-xs">
-            Nenhuma data sugerida. Proponha uma e vocês dois votam — é assim que
-            uma ideia vira um plano.
+            Nenhuma data sugerida. Escolham um dia e vejam o que funciona para
+            os dois.
           </p>
         </div>
       ) : (

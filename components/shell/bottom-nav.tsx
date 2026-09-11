@@ -15,7 +15,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="border-border-subtle bg-surface fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="border-border-subtle bg-surface shadow-raised fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 rounded-lg border px-1 md:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-[1fr_1fr_3.5rem_1fr_1fr] items-end">
         {left.map((item) => (
@@ -28,7 +28,7 @@ export function BottomNav() {
             href={NEW_PLAN_HREF}
             aria-label="Novo DATE"
             title="Novo DATE"
-            className="bg-accent text-accent-fg ease-standard -mt-5 grid size-14 place-items-center rounded-full shadow-[var(--shadow-raised)] transition-transform duration-[var(--duration-micro)] active:scale-95"
+            className="bg-brand text-brand-fg ease-standard my-2 grid size-12 place-items-center rounded-full transition-transform duration-[var(--duration-micro)] motion-safe:active:scale-95"
           >
             <Plus aria-hidden="true" className="size-6" />
           </Link>
@@ -57,11 +57,11 @@ function NavSlot({
       <Link
         href={item.href}
         aria-current={active ? "page" : undefined}
-        className="flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2"
+        className="relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2"
       >
         <Icon
           aria-hidden="true"
-          className={cn("size-5", active ? "text-accent" : "text-text-muted")}
+          className={cn("size-5", active ? "text-text" : "text-text-muted")}
         />
         <span
           className={cn(
@@ -71,6 +71,12 @@ function NavSlot({
         >
           {item.label}
         </span>
+        {active ? (
+          <span
+            aria-hidden="true"
+            className="bg-accent absolute bottom-1 h-0.5 w-4 rounded-full"
+          />
+        ) : null}
       </Link>
     </li>
   );

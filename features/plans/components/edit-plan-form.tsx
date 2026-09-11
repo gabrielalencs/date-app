@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
-
+import { MapPin, Shapes, Bookmark, Wallet, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/field";
+import { Input, Textarea, SelectField } from "@/components/ui/field";
 import {
   updatePlanAction,
   type ActionState,
@@ -12,11 +12,6 @@ import { CATEGORY_OPTIONS, toCategory } from "@/lib/categories";
 import type { Plan } from "@/features/plans/data/queries";
 
 const INITIAL: ActionState = {};
-
-const SELECT =
-  "min-h-11 w-full rounded-sm border border-border-strong bg-surface px-3 type-body text-text";
-
-/** Centavos viram texto editável; o servidor converte de volta (D-025). */
 function centsToInput(value: number | null): string {
   return value === null ? "" : (value / 100).toFixed(2);
 }
@@ -26,44 +21,45 @@ export function EditPlanForm({ plan }: { plan: Plan }) {
     updatePlanAction,
     INITIAL,
   );
-
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction} className="flex flex-col gap-8">
       <input type="hidden" name="planId" value={plan.id} />
-
-      <Input label="Título" name="title" defaultValue={plan.title} required />
-
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor="editar-categoria"
-          className="type-label text-text-muted"
-        >
-          Categoria
-        </label>
-        <select
-          id="editar-categoria"
+      <fieldset className="flex min-w-0 flex-col gap-5">
+        <legend className="type-label text-text-muted mb-5">
+          Sobre a ideia
+        </legend>
+        <Input
+          label="Título"
+          name="title"
+          defaultValue={plan.title}
+          required
+          maxLength={200}
+        />
+        <SelectField
+          label="Categoria"
+          icon={Shapes}
           name="category"
           defaultValue={toCategory(plan.category)}
-          className={SELECT}
         >
           {CATEGORY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
-        </select>
-      </div>
-
-      <Textarea
-        label="Descrição"
-        name="description"
-        defaultValue={plan.description ?? ""}
-        rows={3}
-      />
-
-      <div className="grid gap-5 sm:grid-cols-2">
+        </SelectField>
+        <Textarea
+          label="Descrição"
+          name="description"
+          defaultValue={plan.description ?? ""}
+          rows={3}
+          placeholder="O que faz esse plano especial?"
+        />
+      </fieldset>
+      <fieldset className="border-border-subtle grid min-w-0 gap-5 border-t pt-5 sm:grid-cols-2">
+        <legend className="type-label text-text-muted pr-3">Os detalhes</legend>
         <Input
           label="Local"
+          icon={MapPin}
           name="placeName"
           defaultValue={plan.placeName ?? ""}
         />
@@ -71,64 +67,61 @@ export function EditPlanForm({ plan }: { plan: Plan }) {
         <Input label="Estado" name="state" defaultValue={plan.state ?? ""} />
         <Input
           label="Orçamento estimado"
+          icon={Wallet}
           name="estimatedBudgetCents"
           inputMode="decimal"
           defaultValue={centsToInput(plan.estimatedBudgetCents)}
           hint="Em reais. Deixe vazio se ainda não sabem."
         />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor="editar-prioridade"
-          className="type-label text-text-muted"
-        >
-          Prioridade
-        </label>
-        <select
-          id="editar-prioridade"
-          name="priority"
-          defaultValue={String(plan.priority)}
-          className={SELECT}
-        >
-          <option value="0">Sem prioridade</option>
-          <option value="1">Baixa</option>
-          <option value="2">Média</option>
-          <option value="3">Alta</option>
-        </select>
-      </div>
-
-      <label className="flex min-h-11 items-center gap-3">
+      </fieldset>
+      <SelectField
+        label="Prioridade"
+        icon={Flag}
+        name="priority"
+        defaultValue={String(plan.priority)}
+      >
+        <option value="0">Sem prioridade</option>
+        <option value="1">Baixa</option>
+        <option value="2">Média</option>
+        <option value="3">Alta</option>
+      </SelectField>
+      <label className="bg-surface-soft flex min-h-12 cursor-pointer items-center gap-3 rounded-md p-4">
         <input
           type="checkbox"
           name="requiresBooking"
           defaultChecked={plan.requiresBooking}
-          className="size-5 accent-[var(--accent)]"
+          className="check-control"
         />
-        <span className="type-body text-text">Precisa de reserva</span>
+        <span className="type-body">Precisa de reserva</span>
       </label>
-
       <Textarea
         label="Observações"
         name="notes"
         defaultValue={plan.notes ?? ""}
         rows={3}
+        placeholder="Algo mais para lembrar?"
       />
-
       {state.error ? (
         <p role="alert" className="type-body-s text-danger">
           {state.error}
         </p>
       ) : null}
-
-      <Button
-        type="submit"
-        variant="primary"
-        loading={pending}
-        loadingLabel="Salvando"
-      >
-        Salvar alterações
-      </Button>
+      <div className="border-border-subtle flex flex-wrap items-center justify-end gap-3 border-t pt-5">
+        {state !== INITIAL && !state.error ? (
+          <p role="status" className="type-body-s">
+            Alterações salvas.
+          </p>
+        ) : null}
+        <Button
+          type="submit"
+          variant="primary"
+          loading={pending}
+          loadingLabel="Salvando"
+        >
+          <Bookmark aria-hidden="true" className="size-4" />
+          Salvar alterações
+        </Button>
+      </div>
     </form>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
-
+import { ArrowUpRight, MapPin, Wallet } from "lucide-react";
+import { CategoryArt } from "@/components/brand/category-art";
 import { StatusPill } from "@/components/ui/status-pill";
 import { MediaImage } from "@/features/media/components/media-image";
 import type { PlanSummary } from "@/features/plans/data/queries";
@@ -8,22 +9,12 @@ import { cn } from "@/lib/cn";
 import { formatBRL } from "@/lib/format";
 import { statusStrikesTitle } from "@/lib/status";
 
-/**
- * Com foto, a capa é a foto — proporção 4/5, que é a do card de ideia na seção
- * 4 do design system.
- *
- * Sem foto, a capa tipográfica do D-041 permanece, e agora como estado vazio
- * definitivo e não como contorno: o próprio título em Fraunces sobre a
- * superfície afundada parece intencional, e um retângulo cinza de 300px
- * pareceria app quebrado.
- */
 export function PlanCard({ plan }: { plan: PlanSummary }) {
   const riscado = statusStrikesTitle(plan.status);
-
   return (
     <Link
       href={`/planos/${plan.id}`}
-      className="border-border-subtle bg-surface ease-standard group hover:border-border-strong flex flex-col overflow-hidden rounded-lg border transition-[opacity,transform] duration-[var(--duration-micro)] active:scale-[0.99]"
+      className="border-border-subtle bg-surface group interactive-lift flex h-full min-w-0 flex-col overflow-hidden rounded-lg border"
     >
       {plan.coverMediaId ? (
         <div className="relative aspect-4/5 w-full overflow-hidden">
@@ -31,58 +22,53 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
             mediaId={plan.coverMediaId}
             alt={plan.title}
             variant="thumb"
-            sizes="(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 92vw"
+            sizes="(min-width: 1280px) 360px, (min-width: 640px) 40vw, 90vw"
+            className="photo-zoom"
           />
-        </div>
-      ) : (
-        <div className="bg-surface-sunken flex aspect-4/5 flex-col justify-between gap-4 p-5">
-          <span className="type-label text-text-muted">
+          <span className="bg-surface type-meta absolute top-3 left-3 rounded-full px-3 py-1">
             {categoryLabel(plan.category)}
           </span>
+        </div>
+      ) : (
+        <CategoryArt
+          category={plan.category}
+          title={plan.title}
+          cancelled={riscado}
+          className="min-h-44 sm:aspect-4/3"
+        />
+      )}
+      <div className="flex flex-1 flex-col gap-3 p-5">
+        {plan.coverMediaId ? (
           <p
             className={cn(
-              "type-title text-text line-clamp-4",
+              "font-display line-clamp-2 text-[1.4rem] leading-tight tracking-tight break-words",
               riscado && "line-through",
             )}
           >
             {plan.title}
           </p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-2 p-4">
-        {/* Com foto, o título não cabe na capa e vem para cá; sem foto ele já
-            é a capa e repetir seria dizer a mesma coisa duas vezes. */}
-        {plan.coverMediaId ? (
-          <>
-            <span className="type-label text-text-muted">
-              {categoryLabel(plan.category)}
-            </span>
-            <p
-              className={cn(
-                "type-title text-text line-clamp-2",
-                riscado && "line-through",
-              )}
-            >
-              {plan.title}
-            </p>
-          </>
         ) : null}
-
-        <StatusPill status={plan.status} />
-        <div className="type-meta text-text-muted flex flex-wrap items-center gap-x-2 gap-y-1">
-          {plan.city ? <span>{plan.city}</span> : null}
-          {plan.city && plan.estimatedBudgetCents !== null ? (
-            <span aria-hidden="true">·</span>
+        <div className="type-meta text-text-muted flex flex-col gap-2">
+          {plan.city ? (
+            <span className="flex items-center gap-2">
+              <MapPin aria-hidden="true" className="size-3.5 shrink-0" />
+              {plan.city}
+            </span>
           ) : null}
           {plan.estimatedBudgetCents !== null ? (
-            <span className="tnum">
-              {formatBRL(plan.estimatedBudgetCents / 100)}
+            <span className="tnum flex items-center gap-2">
+              <Wallet aria-hidden="true" className="size-3.5 shrink-0" />
+              {formatBRL(plan.estimatedBudgetCents / 100)}{" "}
+              <span className="text-xs">(est.)</span>
             </span>
           ) : null}
+        </div>
+        <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+          <StatusPill status={plan.status} />
           {plan.archivedAt ? (
-            <span className="type-label text-text-muted">· Arquivado</span>
+            <span className="type-meta text-text-muted">Arquivado</span>
           ) : null}
+          <ArrowUpRight aria-hidden="true" className="text-text-muted size-4" />
         </div>
       </div>
     </Link>

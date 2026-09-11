@@ -12,5 +12,9 @@ export default function Page() {
     notFound();
   }
 
-  return <KitchenSinkShowcase />;
+  return (
+    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
+      <KitchenSinkShowcase />
+    </main>
+  );
 }

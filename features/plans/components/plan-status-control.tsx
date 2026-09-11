@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Circle, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
@@ -32,7 +33,7 @@ export function PlanStatusControl({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="type-label text-text-muted">Status</h2>
+      <h2 className="section-heading">O plano está...</h2>
 
       <div className="flex items-center gap-3">
         <StatusPill status={status} />
@@ -44,7 +45,7 @@ export function PlanStatusControl({
       </div>
 
       {options.length > 0 ? (
-        <form action={formAction} className="flex flex-wrap gap-2">
+        <form action={formAction} className="flex flex-col gap-2">
           <input type="hidden" name="planId" value={planId} />
           {options.map((option) => (
             <Button
@@ -52,12 +53,15 @@ export function PlanStatusControl({
               type="submit"
               name="status"
               value={option}
-              variant="secondary"
+              variant="outline"
               size="sm"
               loading={pending}
               loadingLabel="Mudando"
+              className="justify-start"
             >
+              <Circle aria-hidden="true" className="size-4" />
               {statusLabel(option)}
+              <ArrowRight aria-hidden="true" className="ml-auto size-3.5" />
             </Button>
           ))}
         </form>

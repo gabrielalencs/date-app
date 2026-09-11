@@ -5,6 +5,13 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Star, Trash2 } from "lucide-react";
 
 import { IconButton } from "@/components/ui/icon-button";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   removeMediaAction,
   reorderMediaAction,
@@ -40,6 +47,7 @@ export function PhotoActions({
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>("parado");
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
 
   const ocupado = estado === "trabalhando";
 
@@ -56,6 +64,10 @@ export function PhotoActions({
       } else {
         setErro(resultado.error ?? "Não deu para fazer isso agora.");
       }
+      return resultado.ok;
+    } catch {
+      setErro("Não deu para fazer isso agora. Tente novamente.");
+      return false;
     } finally {
       setEstado("parado");
     }
@@ -101,21 +113,46 @@ export function PhotoActions({
           }
         />
 
-        <IconButton
-          label="Remover foto"
-          icon={<Trash2 className="size-4" />}
-          disabled={ocupado}
-          className="text-danger hover:bg-surface-sunken"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Remover esta foto? Ela sai do plano e do armazenamento.",
-              )
-            ) {
-              void executar(() => removeMediaAction({ planId, mediaId }));
-            }
-          }}
-        />
+        <Dialog open={confirmRemoval} onOpenChange={setConfirmRemoval}>
+          <DialogTrigger asChild>
+            <IconButton
+              label="Remover foto"
+              icon={<Trash2 className="size-4" />}
+              disabled={ocupado}
+              className="text-danger hover:bg-surface-sunken"
+            />
+          </DialogTrigger>
+          <DialogContent
+            title="Remover esta foto?"
+            description="Ela será removida deste plano. Essa ação não pode ser desfeita."
+          >
+            {erro ? (
+              <p role="alert" className="type-body-s text-danger">
+                {erro}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-3">
+              <DialogClose asChild>
+                <Button variant="secondary" disabled={ocupado}>
+                  Manter foto
+                </Button>
+              </DialogClose>
+              <Button
+                variant="danger"
+                loading={ocupado}
+                loadingLabel="Removendo"
+                onClick={async () => {
+                  if (
+                    await executar(() => removeMediaAction({ planId, mediaId }))
+                  )
+                    setConfirmRemoval(false);
+                }}
+              >
+                Remover foto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {erro ? (

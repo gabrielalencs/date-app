@@ -89,7 +89,7 @@ export function AddDateForm({ planId }: { planId: string }) {
           name="allDay"
           checked={diaInteiro}
           onChange={(event) => setDiaInteiro(event.target.checked)}
-          className="accent-accent size-5"
+          className="check-control"
         />
         <span className="type-body text-text">Dia inteiro</span>
       </label>

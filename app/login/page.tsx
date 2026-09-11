@@ -1,57 +1,61 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-
+import { LockKeyhole } from "lucide-react";
+import { PhotoStory } from "@/components/brand/editorial";
+import { Wordmark } from "@/components/brand/wordmark";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/features/auth/components/login-form";
 
-export const metadata: Metadata = {
-  title: "Entrar · date",
-};
+export const metadata: Metadata = { title: "Entrar · date" };
 
-function Wordmark() {
-  return (
-    <>
-      <Image
-        src="/brand/logos/date-logo.svg"
-        alt="date"
-        width={168}
-        height={70}
-        priority
-        unoptimized
-        className="dark:hidden"
-      />
-      <Image
-        src="/brand/logos/date-logo-on-dark.svg"
-        alt="date"
-        width={168}
-        height={70}
-        priority
-        unoptimized
-        className="hidden dark:block"
-      />
-    </>
-  );
-}
-
-/* Sem shell, sem bottom nav, sem sidebar, sem "criar conta": o DATE não tem
-   signup, nem na interface nem na fronteira HTTP.
-
-   No desktop a tela é um split editorial em vez de um formulário solto no meio
-   do vazio — "desktop não é mobile esticado". Sem fotografia até o B5, quem
-   sustenta o lado esquerdo é a Fraunces grande. */
 export default function LoginPage() {
   return (
-    <main className="min-h-dvh md:grid md:grid-cols-2">
-      <section className="flex flex-col justify-end gap-6 px-6 pt-16 pb-8 md:justify-center md:px-12 md:py-12">
-        <Wordmark />
-        <p className="type-display-l text-text max-w-[22ch]">
-          Continue de onde vocês pararam.
-        </p>
-      </section>
-
-      <section className="border-border-subtle flex flex-col justify-start px-6 pb-16 md:justify-center md:border-l md:px-12 md:py-12">
-        <div className="flex w-full max-w-sm flex-col gap-6">
-          <h1 className="type-heading text-text">Entrar</h1>
+    <main className="min-h-dvh p-3 sm:p-5 lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-8">
+      <PhotoStory
+        priority
+        className="min-h-72 justify-between p-6 lg:min-h-[calc(100dvh-2.5rem)] lg:p-12"
+      >
+        <Wordmark onPhoto className="w-36 lg:w-44" />
+        <div className="mt-6 lg:mt-16">
+          <p className="font-display max-w-[10ch] text-[2.25rem] leading-none tracking-tight lg:text-[4rem]">
+            Mais planos.
+            <br />
+            Mais vida.
+            <br />
+            Juntos.
+          </p>
+          <span className="editorial-rule mt-4 lg:mt-6" />
+          <p className="type-body-s mt-6 hidden max-w-[30ch] lg:block">
+            Experiências de hoje,
+            <br />
+            memórias para sempre.
+          </p>
+        </div>
+      </PhotoStory>
+      <section className="flex flex-col justify-center px-4 py-10 lg:px-8">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-8">
+          <header className="flex flex-col gap-3">
+            <span className="type-label text-text-muted">
+              O espaço de vocês
+            </span>
+            <h1 className="type-display-l">
+              Que bom ter
+              <br />
+              você por aqui.
+            </h1>
+            <p className="type-body-s text-text-muted">
+              Entre para continuar os planos de vocês.
+            </p>
+          </header>
           <LoginForm />
+          <div className="border-border-subtle flex flex-col gap-6 border-t pt-6">
+            <p className="type-meta text-text-muted flex items-center gap-2">
+              <LockKeyhole aria-hidden="true" className="size-4" />
+              Um espaço privado, feito para dois.
+            </p>
+            <div className="w-44">
+              <ThemeToggle />
+            </div>
+          </div>
         </div>
       </section>
     </main>
