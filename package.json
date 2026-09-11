@@ -19,7 +19,9 @@
     "test:http": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/auth-boundary.spec.ts tests/e2e/login-errors.spec.ts",
     "auth:bootstrap-dev": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-bootstrap.ts",
     "auth:create-dev-users": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/auth-create-dev-users.ts",
-    "test:auth": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/auth-live.spec.ts"
+    "test:auth": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/auth-live.spec.ts",
+    "test:crud": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/plans-crud.spec.ts",
+    "shots:plans": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/plans-shots.spec.ts"
   },
   "dependencies": {
     "@neondatabase/auth": "0.5.0-beta",

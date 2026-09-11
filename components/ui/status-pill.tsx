@@ -35,7 +35,8 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "bg-surface-sunken inline-flex items-center gap-1.5 rounded-full px-2.5 py-1",
+        // w-fit para a pill não esticar quando o pai é um flex column.
+        "bg-surface-sunken inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1",
         "type-label",
         TONE_CLASSES[tone],
         className,

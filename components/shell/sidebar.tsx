@@ -13,7 +13,10 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="border-border-subtle bg-surface fixed inset-y-0 left-0 hidden w-60 flex-col border-r md:flex">
+    <aside
+      data-shell="sidebar"
+      className="border-border-subtle bg-surface fixed inset-y-0 left-0 hidden w-60 flex-col border-r md:flex"
+    >
       <div className="px-5 py-3">
         <Link
           href="/"

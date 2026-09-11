@@ -7,8 +7,11 @@ import * as schema from "./schema/index.ts";
 
 /**
  * Dados 100% fictícios. Nenhum nome, foto ou lugar real do casal.
- * Idempotente: apaga o workspace de seed (cascata) e recria tudo do zero,
- * então rodar duas vezes dá o mesmo resultado.
+ *
+ * Idempotente: limpa só o que ele mesmo cria — planos e eventos — e recria do
+ * zero, então rodar duas vezes dá o mesmo resultado. O workspace e as
+ * memberships sobrevivem, porque apagá-los derrubaria por cascata o acesso das
+ * contas Auth ligadas pelo auth:bootstrap-dev.
  */
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -35,7 +38,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000001",
     title: "Feira de vinil no centro",
-    category: "Cultura",
+    category: "cultura",
     status: "idea",
     priority: 1,
     city: "São Paulo",
@@ -47,7 +50,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000002",
     title: "Sorveteria nova do bairro",
-    category: "Comida",
+    category: "gastronomia",
     status: "idea",
     priority: 0,
     city: "São Paulo",
@@ -59,7 +62,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000003",
     title: "Trilha do mirante",
-    category: "Natureza",
+    category: "ar_livre",
     status: "deciding",
     priority: 2,
     city: "Campos do Jordão",
@@ -71,7 +74,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000004",
     title: "Cinema de rua na praça",
-    category: "Cultura",
+    category: "cultura",
     status: "deciding",
     priority: 1,
     city: "São Paulo",
@@ -83,7 +86,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000005",
     title: "Jantar na cantina",
-    category: "Comida",
+    category: "gastronomia",
     status: "planned",
     priority: 3,
     city: "São Paulo",
@@ -95,7 +98,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000006",
     title: "Fim de semana na serra",
-    category: "Viagem",
+    category: "viagem",
     status: "reserved",
     priority: 3,
     city: "Monte Verde",
@@ -107,7 +110,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000007",
     title: "Show de jazz no bar",
-    category: "Música",
+    category: "musica",
     status: "completed",
     priority: 2,
     city: "São Paulo",
@@ -119,7 +122,7 @@ const PLANS: PlanSeed[] = [
   {
     id: "22222222-0000-4000-8000-000000000008",
     title: "Passeio de bike no parque",
-    category: "Esporte",
+    category: "ar_livre",
     status: "cancelled",
     priority: 0,
     city: "São Paulo",
@@ -143,10 +146,25 @@ async function main(): Promise<void> {
 
   try {
     await db.transaction(async (tx) => {
-      // Cascata limpa todas as tabelas de negócio deste workspace.
+      /* Apagar o workspace levaria junto, por cascata, as memberships das
+         contas Auth reais criadas pelo auth:bootstrap-dev — e o app ficaria
+         inacessível depois de cada seed. A limpeza é escopada ao que o seed
+         cria: os planos (que cascateiam para links, datas, votos, checklist,
+         gastos, reações, mídia e memórias) e os eventos, que não têm FK. */
       await tx
-        .delete(schema.workspaces)
-        .where(eq(schema.workspaces.id, WORKSPACE_ID));
+        .delete(schema.activityEvents)
+        .where(eq(schema.activityEvents.workspaceId, WORKSPACE_ID));
+      await tx
+        .delete(schema.plans)
+        .where(eq(schema.plans.workspaceId, WORKSPACE_ID));
+
+      await tx
+        .insert(schema.workspaces)
+        .values({ id: WORKSPACE_ID, name: "DATE de teste" })
+        .onConflictDoUpdate({
+          target: schema.workspaces.id,
+          set: { name: "DATE de teste" },
+        });
 
       for (const profile of [
         { id: ALEX, displayName: "Alex" },
@@ -162,13 +180,12 @@ async function main(): Promise<void> {
       }
 
       await tx
-        .insert(schema.workspaces)
-        .values({ id: WORKSPACE_ID, name: "DATE de teste" });
-
-      await tx.insert(schema.workspaceMembers).values([
-        { workspaceId: WORKSPACE_ID, profileId: ALEX, role: "owner" },
-        { workspaceId: WORKSPACE_ID, profileId: NINA, role: "member" },
-      ]);
+        .insert(schema.workspaceMembers)
+        .values([
+          { workspaceId: WORKSPACE_ID, profileId: ALEX, role: "owner" },
+          { workspaceId: WORKSPACE_ID, profileId: NINA, role: "member" },
+        ])
+        .onConflictDoNothing();
 
       await tx.insert(schema.plans).values(
         PLANS.map((plan) => ({

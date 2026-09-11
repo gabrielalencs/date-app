@@ -4,6 +4,15 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-049 — O seed não apaga o workspace
+**10/09/2026.** O seed apagava o workspace por id e recriava; a cascata levava junto as memberships das contas Auth ligadas pelo `auth:bootstrap-dev`, e o app ficava inacessível depois de cada seed. Agora a limpeza é escopada ao que o seed cria — planos, que cascateiam, e eventos, que não têm FK — e o workspace e as memberships sobrevivem.
+
+### D-048 — Playwright não reaproveita servidor
+**10/09/2026.** `reuseExistingServer: false`. Um `next start` esquecido serviu build antigo e produziu dois diagnósticos errados: uma tela "quebrada" que era só stale, e um teste que media o build anterior. O custo é rebuildar a cada suíte; o benefício é a suíte nunca mentir sobre qual código rodou.
+
+### D-047 — Seletor de teste por papel e nome, nunca por tipo
+**10/09/2026.** `page.click('button[type="submit"]')` não é estrito e pega o primeiro do DOM — que, dentro do shell, é o "Sair" da sidebar. O teste deslogava e acusava o CRUD de quebrado. Teste de UI usa `getByRole` com nome.
+
 ### D-046 — O Neon Auth valida a origem, e `127.0.0.1` não é `localhost`
 **10/09/2026.** O serviço responde 403 `Invalid origin` para `http://127.0.0.1:3100` e 200 para `http://localhost:3100`, na mesma porta, com a mesma credencial. Sem `Origin` também é 403. O `baseURL` do Playwright passou a usar `localhost`, senão o teste live acusaria login quebrado com a aplicação correta. Consequência para o B12: o domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do primeiro deploy.
 
@@ -21,6 +30,21 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ### D-035 — Login desktop em split editorial
 **10/09/2026.** Sem fotografia até o B5, quem sustenta a composição é a Fraunces. Um formulário centrado em 1280px de vazio lia como template genérico, que a verificação do bloco manda corrigir.
+
+### D-041 — Capa tipográfica até o B5
+**10/09/2026.** Sem fotografia, a capa do card é o próprio título em Fraunces sobre `--surface-sunken`, com a categoria como rótulo. Um bloco cinza vazio de 300px é a diferença entre um app sem fotos e um app quebrado.
+
+### D-040 — Categorias como lista canônica na aplicação
+**10/09/2026.** `lib/categories.ts` guarda os oito slugs; a coluna segue `text` (D-026), então acrescentar categoria não exige migration. Valor desconhecido vindo do banco renderiza como **Outro** em vez de quebrar a tela. O seed do B2 usava rótulos livres e foi alinhado aos slugs.
+
+### D-039 — Sem React Hook Form
+**10/09/2026.** `<form>` + Server Action + Zod resolve com menos código e entrega funcionamento sem JavaScript. Reavaliar quando existir formulário com campos repetíveis ou validação dependente.
+
+### D-038 — Entidade de outro workspace responde "não encontrado"
+**10/09/2026.** Nunca "proibido": distinguir os dois confirmaria que o id existe, que é informação que quem procura não tinha. Mesma lógica da mensagem única de login do B3.
+
+### D-037 — Camada de dados fechada estruturalmente
+**10/09/2026.** Três camadas que se sobrepõem: zona de importação no ESLint deixando `@/db/client` inalcançável fora de `db/` e dos módulos de dados; contexto como primeiro parâmetro, com `workspaceId` nunca aceito como parâmetro; e teste com dois workspaces provando que o de fora é invisível. Convenção em documento não sobrevive a seis blocos de distância — isto sobrevive porque quebra o build.
 
 ### D-034 — `/kitchen-sink` existe apenas sob `DATE_ENABLE_KITCHEN_SINK`
 **10/09/2026.** Sem a variável a rota não existe — `notFound()` de verdade, não rota pública protegida. Tirá-la do `PUBLIC_PREFIXES` quebraria o `pnpm shots`, então a entrada permanece lá: quando a rota existe, ela precisa abrir sem sessão. A variável fica no `.env.local` e nunca vai para a Vercel.

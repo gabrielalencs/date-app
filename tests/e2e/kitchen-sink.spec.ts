@@ -36,7 +36,7 @@ for (const viewport of VIEWPORTS) {
         content: `
           body > div { position: relative !important; }
           nav[aria-label="Navegação principal"] { position: static !important; }
-          aside { position: absolute !important; }
+          aside[data-shell="sidebar"] { position: absolute !important; }
         `,
       });
 
