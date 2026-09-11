@@ -15,7 +15,16 @@ import { plans } from "./plans.ts";
 
 /**
  * `object_key` é sempre gerado pelo servidor e nunca aceito do cliente.
- * Formato: {workspace_id}/{plan_id|misc}/{uuid}.{ext}
+ * Formato: {workspace_id}/{plan_id}/{uuid}/full.webp
+ *
+ * Cada foto tem duas saídas. `object_key` guarda a do `full`; `thumb_object_key`
+ * guarda a da miniatura (D-054). Coluna própria em vez de chave derivada por
+ * convenção de string: a linha só nasce depois de os dois objetos existirem no
+ * R2, então NOT NULL é o invariante real e o banco é quem o garante.
+ *
+ * O unique global de `object_key` cobre os dois: as duas chaves compartilham o
+ * segmento uuid, então thumb duplicado implicaria full duplicado, que já é
+ * impossível.
  */
 export const media = pgTable(
   "media",
@@ -25,6 +34,7 @@ export const media = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     objectKey: text("object_key").notNull(),
+    thumbObjectKey: text("thumb_object_key").notNull(),
     mimeType: text("mime_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     width: integer("width"),

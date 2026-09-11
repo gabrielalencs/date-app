@@ -8,6 +8,13 @@
       "when": 1789073229355,
       "tag": "0000_wonderful_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789127312079,
+      "tag": "0001_smiling_corsair",
+      "breakpoints": true
     }
   ]
 }
