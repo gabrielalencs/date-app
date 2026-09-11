@@ -20,6 +20,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Login, sessão, contexto autorizado e logout validados contra o Neon Auth real (`pnpm test:auth`)
 - B4 concluído: CRUD do plano com camada de dados fechada por construção
 - B5 concluído: mídia em `date-media-dev`, upload por URL assinada, capa e galeria
+- B6 concluído: opções de data, votos, consenso, confirmação e o acoplamento com a máquina de status
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
 - Ambiente local já preparado e atualizado:
   - Git
@@ -76,11 +77,15 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | Comando | O que exige |
 |---|---|
 | `pnpm lint` · `typecheck` · `test` · `build` | nada além do repo |
+| `pnpm test:tz` | nada — roda a suíte de tempo em UTC, Nova York e no fuso local |
 | `pnpm test:db` | Neon `development` |
 | `pnpm test:media` | Neon `development` + R2 `date-media-dev` |
 | `pnpm test:media-e2e` · `shots:media` | os dois acima + sessão de development |
+| `pnpm test:dates` · `shots:dates` | Neon `development` + sessão de development |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
 
 ## Próxima ação
 
-B6 — Datas e votação. Nenhum bloqueio humano conhecido: banco, auth e mídia já estão provados em `development`.
+B7 — Calendário. Nenhum bloqueio humano conhecido: banco, auth, mídia e datas já estão provados em `development`.
+
+O B7 consome `lib/datetime.ts`, que é o único módulo autorizado a formatar ou interpretar data (D-059). Uma visão mensal vai precisar de funções novas ali — grade do mês, primeiro dia da semana, dias adjacentes —, e todas entram no `tests/datetime.test.ts`, que roda nos três fusos.
