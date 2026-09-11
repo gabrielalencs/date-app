@@ -120,7 +120,7 @@ describe("banco Neon development semeado", () => {
     ).toBe(true);
   });
 
-  it("mantém exatamente oito plans no workspace e cobre os seis status", async () => {
+  it("mantém os oito plans do seed, sem duplicar, cobrindo os seis status", async () => {
     const plans = await database
       .select({
         id: schema.plans.id,
@@ -130,11 +130,25 @@ describe("banco Neon development semeado", () => {
       .from(schema.plans)
       .where(eq(schema.plans.workspaceId, WORKSPACE_ID));
 
-    expect(plans.map(({ id }) => id).sort()).toEqual(EXPECTED_PLAN_IDS);
+    /* Os oito do seed existem e aparecem uma vez cada. Não se afirma que o
+       workspace tem SÓ eles: plano criado à mão ou por outra suíte é dado
+       legítimo do produto, e proibi-lo fazia esta asserção quebrar por uso
+       normal em vez de por defeito do seed. */
+    const doSeed = plans
+      .map(({ id }) => id)
+      .filter((id) => EXPECTED_PLAN_IDS.includes(id))
+      .sort();
+
+    expect(doSeed).toEqual(EXPECTED_PLAN_IDS);
     expect(plans.every(({ workspaceId }) => workspaceId === WORKSPACE_ID)).toBe(
       true,
     );
-    expect(new Set(plans.map(({ status }) => status))).toEqual(
+
+    const statusDoSeed = plans
+      .filter(({ id }) => EXPECTED_PLAN_IDS.includes(id))
+      .map(({ status }) => status);
+
+    expect(new Set(statusDoSeed)).toEqual(
       new Set([
         "idea",
         "deciding",

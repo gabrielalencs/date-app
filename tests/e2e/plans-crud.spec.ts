@@ -1,10 +1,16 @@
+import { inArray } from "drizzle-orm";
 import { expect, test, type Page } from "@playwright/test";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
+import { closeFixtureDb, fixtureDb, schema } from "./db-fixture.ts";
 
 /**
  * Ciclo do CRUD contra o banco de development, autenticado de verdade.
- * Cada teste cria o próprio plano e o arquiva ao final, para não sujar o seed.
+ *
+ * Cada teste cria o próprio plano e **apaga** ao final. Arquivar não bastava:
+ * arquivar esconde da lista mas a linha continua, e o
+ * `database.integration.test.ts` conta linhas. As duas suítes discordavam sobre
+ * o que significa limpar, e quem rodasse esta deixava a outra vermelha.
  */
 const credentials = parseDevCredentials(process.env.DATE_DEV_USER_CREDENTIALS);
 const chosen = (process.env.DATE_TEST_EMAIL ?? "").trim().toLowerCase();
@@ -22,6 +28,18 @@ async function signIn(page: Page): Promise<void> {
   });
 }
 
+/** Ids criados por esta suíte, apagados no final. */
+const criados: string[] = [];
+
+test.afterAll(async () => {
+  if (criados.length > 0) {
+    await fixtureDb()
+      .delete(schema.plans)
+      .where(inArray(schema.plans.id, criados));
+  }
+  await closeFixtureDb();
+});
+
 async function criarPlano(page: Page, titulo: string): Promise<string> {
   await page.goto("/novo");
   await page.fill('input[name="title"]', titulo);
@@ -29,7 +47,10 @@ async function criarPlano(page: Page, titulo: string): Promise<string> {
   // Seletor por nome: a sidebar tem um submit ("Sair") antes do main no DOM.
   await page.getByRole("button", { name: "Salvar ideia" }).click();
   await page.waitForURL(/\/planos\/[0-9a-f-]+$/, { timeout: 30_000 });
-  return new URL(page.url()).pathname.split("/").pop()!;
+
+  const id = new URL(page.url()).pathname.split("/").pop()!;
+  criados.push(id);
+  return id;
 }
 
 test("cria, aparece na lista, edita e muda de status", async ({ page }) => {
