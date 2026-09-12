@@ -82,7 +82,13 @@ Várias opções de data por plano. Voto `sim`/`talvez`/`não` por usuário. Con
 
 ## B7 — Calendário
 
-Visão mensal, dates confirmados em destaque, opções de data em aparência secundária, sheet no mobile, criação a partir do dia. Fuso `America/Sao_Paulo` tratado explicitamente.
+Visão mensal da `/agenda`: seis linhas sempre, semana começando na segunda, confirmadas e candidatas distinguidas por forma, navegação entre meses por link, dia selecionado em **painel** e volta para o plano. Filtro por categoria e faixa de próximos entregues junto. Fuso `America/Sao_Paulo` tratado explicitamente — agrupamento por `dayKey()`, janela semiaberta por `startOfDayInApp` e a zona do ESLint ampliada para barrar leitores UTC e recorte de ISO.
+
+**Entrega:** a `/agenda` deixa de ser placeholder. Nenhuma escrita nova — o calendário lê o que o B6 grava.
+
+**Revisões:** sheet no mobile e criação a partir do dia saíram (D-077, D-080). Modal passa a ser exclusivo de confirmação destrutiva; criar plano a partir da célula tornaria as 42 células interativas por um ganho que `/novo` já entrega.
+
+**Documento:** `docs/CALENDAR.md`.
 
 ## B8 — Planejamento
 

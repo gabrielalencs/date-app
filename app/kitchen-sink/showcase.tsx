@@ -341,6 +341,47 @@ export function KitchenSinkShowcase() {
         </div>
       </Section>
 
+      <Section title="Marcador do calendário">
+        <div className="flex flex-col gap-3">
+          <p className="type-body-s text-text-muted max-w-[52ch]">
+            A distinção entre data confirmada e candidata é de forma, não de
+            cor: preenchido contra contornado. Em escala de cinza as duas
+            continuam separadas, que é o teste que a cor esconde.
+          </p>
+          <div className="flex flex-wrap items-center gap-5">
+            <span className="calendar-entry">
+              <span
+                aria-hidden="true"
+                data-confirmed="true"
+                className="calendar-marker text-accent"
+              />
+              <span className="font-medium">20:00 confirmada</span>
+            </span>
+            <span className="calendar-entry">
+              <span
+                aria-hidden="true"
+                data-confirmed="false"
+                className="calendar-marker text-text-muted"
+              />
+              <span>22:00 candidata</span>
+            </span>
+            <span className="calendar-entry" style={{ filter: "grayscale(1)" }}>
+              <span
+                aria-hidden="true"
+                data-confirmed="true"
+                className="calendar-marker text-accent"
+              />
+              <span
+                aria-hidden="true"
+                data-confirmed="false"
+                className="calendar-marker text-text-muted"
+              />
+              <span>sem cor</span>
+            </span>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Badge">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="neutral">Categoria</Badge>

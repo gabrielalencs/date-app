@@ -92,6 +92,12 @@ O controle customizado depende de JavaScript para interação. URLs de filtro po
 
 Checkbox e radio conservam inputs nativos e labels reais, com desenho DATE via CSS; o label fornece alvo de toque de pelo menos 44px. Segmented controls usam navy e aria-pressed. Componentes complexos não reimplementam à mão o comportamento acessível do Radix.
 
+Filtro que é navegação usa **link**, não Select: a agenda filtra por categoria com chips que são âncoras, porque cada estado é uma URL de verdade e um Select exigiria JavaScript para o que uma âncora faz. Select continua sendo a escolha dentro de formulário.
+
+## Marcador do calendário
+
+Data confirmada e data candidata se distinguem por **forma**: marcador preenchido contra marcador contornado, ambos de 7px. Cor entra como reforço — coral na confirmada, `--text-muted` na candidata — nunca como único portador. A verificação é uma captura em escala de cinza: se as duas virarem o mesmo ponto, a distinção estava só na cor. Está no kitchen sink, inclusive a variante sem cor.
+
 ## Fotografia, marca e cards
 
 Os SVGs oficiais de `public/brand/logos/` são usados por Wordmark. Não recompor date com texto, redesenhar o símbolo nem usar as referências luminosas como asset de interface. Preservar proporção e usar versão clara/escura adequada.
@@ -116,7 +122,7 @@ Conteúdo máximo 1360px incluindo padding; uma coluna mobile. Desktop usa colun
 - Nova ideia: cadastro rápido e rail editorial de orientação; uma coluna mobile. Não antecipar campos de negócio.
 - Detalhe: capa, categoria, título, descrição e metadados; rail de status/ações; datas, galeria e edição recolhível. Mobile coloca o status antes das seções de trabalho.
 - Perfil: identidade institucional, papel, tema e logout existentes.
-- Agenda B7: o estado atual é honesto. O futuro calendário poderá ocupar a coluna principal, com rail opcional de planos reais. Não criar grade de datas fake.
+- Agenda: o calendário do B7 ocupa a coluna principal e o rail leva o dia selecionado e os próximos DATEs reais. Título do mês em Fraunces, chevrons de 44px, filtro de categoria em chips como na prancha. A grade é `<table>` — o dado é tabular — com seis linhas sempre, semana começando na segunda e dias de fora do mês em tom apagado com conteúdo real. No mobile ela sai do padding do shell e encosta nas bordas: com `px-5`, 320px dariam 40px de coluna, abaixo do alvo de toque. Célula sem conteúdo não é link nem parada de tabulação. Nada de grade de datas fake.
 - Memórias B9: estado preparatório editorial; nenhuma memória falsa. A futura timeline reutiliza tipografia, fotografias, cards e superfícies daqui.
 
 ## Movimento

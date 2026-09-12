@@ -22,6 +22,8 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - B5 concluído: mídia em `date-media-dev`, upload por URL assinada, capa e galeria
 - B6 concluído: opções de data, votos, consenso, confirmação e o acoplamento com a máquina de status
 - R1 implementado e verificado: rebrand das nove telas atuais, Select DATE, Motion, fotografia e sistema visual permanente. Ver `docs/R1_VISUAL_REBRAND.md` para testes e capturas; a avaliação estética final cabe ao proprietário.
+- B7 concluído: calendário mensal da `/agenda`, com navegação por URL, dia selecionado em painel e filtro por categoria. Sem escrita nova e sem migration — o calendário só lê o que o B6 grava. Ver `docs/CALENDAR.md`.
+- Workspace de development normalizado para **exatamente dois membros**, as duas contas reais (D-084). Alex e Nina seguem como autores de planos e opções, não como membros; o seed corrige isso sozinho a cada execução.
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
 - Ambiente local já preparado e atualizado:
   - Git
