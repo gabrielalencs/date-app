@@ -13,6 +13,7 @@ import { MAX_OPTIONS_PER_PLAN } from "@/features/dates/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import type { VoteValue } from "@/lib/consensus";
 import { NotFoundError, ValidationError } from "@/lib/errors";
+import { RESERVATION_HOLDS_PLAN } from "@/lib/plan-preconditions";
 import { assertTransition } from "@/lib/plan-status";
 import type { PlanStatus } from "@/lib/status";
 
@@ -365,9 +366,7 @@ export async function unconfirmDateOption(
     const plano = await lockPlan(tx, ctx, planId);
 
     if (plano.status === "reserved") {
-      throw new ValidationError(
-        "Esse plano tem reserva. Volte para Planejado antes de desmarcar a data.",
-      );
+      throw new ValidationError(RESERVATION_HOLDS_PLAN);
     }
 
     if (plano.status !== "planned") {

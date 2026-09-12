@@ -15,6 +15,7 @@ import {
   getNextConfirmedDate,
   listPlanDateOptions,
 } from "@/features/dates/data/queries";
+import { setReservationStatus } from "@/features/planning/data/mutations";
 import { changePlanStatus, createPlan } from "@/features/plans/data/mutations";
 import { getPlan } from "@/features/plans/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
@@ -258,12 +259,26 @@ describe("acoplamento com a máquina de status", () => {
     expect(await getConfirmedOption(ctxB1, plano)).toBeNull();
   });
 
+  /**
+   * Este teste mudou no B8, e a mudança é da regra, não do teste.
+   *
+   * A versão do B6 montava o estado `reserved` chamando `changePlanStatus` e
+   * voltava chamando de novo — os dois caminhos que a pré-condição nova recusa.
+   * `reserved` agora afirma que existe reserva confirmada, e quem põe e tira
+   * essa etiqueta é a reserva.
+   *
+   * A ordem passou a ser de fora para dentro: desfaz a reserva, o plano volta a
+   * `planned` sozinho, e só então a data se desmarca.
+   */
   it("desconfirmar a partir de reserved é recusado", async () => {
     const plano = await novoPlano("Plano com reserva");
     const opcao = await createDateOption(ctxB1, plano, { startsAt: DIA(19) });
 
     await confirmDateOption(ctxB1, opcao.id);
-    await changePlanStatus(ctxB1, plano, "reserved");
+
+    // O estado reserved vem da reserva, não do botão de status.
+    await setReservationStatus(ctxB1, plano, "confirmed");
+    expect((await getPlan(ctxB1, plano)).status).toBe("reserved");
 
     await expect(unconfirmDateOption(ctxB1, plano)).rejects.toBeInstanceOf(
       ValidationError,
@@ -273,8 +288,15 @@ describe("acoplamento com a máquina de status", () => {
     expect((await getConfirmedOption(ctxB1, plano))?.id).toBe(opcao.id);
     expect((await getPlan(ctxB1, plano)).status).toBe("reserved");
 
-    // Voltando a planned de forma explícita, aí sim desconfirma.
-    await changePlanStatus(ctxB1, plano, "planned");
+    // E voltar por status também é recusado: quem desfaz reserva é a reserva.
+    await expect(
+      changePlanStatus(ctxB1, plano, "planned"),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    // De fora para dentro, aí sim.
+    await setReservationStatus(ctxB1, plano, "cancelled");
+    expect((await getPlan(ctxB1, plano)).status).toBe("planned");
+
     await unconfirmDateOption(ctxB1, plano);
     expect((await getPlan(ctxB1, plano)).status).toBe("deciding");
   });
