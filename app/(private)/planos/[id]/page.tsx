@@ -15,7 +15,7 @@ import { getPlan } from "@/features/plans/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { categoryLabel } from "@/lib/categories";
 import { NotFoundError } from "@/lib/errors";
-import { formatBRL } from "@/lib/format";
+import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
 export default async function Page({ params }: PageProps<"/planos/[id]">) {
@@ -97,7 +97,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
                 <dd className="type-body-s tnum mt-1">
                   {plan.estimatedBudgetCents === null
                     ? "Para combinar"
-                    : formatBRL(plan.estimatedBudgetCents / 100)}
+                    : formatCents(plan.estimatedBudgetCents)}
                 </dd>
               </div>
             </div>

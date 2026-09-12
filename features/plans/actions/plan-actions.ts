@@ -14,6 +14,7 @@ import {
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { CATEGORIES } from "@/lib/categories";
 import { NotFoundError } from "@/lib/errors";
+import { optionalCentsFromText } from "@/lib/money";
 import { InvalidTransitionError } from "@/lib/plan-status";
 import { PLAN_STATUSES } from "@/lib/status";
 
@@ -44,20 +45,6 @@ const createSchema = z.object({
     ),
 });
 
-/** Dinheiro entra como texto e sai como inteiro de centavos (D-025). */
-const moneyToCents = z
-  .string()
-  .trim()
-  .transform((value) => (value.length === 0 ? null : value))
-  .nullable()
-  .refine(
-    (value) => value === null || /^\d+([.,]\d{1,2})?$/.test(value),
-    "Use apenas números, com até dois decimais.",
-  )
-  .transform((value) =>
-    value === null ? null : Math.round(Number(value.replace(",", ".")) * 100),
-  );
-
 const updateSchema = z.object({
   title: z.string().trim().min(1, "O título é obrigatório.").max(200),
   category: z.enum(CATEGORIES),
@@ -67,7 +54,7 @@ const updateSchema = z.object({
   city: optionalText,
   state: optionalText,
   notes: optionalText,
-  estimatedBudgetCents: moneyToCents,
+  estimatedBudgetCents: optionalCentsFromText,
   requiresBooking: z
     .union([z.literal("on"), z.literal("")])
     .optional()

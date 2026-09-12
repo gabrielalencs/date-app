@@ -6,7 +6,7 @@ import { MediaImage } from "@/features/media/components/media-image";
 import type { PlanSummary } from "@/features/plans/data/queries";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { formatBRL } from "@/lib/format";
+import { formatCents } from "@/lib/money";
 import { statusStrikesTitle } from "@/lib/status";
 
 export function PlanCard({ plan }: { plan: PlanSummary }) {
@@ -58,7 +58,7 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
           {plan.estimatedBudgetCents !== null ? (
             <span className="tnum flex items-center gap-2">
               <Wallet aria-hidden="true" className="size-3.5 shrink-0" />
-              {formatBRL(plan.estimatedBudgetCents / 100)}{" "}
+              {formatCents(plan.estimatedBudgetCents)}{" "}
               <span className="text-xs">(est.)</span>
             </span>
           ) : null}

@@ -10,12 +10,9 @@ import {
 } from "@/features/plans/actions/plan-actions";
 import { CATEGORY_OPTIONS, toCategory } from "@/lib/categories";
 import type { Plan } from "@/features/plans/data/queries";
+import { centsToInputValue } from "@/lib/money";
 
 const INITIAL: ActionState = {};
-function centsToInput(value: number | null): string {
-  return value === null ? "" : (value / 100).toFixed(2);
-}
-
 export function EditPlanForm({ plan }: { plan: Plan }) {
   const [state, formAction, pending] = useActionState(
     updatePlanAction,
@@ -70,7 +67,7 @@ export function EditPlanForm({ plan }: { plan: Plan }) {
           icon={Wallet}
           name="estimatedBudgetCents"
           inputMode="decimal"
-          defaultValue={centsToInput(plan.estimatedBudgetCents)}
+          defaultValue={centsToInputValue(plan.estimatedBudgetCents)}
           hint="Em reais. Deixe vazio se ainda não sabem."
         />
       </fieldset>
