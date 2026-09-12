@@ -62,8 +62,9 @@ Os quatro documentos restantes da estrutura (`docs/DESIGN_SYSTEM.md`, `docs/DATA
 
 A identidade visual aprovada está em `public/brand/`.
 
-A prancha de referência está em:
+As pranchas de referência estão em:
 
-`public/brand/reference/date-brand-board.png`
+`public/brand/reference/date-brand-board-initial.png`
+`public/brand/reference/date-brand-board-complet.png`
 
 Os SVGs são a fonte principal dos assets. Os PNGs/ICO são exports para PWA/fallback.

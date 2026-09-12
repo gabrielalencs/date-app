@@ -14,7 +14,7 @@ export function Wordmark({
   return (
     <span className={cn("inline-flex w-44 flex-col", className)}>
       <Image
-        src="/brand/logos/date-logo.svg"
+        src="/brand/logos/logo_nome_dark_horizontal.svg"
         alt="date"
         width={220}
         height={92}
@@ -22,7 +22,7 @@ export function Wordmark({
         className={onPhoto ? "hidden" : "w-full dark:hidden"}
       />
       <Image
-        src="/brand/logos/date-logo-on-dark.svg"
+        src="/brand/logos/logo_nome_white_horizontal.svg"
         alt="date"
         width={220}
         height={92}

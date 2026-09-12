@@ -379,8 +379,9 @@ Paleta:
 - Dark background `#0E171D`
 - Dark surface `#15232C`
 
-Prancha aprovada:
-`public/brand/reference/date-brand-board.png`
+Pranchas aprovadas:
+`public/brand/reference/date-brand-board-initial.png`
+`public/brand/reference/date-brand-board-complet.png`
 
 ## 11. Direção de UX
 

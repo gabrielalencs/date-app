@@ -2,7 +2,17 @@
 
 ## Logos e referências
 
-`public/brand/logos/date-logo.svg` e `date-logo-on-dark.svg` são os assets oficiais recebidos no repositório. Wordmark usa esses arquivos sem redesenhar o símbolo ou digitar uma assinatura substituta. A prancha existente em `public/brand/reference/date-brand-board.png` e os mockups fornecidos pelo proprietário orientaram hierarquia, paleta e atmosfera. As versões luminosas fornecidas não foram usadas na interface.
+Os assets oficiais vivem em `public/brand/logos/` e `public/brand/icons/`, fornecidos pelo proprietário em SVG e PNG. O SVG é a fonte; o PNG é export de fallback.
+
+O jogo de logos segue três eixos, combináveis pelo nome do arquivo:
+
+- **conteúdo** — `logo_nome` (símbolo + assinatura) ou `logo_slogan_nome` (com "planejar hoje, viver juntos sempre");
+- **tema** — `dark` para fundo claro, `white` para fundo escuro;
+- **orientação** — `horizontal` ou `vertical`.
+
+`Wordmark` usa `logo_nome_dark_horizontal.svg` e `logo_nome_white_horizontal.svg`, trocados por `dark:hidden`. Nenhum é redesenhado, recomposto ou substituído por assinatura digitada; as versões luminosas não entram na interface.
+
+As pranchas em `public/brand/reference/` — `date-brand-board-initial.png` e `date-brand-board-complet.png` — e os mockups fornecidos pelo proprietário orientaram hierarquia, paleta e atmosfera. São referência, não asset de interface (D-004, revisto pelo D-067).
 
 ## Fotografias editoriais
 

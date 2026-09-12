@@ -110,8 +110,8 @@ test("assets estáticos continuam públicos, sem passar por redirect", async ({
   request,
 }) => {
   for (const asset of [
-    "/brand/logos/date-logo.svg",
-    "/brand/logos/date-logo-on-dark.svg",
+    "/brand/logos/logo_nome_dark_horizontal.svg",
+    "/brand/logos/logo_nome_white_horizontal.svg",
   ]) {
     // maxRedirects: 0 é o que importa: seguir redirect esconderia o 307 do proxy.
     const response = await request.get(asset, { maxRedirects: 0 });
