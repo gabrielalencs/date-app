@@ -212,14 +212,36 @@ export function formatRelativeDay(
   return `há ${Math.abs(dias)} dias`;
 }
 
+/** `yyyy-MM-dd` de uma tripla civil já convertida. */
+export function civilDayKey(civil: CivilDate): string {
+  const mes = String(civil.month).padStart(2, "0");
+  const dia = String(civil.day).padStart(2, "0");
+  return `${civil.year}-${mes}-${dia}`;
+}
+
+/**
+ * A chave do dia: `yyyy-MM-dd` daquele instante no fuso do app.
+ *
+ * **É a única forma autorizada de agrupar qualquer coisa por dia** (D-073).
+ *
+ * Tem o mesmo corpo de `toDateInputValue` e existe assim mesmo, porque o nome
+ * é o ponto: ninguém agrupa um calendário com uma função chamada "valor de
+ * input de formulário", e o nome errado é exatamente como
+ * `toISOString().slice(0, 10)` volta pela porta dos fundos. Aquilo é o dia em
+ * UTC, que às 21h de São Paulo já é o dia seguinte — e como nenhuma data do
+ * seed cruza a meia-noite UTC, a suíte inteira passaria.
+ */
+export function dayKey(instant: Date): string {
+  return civilDayKey(civilDateOf(instant));
+}
+
 /**
  * `yyyy-MM-dd` no fuso do app, para preencher `<input type="date">`.
  * Nunca `toISOString().slice(0, 10)`: aquilo é o dia em UTC, que às 21h de
  * São Paulo já é o dia seguinte.
  */
 export function toDateInputValue(instant: Date): string {
-  const { year, month, day } = civilDateOf(instant);
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return dayKey(instant);
 }
 
 /** `HH:mm` no fuso do app, para preencher `<input type="time">`. */
@@ -282,4 +304,194 @@ export function parseDateInput(date: string, time?: string | null): Date {
   }
 
   return instante;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Calendário (B7)
+ *
+ * Tudo aqui opera sobre tripla civil, nunca sobre instante. A distinção é a
+ * regra do D-074, e os dois usos de `Date.UTC` parecem iguais e não são:
+ *
+ *   sobre INSTANTE, para descobrir que dia é      → proibido
+ *   sobre TRIPLA CIVIL já convertida, para somar
+ *   dias ou achar o dia da semana                 → calculadora, sancionado
+ *
+ * A entrada em dia civil vem de `civilDateOf`/`dayKey`, que passam pelo
+ * `Intl` com `America/Sao_Paulo` declarado. Depois disso o UTC vira só um
+ * eixo numérico sem fuso, que é exatamente o que se quer de um calendário.
+ * ------------------------------------------------------------------------ */
+
+/** Um mês civil, sem dia. É o que mora na URL como `yyyy-MM`. */
+export type CivilMonth = {
+  year: number;
+  month: number;
+};
+
+const DIA_EM_MS = 86_400_000;
+
+/** O eixo numérico de dias. Só recebe tripla civil. */
+function indiceDoDia(civil: CivilDate): number {
+  return Date.UTC(civil.year, civil.month - 1, civil.day);
+}
+
+/**
+ * 0 = segunda, 6 = domingo (D-072).
+ *
+ * `getDay()` cru devolve 0 = domingo e produz um erro de um dia que ninguém vê
+ * até o mês começar num domingo — e fevereiro de 2026 começa num domingo.
+ */
+export function weekdayIndex(civil: CivilDate): number {
+  const domingoZero = new Date(indiceDoDia(civil)).getUTCDay();
+  return (domingoZero + 6) % 7;
+}
+
+/** Soma dias de calendário. Negativo anda para trás. */
+export function addCivilDays(civil: CivilDate, days: number): CivilDate {
+  const alvo = new Date(indiceDoDia(civil) + days * DIA_EM_MS);
+  return {
+    year: alvo.getUTCFullYear(),
+    month: alvo.getUTCMonth() + 1,
+    day: alvo.getUTCDate(),
+  };
+}
+
+/** Primeiro dia do mês, como tripla civil. */
+export function startOfMonth(month: CivilMonth): CivilDate {
+  return { year: month.year, month: month.month, day: 1 };
+}
+
+/** Anda meses. `Date.UTC` normaliza dezembro + 1 para janeiro do ano seguinte. */
+export function addMonths(month: CivilMonth, delta: number): CivilMonth {
+  const alvo = new Date(Date.UTC(month.year, month.month - 1 + delta, 1));
+  return { year: alvo.getUTCFullYear(), month: alvo.getUTCMonth() + 1 };
+}
+
+/** O mês civil de um instante, no fuso do app. */
+export function monthOf(instant: Date): CivilMonth {
+  const { year, month } = civilDateOf(instant);
+  return { year, month };
+}
+
+export function isSameCivilMonth(a: CivilMonth, b: CivilMonth): boolean {
+  return a.year === b.year && a.month === b.month;
+}
+
+/** `true` quando a tripla cai dentro daquele mês. */
+export function isInMonth(civil: CivilDate, month: CivilMonth): boolean {
+  return civil.year === month.year && civil.month === month.month;
+}
+
+/** Quantas células a grade tem, sempre (D-076). */
+export const MONTH_GRID_CELLS = 42;
+
+/**
+ * As 42 triplas civis da grade do mês, da segunda-feira da semana do dia 1 em
+ * diante.
+ *
+ * Seis linhas sempre, independentemente do mês (D-076). Um mês de 28 dias
+ * começando numa segunda caberia em 4 linhas, mas grade de altura variável faz
+ * o botão de "mês seguinte" escorregar sob o dedo entre um toque e o outro — e
+ * navegar é o gesto principal desta tela.
+ */
+export function monthGrid(month: CivilMonth): CivilDate[] {
+  const primeiro = startOfMonth(month);
+  const inicio = addCivilDays(primeiro, -weekdayIndex(primeiro));
+
+  return Array.from({ length: MONTH_GRID_CELLS }, (_, i) =>
+    addCivilDays(inicio, i),
+  );
+}
+
+/** `yyyy-MM`, como o mês viaja na URL. */
+export function toMonthParam(month: CivilMonth): string {
+  return `${month.year}-${String(month.month).padStart(2, "0")}`;
+}
+
+const MES_PARAM = /^(\d{4})-(\d{2})$/;
+
+/**
+ * `yyyy-MM` → mês civil, ou `null`.
+ *
+ * Nunca passa por `new Date()`: `new Date("2026-09")` é meia-noite **UTC**, que
+ * em São Paulo ainda é 31 de agosto. O par é lido como dois números e pronto.
+ *
+ * Devolve `null` em vez de lançar porque quem chama é uma URL, e URL ruim cai
+ * no mês corrente sem erro (D-078).
+ */
+export function parseMonthParam(
+  raw: string | null | undefined,
+): CivilMonth | null {
+  const m = MES_PARAM.exec(raw?.trim() ?? "");
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+
+  if (month < 1 || month > 12) return null;
+  if (year < 1970 || year > 9999) return null;
+
+  return { year, month };
+}
+
+/**
+ * `yyyy-MM-dd` → dia civil, ou `null`. Mesma razão de não lançar.
+ *
+ * Rejeita dia que não existe — 31 de fevereiro — comparando a volta, do mesmo
+ * jeito que `parseDateInput` faz.
+ */
+export function parseDayParam(
+  raw: string | null | undefined,
+): CivilDate | null {
+  const m = DATA.exec(raw?.trim() ?? "");
+  if (!m) return null;
+
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year < 1970 || year > 9999) return null;
+
+  const civil = { year, month, day };
+  const volta = new Date(indiceDoDia(civil));
+
+  if (
+    volta.getUTCFullYear() !== year ||
+    volta.getUTCMonth() + 1 !== month ||
+    volta.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return civil;
+}
+
+/**
+ * Cabeçalhos da grade, na ordem do `weekdayIndex` (D-072).
+ *
+ * Ficam aqui, e não na interface, porque a ordem é consequência da convenção
+ * de índice: separar as duas coisas é como se acerta o índice e se esquece o
+ * cabeçalho. `long` vai no `<abbr title>` da seção 10.
+ */
+export const WEEKDAY_HEADERS: readonly { short: string; long: string }[] = [
+  { short: "Seg", long: "Segunda-feira" },
+  { short: "Ter", long: "Terça-feira" },
+  { short: "Qua", long: "Quarta-feira" },
+  { short: "Qui", long: "Quinta-feira" },
+  { short: "Sex", long: "Sexta-feira" },
+  { short: "Sáb", long: "Sábado" },
+  { short: "Dom", long: "Domingo" },
+];
+
+const MES_LONGO = formatter({ month: "long" });
+
+/** "Setembro de 2026", para o título editorial do mês. */
+export function formatMonthTitle(month: CivilMonth): string {
+  const referencia = startOfDayInApp(startOfMonth(month));
+  return `${capitalizar(MES_LONGO.format(referencia))} de ${month.year}`;
+}
+
+/** "14 de setembro", a partir de uma tripla civil. */
+export function formatCivilDay(civil: CivilDate): string {
+  return DIA_E_MES.format(startOfDayInApp(civil));
 }

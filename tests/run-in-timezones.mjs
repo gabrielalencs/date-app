@@ -26,8 +26,15 @@ const vitest = fileURLToPath(
   new URL("../node_modules/vitest/vitest.mjs", import.meta.url),
 );
 
+/**
+ * A lista padrão cresce com cada bloco que acrescenta lógica de tempo. O
+ * calendário entra aqui porque agrupamento por dia civil é exatamente o tipo de
+ * defeito que só aparece fora do fuso de quem escreve (D-073).
+ */
+const SUITES = ["tests/datetime.test.ts", "tests/calendar.test.ts"];
+
 const alvo = process.argv.slice(2);
-const padrao = alvo.length > 0 ? alvo : ["tests/datetime.test.ts"];
+const padrao = alvo.length > 0 ? alvo : SUITES;
 
 let falhou = false;
 

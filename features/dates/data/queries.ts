@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -161,16 +161,25 @@ export type ConfirmedDate = {
 };
 
 /**
- * O próximo DATE: plano com data confirmada em dia civil futuro.
+ * Os próximos DATEs: planos com data confirmada em dia civil não passado.
  *
  * "Futuro" é dia de calendário no fuso do app, não instante — um date marcado
  * para hoje às 20h ainda é hoje às 23h, e não deve sumir da Home só porque o
- * relógio passou (D-061).
+ * relógio passou (D-061). Por isso o corte fica em JavaScript e não no `where`:
+ * o banco não conhece `America/Sao_Paulo`, e um `starts_at >= now()` cortaria
+ * o date de hoje à noite no meio da tarde.
+ *
+ * A Home chama com `limit` 1 e a faixa da agenda com outro. Duas consultas
+ * quase iguais divergem em seis meses, então existe uma só (seção 4 do
+ * docs/CALENDAR.md).
  */
-export async function getNextConfirmedDate(
+export async function listUpcomingConfirmed(
   ctx: AuthorizedContext,
   now: Date = new Date(),
-): Promise<ConfirmedDate | null> {
+  limit = 1,
+): Promise<ConfirmedDate[]> {
+  if (limit <= 0) return [];
+
   const linhas = await db
     .select({
       optionId: planDateOptions.id,
@@ -182,7 +191,6 @@ export async function getNextConfirmedDate(
       placeName: plans.placeName,
       startsAt: planDateOptions.startsAt,
       allDay: planDateOptions.allDay,
-      archivedAt: plans.archivedAt,
     })
     .from(planDateOptions)
     .innerJoin(plans, eq(plans.id, planDateOptions.planId))
@@ -191,34 +199,32 @@ export async function getNextConfirmedDate(
         eq(planDateOptions.workspaceId, ctx.workspaceId),
         eq(plans.workspaceId, ctx.workspaceId),
         eq(planDateOptions.isConfirmed, true),
+        isNull(plans.archivedAt),
+        notInArray(plans.status, ["cancelled", "completed"]),
       ),
     )
     .orderBy(asc(planDateOptions.startsAt));
 
-  const proxima = linhas.find(
-    (linha) =>
-      linha.archivedAt === null &&
-      linha.planStatus !== "cancelled" &&
-      linha.planStatus !== "completed" &&
-      // Hoje conta como próximo; só dia civil anterior sai.
-      civilDaysBetween(now, linha.startsAt) >= 0,
-  );
+  const futuras: ConfirmedDate[] = [];
 
-  if (!proxima) {
-    return null;
+  for (const linha of linhas) {
+    // Hoje conta como próximo; só dia civil anterior sai.
+    if (civilDaysBetween(now, linha.startsAt) < 0) continue;
+
+    futuras.push(linha);
+    if (futuras.length === limit) break;
   }
 
-  return {
-    optionId: proxima.optionId,
-    planId: proxima.planId,
-    planTitle: proxima.planTitle,
-    planStatus: proxima.planStatus,
-    coverMediaId: proxima.coverMediaId,
-    city: proxima.city,
-    placeName: proxima.placeName,
-    startsAt: proxima.startsAt,
-    allDay: proxima.allDay,
-  };
+  return futuras;
+}
+
+/** O próximo DATE, para a Home. Caso particular de `listUpcomingConfirmed`. */
+export async function getNextConfirmedDate(
+  ctx: AuthorizedContext,
+  now: Date = new Date(),
+): Promise<ConfirmedDate | null> {
+  const [proxima] = await listUpcomingConfirmed(ctx, now, 1);
+  return proxima ?? null;
 }
 
 /** A data oficial de um plano, quando existe. */
