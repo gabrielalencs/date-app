@@ -1,5 +1,5 @@
 import { Pool } from "@neondatabase/serverless";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 import { requireDevelopmentBranch } from "./env.ts";
@@ -8,15 +8,24 @@ import * as schema from "./schema/index.ts";
 /**
  * Dados 100% fictícios. Nenhum nome, foto ou lugar real do casal.
  *
- * Idempotente: limpa só o que ele mesmo cria — planos e eventos — e recria do
- * zero, então rodar duas vezes dá o mesmo resultado. O workspace e as
- * memberships sobrevivem, porque apagá-los derrubaria por cascata o acesso das
+ * Idempotente: limpa só o que ele mesmo cria — planos, eventos e as próprias
+ * memberships — e recria do zero, então rodar duas vezes dá o mesmo resultado.
+ * O workspace sobrevive, porque apagá-lo derrubaria por cascata o acesso das
  * contas Auth ligadas pelo auth:bootstrap-dev.
+ *
+ * Alex e Nina são **autores, não membros** (D-084). Eles assinam `created_by`
+ * de planos e opções, que é o que dá corpo à tela, mas o workspace de
+ * development tem exatamente dois membros e são as duas contas reais. Com
+ * quatro memberships toda captura mostrava quatro pessoas votando num app para
+ * duas, e o dado deixava de ter a forma do produto.
  */
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 const ALEX = "seed_profile_alex";
 const NINA = "seed_profile_nina";
+
+/** Os perfis que este seed cria. Nada fora desta lista é tocado. */
+const SEED_PROFILE_IDS = [ALEX, NINA] as const;
 
 /** Datas fixas em UTC para o seed ser determinístico. */
 const utc = (iso: string) => new Date(`${iso}Z`);
@@ -141,6 +150,9 @@ const COMPLETED_PLAN = PLANS[6]!;
 async function main(): Promise<void> {
   const target = requireDevelopmentBranch();
 
+  let membrosDoWorkspace = 0;
+  let votosLancados = 0;
+
   const pool = new Pool({ connectionString: target.url });
   const db = drizzle(pool, { schema });
 
@@ -179,13 +191,20 @@ async function main(): Promise<void> {
           });
       }
 
+      /* Alex e Nina saem de workspace_members (D-084). O predicado nomeia os
+         dois ids que este seed cria: as memberships das contas reais não estão
+         no alcance do DELETE, que é a armadilha que o B5 quase caiu. Fica aqui
+         em vez de virar migration porque é forma de dado de development, não
+         schema — e porque roda de novo a cada seed, corrigindo bancos que já
+         estavam com quatro. */
       await tx
-        .insert(schema.workspaceMembers)
-        .values([
-          { workspaceId: WORKSPACE_ID, profileId: ALEX, role: "owner" },
-          { workspaceId: WORKSPACE_ID, profileId: NINA, role: "member" },
-        ])
-        .onConflictDoNothing();
+        .delete(schema.workspaceMembers)
+        .where(
+          and(
+            eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID),
+            inArray(schema.workspaceMembers.profileId, [...SEED_PROFILE_IDS]),
+          ),
+        );
 
       await tx.insert(schema.plans).values(
         PLANS.map((plan) => ({
@@ -266,34 +285,61 @@ async function main(): Promise<void> {
         ])
         .returning({ id: schema.planDateOptions.id });
 
+      /* Voto é ato de membro, e os membros agora são as contas reais (D-084).
+         Antes o seed votava como Alex e Nina; aquelas linhas existiriam mas a
+         interface não as mostraria, porque `listPlanDateOptions` monta os votos
+         a partir de `listWorkspaceMembers`. Então os votos de demonstração vão
+         nos membros que existirem, na mesma ordem que a leitura usa.
+
+         Sem bootstrap rodado não há membro nenhum, e aí o seed não inventa
+         voto: ele avisa. Plano em decisão sem voto é um estado legítimo do
+         produto — "ninguém respondeu ainda" —, e é melhor que um voto órfão. */
+      const membros = await tx
+        .select({ profileId: schema.workspaceMembers.profileId })
+        .from(schema.workspaceMembers)
+        .innerJoin(
+          schema.profiles,
+          eq(schema.profiles.id, schema.workspaceMembers.profileId),
+        )
+        .where(eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID))
+        .orderBy(
+          asc(schema.workspaceMembers.createdAt),
+          asc(schema.profiles.id),
+        );
+
+      membrosDoWorkspace = membros.length;
+
       const [first, second] = options;
-      if (first && second) {
+      const [um, dois] = membros;
+
+      if (first && second && um && dois) {
         await tx.insert(schema.planDateVotes).values([
           {
             workspaceId: WORKSPACE_ID,
             optionId: first.id,
-            profileId: ALEX,
+            profileId: um.profileId,
             vote: "yes",
           },
           {
             workspaceId: WORKSPACE_ID,
             optionId: first.id,
-            profileId: NINA,
+            profileId: dois.profileId,
             vote: "no",
           },
           {
             workspaceId: WORKSPACE_ID,
             optionId: second.id,
-            profileId: ALEX,
+            profileId: um.profileId,
             vote: "maybe",
           },
           {
             workspaceId: WORKSPACE_ID,
             optionId: second.id,
-            profileId: NINA,
+            profileId: dois.profileId,
             vote: "yes",
           },
         ]);
+        votosLancados = 4;
       }
 
       await tx.insert(schema.checklistItems).values([
@@ -390,7 +436,21 @@ async function main(): Promise<void> {
     });
 
     console.log(`Seed aplicado no workspace ${WORKSPACE_ID}.`);
-    console.log(`Planos: ${PLANS.length}. Perfis: 2.`);
+    console.log(`Planos: ${PLANS.length}. Perfis autores: 2 (Alex, Nina).`);
+    console.log(
+      `Membros do workspace: ${membrosDoWorkspace}. Votos lançados: ${votosLancados}.`,
+    );
+
+    if (membrosDoWorkspace === 0) {
+      console.warn(
+        "Nenhum membro no workspace: rode `pnpm auth:bootstrap-dev` para ligar " +
+          "as duas contas reais. Sem membro, o seed não inventa voto.",
+      );
+    } else if (membrosDoWorkspace !== 2) {
+      console.warn(
+        `O workspace de development deve ter exatamente 2 membros (D-084), e tem ${membrosDoWorkspace}.`,
+      );
+    }
   } finally {
     await pool.end();
   }

@@ -77,7 +77,7 @@ afterAll(async () => {
 });
 
 describe("banco Neon development semeado", () => {
-  it("encontra o workspace, os dois profiles e ambas as memberships", async () => {
+  it("mantém os perfis do seed como autores e exatamente dois membros reais", async () => {
     const workspace = await database
       .select({ id: schema.workspaces.id })
       .from(schema.workspaces)
@@ -86,38 +86,50 @@ describe("banco Neon development semeado", () => {
       .select({ id: schema.profiles.id })
       .from(schema.profiles)
       .where(inArray(schema.profiles.id, [...PROFILE_IDS]));
+
+    /* Agora a tabela inteira, não o recorte dos ids do seed. A asserção mudou
+       de lado com o D-084: antes se afirmava que Alex e Nina continuavam
+       ligados; agora se afirma que eles NÃO estão, e que o workspace de
+       development tem exatamente os dois membros reais. O recorte anterior era
+       incapaz de ver as quatro memberships que existiam de fato. */
     const members = await database
-      .select({
-        workspaceId: schema.workspaceMembers.workspaceId,
-        profileId: schema.workspaceMembers.profileId,
-      })
+      .select({ profileId: schema.workspaceMembers.profileId })
       .from(schema.workspaceMembers)
-      .innerJoin(
-        schema.profiles,
-        eq(schema.workspaceMembers.profileId, schema.profiles.id),
-      )
-      /* Escopado aos ids do seed de propósito: desde o B3 o workspace também
-         tem as contas Auth reais, que são legítimas e não podem reprovar a
-         fixture. O que se afirma é que os dois profiles do seed continuam
-         ligados, não que a tabela inteira tenha só eles. */
-      .where(
-        and(
-          eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID),
-          inArray(schema.workspaceMembers.profileId, [...PROFILE_IDS]),
-        ),
-      );
+      .where(eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID));
 
     expect(workspace).toEqual([{ id: WORKSPACE_ID }]);
+
+    // Os dois perfis continuam existindo: eles assinam `created_by`.
     expect(profiles.map(({ id }) => id).sort()).toEqual(
       [...PROFILE_IDS].sort(),
     );
+
     expect(members).toHaveLength(2);
-    expect(members.map(({ profileId }) => profileId).sort()).toEqual(
-      [...PROFILE_IDS].sort(),
-    );
     expect(
-      members.every(({ workspaceId }) => workspaceId === WORKSPACE_ID),
-    ).toBe(true);
+      members.some(({ profileId }) =>
+        (PROFILE_IDS as readonly string[]).includes(profileId),
+      ),
+    ).toBe(false);
+  });
+
+  it("mantém os perfis do seed como autores de planos e opções", async () => {
+    const autoresDePlano = await database
+      .select({ createdBy: schema.plans.createdBy })
+      .from(schema.plans)
+      .where(
+        and(
+          eq(schema.plans.workspaceId, WORKSPACE_ID),
+          inArray(schema.plans.id, EXPECTED_PLAN_IDS),
+        ),
+      );
+
+    /* A contrapartida do D-084: tirar Alex e Nina de workspace_members não
+       pode apagá-los do produto. Eles continuam sendo quem criou cada plano do
+       seed, que é o que dá corpo à tela. */
+    expect(autoresDePlano).toHaveLength(EXPECTED_PLAN_IDS.length);
+    expect(new Set(autoresDePlano.map(({ createdBy }) => createdBy))).toEqual(
+      new Set(PROFILE_IDS),
+    );
   });
 
   it("mantém os oito plans do seed, sem duplicar, cobrindo os seis status", async () => {
@@ -191,11 +203,27 @@ describe("banco Neon development semeado", () => {
       votesByOption.set(vote.optionId, values);
     }
 
+    /* Voto é ato de membro (D-084), então quem votou são as contas reais e não
+       Alex e Nina. A asserção deixa de nomear profiles e passa a exigir que
+       todo voto pertença a um membro do workspace — que é a invariante de
+       verdade, e a que continuaria valendo se as contas mudassem. */
+    const membros = await database
+      .select({ profileId: schema.workspaceMembers.profileId })
+      .from(schema.workspaceMembers)
+      .where(eq(schema.workspaceMembers.workspaceId, WORKSPACE_ID));
+    const idsDeMembro = new Set(membros.map(({ profileId }) => profileId));
+
     expect(options).toHaveLength(3);
     expect(votes).toHaveLength(4);
-    expect(new Set(votes.map(({ profileId }) => profileId))).toEqual(
-      new Set(PROFILE_IDS),
+    expect(votes.every(({ profileId }) => idsDeMembro.has(profileId))).toBe(
+      true,
     );
+    expect(
+      votes.every(
+        ({ profileId }) =>
+          !(PROFILE_IDS as readonly string[]).includes(profileId),
+      ),
+    ).toBe(true);
     expect([...votesByOption.values()].some((values) => values.size > 1)).toBe(
       true,
     );
