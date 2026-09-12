@@ -146,12 +146,14 @@ A interface pode usar rótulos em português:
 Ideia → Decidindo → Planejado → Reservado → Realizado.
 
 ### 4.8 Calendário
-- Visão mensal.
+- Visão mensal, seis linhas sempre, semana começando na segunda-feira.
 - Dates confirmados com destaque.
 - Opções de data com aparência secundária.
-- Abrir detalhes em sheet/modal no mobile.
-- Adicionar plano a partir do dia selecionado.
+- Abrir detalhes em **painel**: abaixo da grade no mobile, ao lado no desktop. Não sheet, não modal — modal é só para confirmação destrutiva (D-080).
+- Mês e dia moram na URL; a agenda é navegação, não estado de cliente (D-078).
 - Fuso padrão: `America/Sao_Paulo`.
+
+**Adiado, fora da V1 do calendário:** adicionar plano a partir do dia selecionado. Tornaria as 42 células interativas — 42 paradas de tabulação antes do resto da página — por um ganho que `/novo` seguido de sugerir data já entrega (D-077). Só célula com conteúdo é link.
 
 ### 4.9 Reservas
 - requer reserva?

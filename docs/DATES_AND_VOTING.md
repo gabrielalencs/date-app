@@ -107,6 +107,18 @@ Calculado por função pura, a partir dos dois votos, e testado sem banco.
 
 Cor entra como ponto ou preenchimento, nunca como texto (D-020). O rótulo é sempre `--text` ou `--text-muted`.
 
+### Ordem das opções
+
+Três critérios, nesta ordem (D-085):
+
+1. **a confirmada primeiro**, sempre. Ela deixou de ser candidata, e a pergunta que a lista responde passou a ser outra;
+2. **consenso**, pelo peso da tabela acima — `both_yes`, `leaning`, `waiting`, `maybe`, `untouched`, `blocked`;
+3. **data**, a mais próxima antes.
+
+Quem está decidindo olha "qual data a gente já concorda", não "qual foi criada primeiro". `blocked` vai para o fim porque um `no` já resolveu aquela linha: ela continua visível, mas deixou de ser candidata a decisão.
+
+A ordem é calculada na camada de dados, não na interface, porque é regra de produto e não de apresentação.
+
 ---
 
 ## 6. Confirmação
@@ -177,7 +189,9 @@ Cada linha traz:
 
 **Controle de voto:** três opções num controle segmentado, com a escolhida em preenchimento. Sim, talvez, não. Sem ícone, sem emoji, sem cor como único portador de significado.
 
-**Adicionar data:** dia obrigatório, horário opcional, alternador de dia inteiro, observação opcional. Sheet no mobile.
+**Adicionar data:** dia obrigatório, horário opcional, alternador de dia inteiro, observação opcional. **Formulário embutido na própria seção**, nos dois tamanhos — não sheet, não modal.
+
+A regra é maior que este formulário (D-080): **modal no DATE é só para confirmação destrutiva.** O diálogo de remover foto do R1 é o caso. Conteúdo, formulário e detalhe moram em rota ou painel, porque não são interrupção — são destino. Sugerir uma data é trabalho, e trabalho não se faz dentro de uma camada que pede para ser fechada.
 
 **Próximo DATE na Home:** quando existe plano com data confirmada no futuro, ele aparece em destaque com a contagem em dias. A contagem é calculada no servidor e renderizada como texto estático. Não conta segundos: além de ser animação gratuita, contador calculado no cliente diverge do servidor e produz erro de hidratação.
 

@@ -4,6 +4,48 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-085 — Ordem das opções de data ratificada
+**11/09/2026.** Confirmada no topo, depois consenso, depois data. Era regra tácita que só existia no `sort` de `listPlanDateOptions`; passa a estar escrita na seção 5 do `docs/DATES_AND_VOTING.md`. A ordem é de produto, não de apresentação, e por isso é calculada na camada de dados: quem decide olha "qual data a gente já concorda", não qual foi criada primeiro. `blocked` vai para o fim porque um `no` já resolveu aquela linha.
+
+### D-084 — O workspace de development tem exatamente dois membros
+**11/09/2026.** As duas contas reais, e mais ninguém. Os perfis `seed_profile_alex` e `seed_profile_nina` continuam existindo como **autores** — `created_by` de planos e opções — e deixam de ser membros. Com quatro memberships, toda captura mostrava quatro pessoas votando num app para duas, e o dado não tinha a forma do produto. O seed passa a remover as memberships dos dois perfis que ele mesmo cria, escopado a esses dois ids, nunca tocando nas memberships das contas reais (a armadilha do B5). Consequência: voto é ato de membro, então o seed passa a lançar os votos de demonstração como os membros que encontrar no workspace, e não lança nenhum quando o `auth:bootstrap-dev` ainda não rodou.
+
+### D-083 — Teste afirma sobre contrato de dado, não sobre rótulo visível
+**11/09/2026.** Quando o rótulo é decisão de design, afirmar sobre ele é afirmar sobre algo que muda por motivo estético. "Decidindo" era ao mesmo tempo a StatusPill e o nome de um botão de transição, e o seletor por texto pegava os dois. O contrato é o atributo `data-*` — `data-status`, `data-day`, `data-confirmed` —, que existe para ser afirmado e não muda quando a copy muda. Generaliza o que o B6 fez no StatusPill.
+
+### D-082 — Fixture restaura o estado anterior
+**11/09/2026.** Nenhuma suíte deste projeto "limpa" destruindo dado que não criou. O `snapshotPlanos` do B6 é o modelo: guarda o que estava, deixa o teste mexer, devolve ao que estava. Apagar tudo e recriar do zero funciona até o dia em que a suíte roda contra um banco com dado do proprietário dentro. Generaliza o D-071 de fixtures de mídia para toda suíte.
+
+### D-081 — Aparato de verificação novo não conta como verde até um defeito plantado tê-lo feito vermelho
+**11/09/2026.** Três execuções verdes de uma suíte nova provam que os testes rodam, não que eles medem. A prova é plantar o defeito que a suíte existe para pegar e mostrar a saída vermelha, depois removê-lo e mostrar a verde. O B6 fez isso removendo o `timeZone` da formatação; o B7 faz agrupando por `toISOString().slice(0,10)`. Vale para todo instrumento novo — runner, fixture, medida em navegador, varredura. Complementa o D-058: lá o código não muda por teste vermelho, aqui o teste não é aceito por estar verde.
+
+### D-080 — Modal só para confirmação destrutiva
+**11/09/2026.** Conteúdo, formulário e detalhe moram em rota ou painel, porque não são interrupção — são destino. Modal e sheet ficam reservados ao que precisa de resposta antes de continuar, e na V1 isso é exatamente a confirmação de remover foto do R1. Revoga "abrir detalhes em sheet/modal no mobile" da seção 4.8 do `DATE_PROJECT_SPEC.md` e "sheet no mobile" da seção 9 do `docs/DATES_AND_VOTING.md`: o formulário de sugerir data fica embutido, e o dia selecionado do calendário é painel.
+
+### D-079 — `completed` continua no calendário; `cancelled` e arquivado não
+**11/09/2026.** Um date realizado continuar visível não é sujeira: é o registro de que aquele sábado teve alguma coisa, e o calendário é o primeiro lugar do produto onde ele vira arquivo de memória. Cancelado e arquivado saem porque não aconteceram e não vão acontecer — deixá-los ocuparia célula com ruído. O filtro é da consulta, não da interface.
+
+### D-078 — Mês e dia moram na URL
+**11/09/2026.** `/agenda?mes=2026-09&dia=2026-09-14`. A agenda é navegação, não estado de cliente: cada mês é uma URL de verdade, recarregar e compartilhar funcionam, o histórico do navegador se comporta e a leitura funciona sem JavaScript. Anterior, seguinte e "Hoje" são links, não botões com estado. Entrada ruim — `2026-13`, `abc`, vazio — cai no mês corrente **sem erro**: URL é entrada de usuário, e a resposta a uma entrada ruim aqui é o estado padrão, não uma tela de erro. `now` desce do servidor, como no B6, senão a hidratação diverge.
+
+### D-077 — Só célula com conteúdo é link
+**11/09/2026.** Uma grade de 42 células linkáveis são 42 paradas de tabulação antes de chegar ao resto da página, e dia sem nada não tem detalhe para abrir. Célula com pelo menos uma opção vira link para `?dia=...`; célula vazia é texto. Em consequência, criar plano a partir do dia selecionado fica fora da V1 do calendário — ela tornaria as 42 células interativas por um ganho que `/novo` seguido de sugerir data já entrega. Corrige a seção 4.8 do spec, que prometia o contrário.
+
+### D-076 — Grade com seis linhas sempre
+**11/09/2026.** 42 células, independentemente do mês. Um mês de 28 dias começando numa segunda cabe em 4 linhas e um de 31 começando num domingo precisa de 6; grade de altura variável faz o botão de "mês seguinte" escorregar sob o dedo entre um toque e o outro, e navegar é o gesto principal desta tela. O custo é um fevereiro ocasional mostrando duas semanas de março em tom apagado, e as células de fora do mês mostram conteúdo real — meio-mês vazio por conveniência de implementação seria mentira visual.
+
+### D-075 — Janela da consulta semiaberta, por `startOfDayInApp`
+**11/09/2026.** Da meia-noite da primeira célula à meia-noite do dia seguinte à última, as duas calculadas por `startOfDayInApp`, com `starts_at >= inicio and starts_at < fim`. Com `Date.UTC` no lugar de `startOfDayInApp` a janela começa três horas cedo demais, traz um date do dia anterior à noite como se fosse do primeiro dia e perde o da última célula depois das 21h. Semiaberta em vez de fechada porque o fim é uma meia-noite, e meia-noite pertence ao dia que começa. Usa o índice `plan_date_options_workspace_starts_at_idx`, que já existia.
+
+### D-074 — `Date.UTC` é calculadora de calendário, nunca leitor de dia
+**11/09/2026.** Os dois usos parecem iguais e não são. Sobre uma **tripla civil** já convertida — `Date.UTC(y, m-1, d)` para somar dias ou descobrir o dia da semana — é aritmética de calendário e é sancionado; é o que o `civilDaysBetween` já fazia. Sobre um **instante**, para descobrir que dia ele é, continua proibido: aquilo responde em UTC, e às 21h de São Paulo o UTC já é o dia seguinte. A regra em uma frase: converta para dia civil primeiro; depois de estar em dia civil, `Date.UTC` pode ser usada à vontade.
+
+### D-073 — `dayKey()` é a única forma autorizada de agrupar por dia
+**11/09/2026.** `lib/datetime.ts` passa a exportar `dayKey(instant)`, o `yyyy-MM-dd` daquele instante no fuso do app. Mesmo corpo de `toDateInputValue`, mas com nome próprio: ninguém agrupa um calendário com uma função chamada "valor de input de formulário", e o nome errado é como o recorte de ISO volta. A zona do D-059 cresce para barrar, fora do módulo, os leitores UTC de `Date` — `getUTCDate`, `getUTCDay`, `getUTCMonth`, `getUTCFullYear`, `getUTCHours` — e qualquer `.toISOString()` seguido de `.slice`, `.substring`, `.substr` ou `.split`. `toISOString()` sozinho continua permitido, porque serialização é uso legítimo; o que se proíbe é usá-lo para responder "que dia é".
+
+### D-072 — A semana começa na segunda-feira
+**11/09/2026.** SEG TER QUA QUI SEX SÁB DOM, como a prancha da marca mostra, e como se fala de fim de semana: sábado e domingo ficam juntos no fim da linha, que é onde a maior parte dos dates cai. Índice 0 = segunda, 6 = domingo, por `weekdayIndex()`. `getDay()` cru está fora de questão — devolve 0 = domingo e produz um erro de um dia que ninguém vê até o mês começar num domingo.
+
 ### D-071 — Fixtures mutáveis pertencem ao teste
 **11/09/2026.** As suítes de mídia, datas e capturas criam planos temporários com UUID próprio e limpam apenas seus registros/objetos em development. Evita apagar mídia adicionada pelo proprietário em planos do seed ao rodar regressão visual. Capturas de mídia usam as fotografias editoriais como uploads explícitos de teste, sem povoar o produto com dados permanentes.
 
