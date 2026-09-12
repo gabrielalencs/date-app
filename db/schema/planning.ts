@@ -6,12 +6,64 @@ import {
   integer,
   pgTable,
   text,
+  time,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { reservationStatus } from "./enums.ts";
 import { profiles, workspaces } from "./identity.ts";
 import { plans } from "./plans.ts";
+
+/**
+ * Reserva do plano (B8). Uma por plano, garantido pelo banco.
+ *
+ * `plans.requires_booking` diz se o plano precisa de reserva; esta tabela é a
+ * reserva em si, e só existe quando alguém começou a tratá-la.
+ */
+export const reservations = pgTable(
+  "reservations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => plans.id, { onDelete: "cascade" }),
+    status: reservationStatus("status").notNull().default("pending"),
+    /** O localizador, o número da mesa, o que o lugar mandou. */
+    code: text("code"),
+    /**
+     * Hora de parede, sem dia e sem fuso — "20:30", que é o que o restaurante
+     * disse.
+     *
+     * O dia da reserva **é** o dia da data confirmada, por construção: reserva
+     * exige data confirmada. Guardar um `timestamptz` duplicaria o dia em dois
+     * lugares, e dois lugares divergem — bastaria a data confirmada mudar para
+     * a reserva exibir um dia que contradiz o plano, em silêncio.
+     */
+    reservedTime: time("reserved_time"),
+    url: text("url"),
+    notes: text("notes"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    /* Uma reserva por plano: duas reservas para o mesmo date é estado
+       impossível, e estado impossível vive no banco (D-065). */
+    uniqueIndex("reservations_plan_id_unique").on(table.planId),
+    index("reservations_workspace_id_idx").on(table.workspaceId),
+  ],
+);
 
 export const checklistItems = pgTable(
   "checklist_items",
@@ -69,6 +121,9 @@ export const expenses = pgTable(
       .defaultNow(),
   },
   (table) => [
+    /* Gasto negativo não existe neste produto. O banco é a garantia; o Zod é a
+       mensagem — quem digita "-10" precisa ler algo melhor que erro de driver. */
+    check("expenses_amount_not_negative", sql`${table.amountCents} >= 0`),
     index("expenses_workspace_id_idx").on(table.workspaceId),
     index("expenses_plan_id_idx").on(table.planId),
     index("expenses_paid_by_idx").on(table.paidBy),

@@ -37,6 +37,19 @@ export const mediaPurpose = pgEnum("media_purpose", [
 
 export const memberRole = pgEnum("member_role", ["owner", "member"]);
 
+/**
+ * Estado da reserva (B8).
+ *
+ * `cancelled` cobre também "tentamos e não tinha vaga": é informação que muda a
+ * decisão de data, e o lugar dela é o campo de observações, não um quarto
+ * estado que ninguém saberia quando usar.
+ */
+export const reservationStatus = pgEnum("reservation_status", [
+  "pending",
+  "confirmed",
+  "cancelled",
+]);
+
 export const activityVerb = pgEnum("activity_verb", [
   "plan_created",
   "date_suggested",
