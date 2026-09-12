@@ -9,27 +9,34 @@ import {
   changeStatusAction,
   type ActionState,
 } from "@/features/plans/actions/plan-actions";
-import { allowedTransitions } from "@/lib/plan-status";
+import { offerableTransitions, type PlanFacts } from "@/lib/plan-preconditions";
 import { statusLabel, type PlanStatus } from "@/lib/status";
 
 const INITIAL: ActionState = {};
 
 /**
- * A UI só oferece as transições que a máquina permite — mas o servidor valida
- * de novo: o botão que não existe na tela ainda pode ser forjado no POST.
+ * A UI só oferece as transições que a máquina permite **e** que os fatos
+ * autorizam — mas o servidor valida de novo: o botão que não existe na tela
+ * ainda pode ser forjado no POST.
+ *
+ * É a primeira das duas consultas às pré-condições (seção 4 do
+ * docs/PLANNING.md). Sem ela, a tela ofereceria Reservado num plano sem
+ * reserva confirmada, e o clique só descobriria o impedimento depois do POST.
  */
 export function PlanStatusControl({
   planId,
   status,
+  facts,
 }: {
   planId: string;
   status: PlanStatus;
+  facts: PlanFacts;
 }) {
   const [state, formAction, pending] = useActionState(
     changeStatusAction,
     INITIAL,
   );
-  const options = allowedTransitions(status);
+  const options = offerableTransitions(status, facts);
 
   return (
     <section className="flex flex-col gap-3">

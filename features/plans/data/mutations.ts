@@ -6,7 +6,10 @@ import { db } from "@/db/client";
 import { activityEvents, plans } from "@/db/schema/index.ts";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
-import { assertTransitionAllowed } from "@/features/planning/data/mutations";
+import {
+  assertBookingRequirementCanBeDisabled,
+  assertTransitionAllowed,
+} from "@/features/planning/data/mutations";
 import { assertTransition } from "@/lib/plan-status";
 import type { PlanStatus } from "@/lib/status";
 
@@ -93,17 +96,34 @@ export async function updatePlan(
     return getPlanOrThrow(ctx, planId);
   }
 
-  const [plan] = await db
-    .update(plans)
-    .set({ ...changes, updatedAt: new Date() })
-    .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
-    .returning();
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ id: plans.id })
+      .from(plans)
+      .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
+      .for("update")
+      .limit(1);
 
-  if (!plan) {
-    throw new NotFoundError("Plano");
-  }
+    if (!current) {
+      throw new NotFoundError("Plano");
+    }
 
-  return plan;
+    if (input.requiresBooking === false) {
+      await assertBookingRequirementCanBeDisabled(tx, ctx, planId);
+    }
+
+    const [plan] = await tx
+      .update(plans)
+      .set({ ...changes, updatedAt: new Date() })
+      .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
+      .returning();
+
+    if (!plan) {
+      throw new NotFoundError("Plano");
+    }
+
+    return plan;
+  });
 }
 
 export async function changePlanStatus(

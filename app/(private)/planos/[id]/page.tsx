@@ -4,8 +4,22 @@ import { ArrowLeft, ChevronDown, MapPin, Pencil, Wallet } from "lucide-react";
 import { EditorialNote } from "@/components/brand/editorial";
 import { CategoryArt } from "@/components/brand/category-art";
 import { PlanDates } from "@/features/dates/components/plan-dates";
-import { listPlanDateOptions } from "@/features/dates/data/queries";
+import {
+  listPlanDateOptions,
+  listWorkspaceMembers,
+} from "@/features/dates/data/queries";
 import { PlanPhotos } from "@/features/media/components/plan-photos";
+import { PlanChecklist } from "@/features/planning/components/plan-checklist";
+import { PlanExpenses } from "@/features/planning/components/plan-expenses";
+import { PlanReservation } from "@/features/planning/components/plan-reservation";
+import {
+  getReservation,
+  isReadOnly,
+  listChecklist,
+  listExpenses,
+  readPlanFacts,
+  reservationAvailable,
+} from "@/features/planning/data/queries";
 import { MediaImage } from "@/features/media/components/media-image";
 import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
@@ -25,10 +39,30 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  const [photos, dateOptions] = await Promise.all([
+  const [
+    photos,
+    dateOptions,
+    reservation,
+    checklist,
+    expenses,
+    members,
+    facts,
+  ] = await Promise.all([
     listPlanMedia(ctx, plan.id),
     listPlanDateOptions(ctx, plan.id),
+    getReservation(ctx, plan.id),
+    listChecklist(ctx, plan.id),
+    listExpenses(ctx, plan.id),
+    listWorkspaceMembers(ctx),
+    readPlanFacts(ctx, plan.id),
   ]);
+
+  /* Plano cancelado ou arquivado é leitura nas três seções (seção 8 do
+     docs/PLANNING.md). A camada de dados recusa de novo — isto aqui é só para
+     a tela não oferecer o que seria recusado. */
+  const somenteLeitura = isReadOnly(plan);
+  const reservaDisponivel =
+    plan.requiresBooking && reservationAvailable(plan, facts);
   const now = new Date();
   const cover = photos.find((photo) => photo.id === plan.coverMediaId);
   return (
@@ -105,7 +139,11 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
         </article>
         <aside className="flex flex-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <div className="panel flex flex-col gap-6 !p-5">
-            <PlanStatusControl planId={plan.id} status={plan.status} />
+            <PlanStatusControl
+              planId={plan.id}
+              status={plan.status}
+              facts={facts}
+            />
             <div className="border-border-subtle border-t pt-5">
               <ArchivePlanForm
                 planId={plan.id}
@@ -113,6 +151,14 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
               />
             </div>
           </div>
+          {plan.requiresBooking ? (
+            <PlanReservation
+              planId={plan.id}
+              reservation={reservation}
+              available={reservaDisponivel}
+              readOnly={!reservaDisponivel}
+            />
+          ) : null}
           <EditorialNote tone="blush" className="hidden lg:flex">
             Boas experiências também aproximam.
           </EditorialNote>
@@ -123,6 +169,21 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             planStatus={plan.status}
             options={dateOptions}
             now={now}
+          />
+          {/* No desktop a reserva fica no rail; no mobile o rail vem antes
+              desta coluna, preservando reserva -> checklist -> gastos. */}
+          <PlanChecklist
+            planId={plan.id}
+            items={checklist}
+            now={now}
+            readOnly={somenteLeitura}
+          />
+          <PlanExpenses
+            planId={plan.id}
+            expenses={expenses}
+            estimatedBudgetCents={plan.estimatedBudgetCents}
+            members={members}
+            readOnly={somenteLeitura}
           />
           <PlanPhotos
             planId={plan.id}

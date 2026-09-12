@@ -24,7 +24,11 @@ import {
   readPlanFacts,
   totalCents,
 } from "@/features/planning/data/queries";
-import { changePlanStatus, createPlan } from "@/features/plans/data/mutations";
+import {
+  changePlanStatus,
+  createPlan,
+  updatePlan,
+} from "@/features/plans/data/mutations";
 import { getPlan } from "@/features/plans/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { startOfDayInApp } from "@/lib/datetime";
@@ -78,6 +82,7 @@ const DIA = startOfDayInApp({ year: 2027, month: 6, day: 12 });
 /** Cria um plano do B já em `planned`, com data confirmada. */
 async function planoPlanejado(titulo: string): Promise<string> {
   const plano = await createPlan(ctxB1, { title: titulo, category: "outro" });
+  await updatePlan(ctxB1, plano.id, { requiresBooking: true });
   const opcao = await createDateOption(ctxB1, plano.id, { startsAt: DIA });
   await confirmDateOption(ctxB1, opcao.id);
   return plano.id;
@@ -446,6 +451,18 @@ describe("gastos", () => {
     expect(gorjeta.paidByName).toBeNull();
   });
 
+  it("quem pagou precisa ser membro do workspace do plano", async () => {
+    await expect(
+      addExpense(ctxB1, plano, {
+        label: "Tentativa cruzada",
+        amountCents: 100,
+        paidBy: PROFILE_A,
+      }),
+    ).rejects.toThrowError("Escolha uma pessoa deste DATE.");
+
+    expect(await listExpenses(ctxB1, plano)).toHaveLength(0);
+  });
+
   it("valor negativo é recusado pela camada de dados, antes do banco", async () => {
     await expect(
       addExpense(ctxB1, plano, { label: "Estorno", amountCents: -100 }),
@@ -469,6 +486,17 @@ describe("gastos", () => {
       amountCents: MAX_CENTS,
     });
     expect(totalCents(await listExpenses(ctxB1, plano))).toBe(MAX_CENTS);
+  });
+
+  it("acima do teto é recusado pela aplicação, não pelo banco", async () => {
+    await expect(
+      addExpense(ctxB1, plano, {
+        label: "Passou do teto",
+        amountCents: MAX_CENTS + 1,
+      }),
+    ).rejects.toThrowError(/O valor máximo é/);
+
+    expect(await listExpenses(ctxB1, plano)).toHaveLength(0);
   });
 
   it("apagar tira da lista e do total", async () => {
@@ -511,10 +539,39 @@ describe("disponibilidade por status (seção 8)", () => {
       title: "Sem data ainda",
       category: "outro",
     });
+    await updatePlan(ctxB1, plano.id, { requiresBooking: true });
 
     await expect(
       setReservationStatus(ctxB1, plano.id, "confirmed"),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("reserva exige que o plano esteja marcado como precisando dela", async () => {
+    const plano = await createPlan(ctxB1, {
+      title: "Data sem necessidade de reserva",
+      category: "outro",
+    });
+    const opcao = await createDateOption(ctxB1, plano.id, { startsAt: DIA });
+    await confirmDateOption(ctxB1, opcao.id);
+
+    await expect(
+      setReservationStatus(ctxB1, plano.id, "confirmed"),
+    ).rejects.toThrowError(/Marque que o plano precisa de reserva/);
+  });
+
+  it("não esconde uma reserva confirmada ao desmarcar a necessidade", async () => {
+    const plano = await planoPlanejado("Reserva não pode ser escondida");
+    await setReservationStatus(ctxB1, plano, "confirmed");
+
+    await expect(
+      updatePlan(ctxB1, plano, { requiresBooking: false }),
+    ).rejects.toThrowError(/Desfaça a reserva/);
+
+    expect((await getPlan(ctxB1, plano)).requiresBooking).toBe(true);
+
+    await setReservationStatus(ctxB1, plano, "pending");
+    await updatePlan(ctxB1, plano, { requiresBooking: false });
+    expect((await getPlan(ctxB1, plano)).requiresBooking).toBe(false);
   });
 
   it("checklist e gasto não exigem nada", async () => {

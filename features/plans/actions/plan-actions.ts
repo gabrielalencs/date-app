@@ -13,7 +13,7 @@ import {
 } from "@/features/plans/data/mutations";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { CATEGORIES } from "@/lib/categories";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import { optionalCentsFromText } from "@/lib/money";
 import { InvalidTransitionError } from "@/lib/plan-status";
 import { PLAN_STATUSES } from "@/lib/status";
@@ -123,6 +123,9 @@ export async function updatePlanAction(
     if (error instanceof NotFoundError) {
       return { error: "Esse plano não existe." };
     }
+    if (error instanceof ValidationError) {
+      return { error: error.message };
+    }
     throw error;
   }
 
@@ -154,6 +157,9 @@ export async function changeStatusAction(
     }
     if (error instanceof InvalidTransitionError) {
       return { error: "Esse plano não pode ir para esse status agora." };
+    }
+    if (error instanceof ValidationError) {
+      return { error: error.message };
     }
     throw error;
   }

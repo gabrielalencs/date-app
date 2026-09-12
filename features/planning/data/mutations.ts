@@ -9,6 +9,7 @@ import {
   expenses,
   plans,
   reservations,
+  workspaceMembers,
 } from "@/db/schema/index.ts";
 import {
   MAX_CHECKLIST_ITEMS,
@@ -17,6 +18,7 @@ import {
 import { readPlanFacts } from "@/features/planning/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError, ValidationError } from "@/lib/errors";
+import { formatCents, MAX_CENTS } from "@/lib/money";
 import { transitionBlock } from "@/lib/plan-preconditions";
 import type { PlanStatus } from "@/lib/status";
 
@@ -39,6 +41,7 @@ type PlanoTravado = {
   id: string;
   status: PlanStatus;
   archivedAt: Date | null;
+  requiresBooking: boolean;
 };
 
 /**
@@ -56,6 +59,7 @@ async function lockPlan(
       id: plans.id,
       status: plans.status,
       archivedAt: plans.archivedAt,
+      requiresBooking: plans.requiresBooking,
     })
     .from(plans)
     .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
@@ -122,6 +126,12 @@ async function assertReservationAllowed(
   plano: PlanoTravado,
 ): Promise<void> {
   assertWritable(plano);
+
+  if (!plano.requiresBooking) {
+    throw new ValidationError(
+      "Marque que o plano precisa de reserva antes de tratar a reserva.",
+    );
+  }
 
   if (plano.status !== "planned" && plano.status !== "reserved") {
     throw new ValidationError(
@@ -467,9 +477,32 @@ export async function addExpense(
     throw new ValidationError("O valor precisa ser positivo.");
   }
 
+  if (input.amountCents > MAX_CENTS) {
+    throw new ValidationError(
+      `O valor máximo é ${formatCents(MAX_CENTS)}. Confira se não sobrou um zero.`,
+    );
+  }
+
   await db.transaction(async (tx) => {
     const plano = await lockPlan(tx, ctx, planId);
     assertWritable(plano);
+
+    if (input.paidBy) {
+      const [membro] = await tx
+        .select({ profileId: workspaceMembers.profileId })
+        .from(workspaceMembers)
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, ctx.workspaceId),
+            eq(workspaceMembers.profileId, input.paidBy),
+          ),
+        )
+        .limit(1);
+
+      if (!membro) {
+        throw new ValidationError("Escolha uma pessoa deste DATE.");
+      }
+    }
 
     const [contagem] = await tx
       .select({ total: sql<number>`count(*)::int` })
@@ -553,5 +586,26 @@ export async function assertTransitionAllowed(
 
   if (bloqueio) {
     throw new ValidationError(bloqueio);
+  }
+}
+
+/**
+ * Desmarcar "precisa de reserva" não pode esconder uma reserva confirmada.
+ *
+ * A leitura usa a transação de `updatePlan`, que já travou o plano. A mutation
+ * da reserva trava a mesma linha antes de confirmar, então não existe janela
+ * entre esta checagem e a atualização.
+ */
+export async function assertBookingRequirementCanBeDisabled(
+  tx: Tx,
+  ctx: AuthorizedContext,
+  planId: string,
+): Promise<void> {
+  const facts = await readPlanFacts(ctx, planId, tx);
+
+  if (facts.hasConfirmedReservation) {
+    throw new ValidationError(
+      "Desfaça a reserva antes de dizer que o plano não precisa dela.",
+    );
   }
 }

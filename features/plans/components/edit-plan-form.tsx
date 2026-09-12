@@ -66,6 +66,7 @@ export function EditPlanForm({ plan }: { plan: Plan }) {
           label="Orçamento estimado"
           icon={Wallet}
           name="estimatedBudgetCents"
+          type="text"
           inputMode="decimal"
           defaultValue={centsToInputValue(plan.estimatedBudgetCents)}
           hint="Em reais. Deixe vazio se ainda não sabem."

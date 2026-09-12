@@ -16,7 +16,11 @@ import {
   listPlanDateOptions,
 } from "@/features/dates/data/queries";
 import { setReservationStatus } from "@/features/planning/data/mutations";
-import { changePlanStatus, createPlan } from "@/features/plans/data/mutations";
+import {
+  changePlanStatus,
+  createPlan,
+  updatePlan,
+} from "@/features/plans/data/mutations";
 import { getPlan } from "@/features/plans/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { startOfDayInApp } from "@/lib/datetime";
@@ -277,6 +281,7 @@ describe("acoplamento com a máquina de status", () => {
     await confirmDateOption(ctxB1, opcao.id);
 
     // O estado reserved vem da reserva, não do botão de status.
+    await updatePlan(ctxB1, plano, { requiresBooking: true });
     await setReservationStatus(ctxB1, plano, "confirmed");
     expect((await getPlan(ctxB1, plano)).status).toBe("reserved");
 
