@@ -58,6 +58,41 @@ Os quatro documentos restantes da estrutura (`docs/DESIGN_SYSTEM.md`, `docs/DATA
 - Mobile-first é requisito, não melhoria futura.
 - Nenhuma fase é concluída com `build`, lint ou testes relevantes quebrados.
 
+## Rodando local
+
+```bash
+pnpm dev          # http://localhost:3000
+pnpm dev:https    # https://localhost:3000
+```
+
+### Se o login "funciona" e a próxima página devolve para /login
+
+O cookie de sessão do Neon Auth é `__Secure-` e o pacote fixa `secure: true`,
+sem opção de desligar. O navegador **descarta esse cookie em silêncio** fora de
+uma origem que ele considere confiável, e o sintoma é cruel: a senha é aceita,
+a Home às vezes chega a aparecer, e a navegação seguinte volta ao login sem
+erro nenhum na tela.
+
+Em ordem de probabilidade:
+
+1. **Origem errada.** `http://localhost:3000` funciona. O endereço que o próprio
+   `next dev` imprime como "Network" — `http://192.168.x.x:3000` — não. A tela
+   de login avisa quando você está numa origem dessas.
+2. **`http://127.0.0.1:3000`** falha antes disso: o provedor recusa a origem e
+   o login nem chega a criar cookie.
+3. **O navegador bloqueando cookies.** Abra o DevTools em Application → Cookies
+   logo depois do login. Se `__Secure-neon-auth.session_token` não estiver lá,
+   é o navegador, não a aplicação.
+
+**`pnpm dev:https` resolve os três de uma vez**: com HTTPS o cookie é válido em
+qualquer navegador e em qualquer host, inclusive pelo IP da rede. Na primeira
+execução o Next gera um certificado local com `mkcert` e instala a CA no
+sistema, então não aparece aviso de certificado. A pasta `certificates/` já está
+no `.gitignore`.
+
+Quando a volta ao login for de autorização e não de cookie, o terminal diz qual
+é — `pnpm auth:bootstrap-dev` religa as contas ao workspace.
+
 ## Marca
 
 A identidade visual aprovada está em `public/brand/`.
