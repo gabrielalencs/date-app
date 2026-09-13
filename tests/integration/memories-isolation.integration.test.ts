@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as schema from "@/db/schema/index.ts";
@@ -654,7 +654,55 @@ describe("o número de consultas é constante em relação ao número de planos"
     expect(Number(linha?.total)).toBeGreaterThanOrEqual(EM_ESCALA);
   });
 
-  it("a timeline consulta o mesmo com um plano e com sessenta", async () => {
+  it("com UM plano realizado e com sessenta, o número é o mesmo", async () => {
+    /* A prova literal: esconde tudo menos um, mede, devolve, mede de novo.
+       Arquivar é o que a timeline usa para excluir, então isto não depende de
+       nenhum caminho que só o teste conheça — e devolve o estado (D-082). */
+    const visiveis = await database
+      .select({ id: schema.plans.id })
+      .from(schema.plans)
+      .where(
+        and(
+          eq(schema.plans.workspaceId, WORKSPACE_B),
+          eq(schema.plans.status, "completed"),
+          isNull(schema.plans.archivedAt),
+        ),
+      );
+
+    expect(visiveis.length).toBeGreaterThanOrEqual(EM_ESCALA);
+
+    const sobrevivente = visiveis[0]!.id;
+    const escondidos = visiveis
+      .map((linha) => linha.id)
+      .filter((id) => id !== sobrevivente);
+
+    await database
+      .update(schema.plans)
+      .set({ archivedAt: new Date() })
+      .where(inArray(schema.plans.id, escondidos));
+
+    let comUm: { consultas: number; resultado: Awaited<ReturnType<typeof listMemoryTimeline>> };
+    try {
+      comUm = await contarConsultas(() => listMemoryTimeline(ctxB1, 1));
+    } finally {
+      await database
+        .update(schema.plans)
+        .set({ archivedAt: null })
+        .where(inArray(schema.plans.id, escondidos));
+    }
+
+    const comSessenta = await contarConsultas(() =>
+      listMemoryTimeline(ctxB1, 1),
+    );
+
+    expect(comUm.resultado.items).toHaveLength(1);
+    expect(comSessenta.resultado.items).toHaveLength(MEMORIES_PER_PAGE);
+
+    expect(comUm.consultas).toBe(comSessenta.consultas);
+    expect(comUm.consultas).toBe(4);
+  });
+
+  it("e o mesmo entre uma página cheia e uma página parcial", async () => {
     /* Uma página inteira contra um único item. O parâmetro da leitura é o
        tamanho da página, e o que se mede é se o número de consultas depende de
        quantas linhas voltaram. */
