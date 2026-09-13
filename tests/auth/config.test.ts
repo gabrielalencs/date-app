@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isAllowedEmail,
+  originAllowsSessionCookie,
   parseAllowedEmails,
   parseAuthConfig,
 } from "@/lib/auth/config";
@@ -112,5 +113,50 @@ describe("isAllowedEmail", () => {
   it("compara depois de normalizar", () => {
     expect(isAllowedEmail("  A@Example.COM ", allowed)).toBe(true);
     expect(isAllowedEmail("c@example.com", allowed)).toBe(false);
+  });
+});
+
+/**
+ * A origem decide se a sessão sobrevive.
+ *
+ * O `@neondatabase/auth` fixa `secure: true` e o prefixo `__Secure-`, então o
+ * navegador descarta o cookie fora de uma origem confiável — e o sintoma é uma
+ * tela de login que aceita a senha e devolve para o login na navegação
+ * seguinte, sem erro nenhum. Medido: em `http://127.0.0.1:3000` o login nem
+ * chega a criar cookie; em `http://localhost:3000` tudo passa.
+ */
+describe("originAllowsSessionCookie", () => {
+  it.each([
+    "https://date.app",
+    "https://localhost:3000",
+    "http://localhost:3000",
+    "http://localhost",
+    "http://app.localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.10.20.30:3000",
+    "http://[::1]:3000",
+  ])("aceita %s", (origin) => {
+    expect(originAllowsSessionCookie(origin)).toBe(true);
+  });
+
+  it.each([
+    // O que o Next imprime como "Network" e é a armadilha real.
+    "http://192.168.0.14:3000",
+    "http://10.0.0.5:3000",
+    "http://172.16.3.1:3000",
+    "http://meu-pc.local:3000",
+    "http://date.app",
+    "ftp://localhost",
+    "não é uma url",
+    "",
+  ])("recusa %s", (origin) => {
+    expect(originAllowsSessionCookie(origin)).toBe(false);
+  });
+
+  it("não confunde 127 no meio do endereço com loopback", () => {
+    expect(originAllowsSessionCookie("http://10.0.0.127:3000")).toBe(false);
+    expect(originAllowsSessionCookie("http://127.0.0.1.example.com")).toBe(
+      false,
+    );
   });
 });

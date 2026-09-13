@@ -3,11 +3,12 @@ import { LockKeyhole } from "lucide-react";
 import { PhotoStory } from "@/components/brand/editorial";
 import { Wordmark } from "@/components/brand/wordmark";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { InsecureOriginNotice } from "@/features/auth/components/insecure-origin-notice";
 import { LoginForm } from "@/features/auth/components/login-form";
 
 export const metadata: Metadata = { title: "Entrar · date" };
 
-export default function LoginPage() {
+export default async function LoginPage() {
   return (
     <main className="min-h-dvh p-3 sm:p-5 lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-8">
       <PhotoStory
@@ -46,6 +47,7 @@ export default function LoginPage() {
               Entre para continuar os planos de vocês.
             </p>
           </header>
+          <InsecureOriginNotice />
           <LoginForm />
           <div className="border-border-subtle flex flex-col gap-6 border-t pt-6">
             <p className="type-meta text-text-muted flex items-center gap-2">

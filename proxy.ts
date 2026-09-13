@@ -1,7 +1,7 @@
 import { createNeonAuth } from "@neondatabase/auth/next/server";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { parseAuthConfig } from "@/lib/auth/config";
+import { parseAuthConfig, SESSION_DATA_TTL_SECONDS } from "@/lib/auth/config";
 
 /**
  * Camada OTIMISTA (D-032). Só decide navegação: redireciona quem não tem
@@ -47,7 +47,14 @@ function authMiddleware(request: NextRequest) {
 
     cachedMiddleware = createNeonAuth({
       baseUrl: config.baseUrl,
-      cookies: { secret: config.cookieSecret },
+      cookies: {
+        secret: config.cookieSecret,
+        /* Tem que ser o mesmo valor do `lib/auth/server.ts`. O pacote lê
+           `sessionDataTtl` no middleware **e** no route handler; com valores
+           diferentes, os dois discordam sobre quando o dado da sessão venceu, e
+           o sintoma seria exatamente um ricochete para /login sem erro. */
+        sessionDataTtl: SESSION_DATA_TTL_SECONDS,
+      },
       logLevel: "silent",
     }).middleware({ loginUrl: "/login" });
   }

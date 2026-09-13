@@ -2,6 +2,55 @@ import { z } from "zod";
 
 const emailSchema = z.email();
 
+/**
+ * Validade do dado de sessão guardado no cookie, em segundos.
+ *
+ * Mora aqui porque **duas** instâncias do Neon Auth precisam do mesmo valor: a
+ * do `proxy.ts`, que decide navegação, e a do `lib/auth/server.ts`, que resolve
+ * o contexto autorizado. O pacote lê `sessionDataTtl` nas duas.
+ *
+ * Com valores diferentes, elas discordam sobre quando o dado venceu — e o
+ * sintoma é um ricochete para /login sem erro nenhum na tela, que é o tipo de
+ * defeito que se procura no lugar errado por horas.
+ */
+export const SESSION_DATA_TTL_SECONDS = 300;
+
+/**
+ * Origem em que o cookie de sessão sobrevive.
+ *
+ * O `@neondatabase/auth` fixa `secure: true` e o prefixo `__Secure-`, sem opção
+ * de desligar — é a decisão certa dele, e significa que o navegador **descarta
+ * o cookie em silêncio** fora de uma origem que ele considere confiável.
+ *
+ * Confiável é HTTPS, `localhost`, `*.localhost` e a faixa de loopback. Abrir o
+ * app em desenvolvimento pelo IP da rede (`http://192.168.x.x:3000`, que é o
+ * que o Next imprime como "Network") entrega uma tela de login que aceita a
+ * senha e devolve para o login na navegação seguinte, sem erro nenhum — e o
+ * sintoma fica indistinguível de sessão quebrada.
+ */
+export function originAllowsSessionCookie(origin: string): boolean {
+  let url: URL;
+
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol === "https:") return true;
+  if (url.protocol !== "http:") return false;
+
+  const host = url.hostname;
+
+  return (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "[::1]" ||
+    host === "::1" ||
+    /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
+  );
+}
+
 export type AuthConfig = {
   baseUrl: string;
   cookieSecret: string;
