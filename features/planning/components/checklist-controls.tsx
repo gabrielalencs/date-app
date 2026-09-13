@@ -75,7 +75,16 @@ export function ChecklistRow({
       data-done={marcado}
       className="border-border-subtle flex flex-wrap items-center gap-2 border-b py-1 last:border-b-0"
     >
-      <form action={toggleAction} ref={formRef} className="min-w-0 flex-1">
+      {/* `basis-48` força os três botões a quebrarem para a linha de baixo
+          quando não cabem: a 320px eles comem 132px dos ~248px úteis, e o
+          rótulo ficava com ~80px — o suficiente para "estacionamento" quebrar
+          no meio da palavra. Com a base, o texto sempre tem 12rem antes de a
+          linha ceder. */}
+      <form
+        action={toggleAction}
+        ref={formRef}
+        className="min-w-0 flex-1 basis-48"
+      >
         <input type="hidden" name="planId" value={planId} />
         <input type="hidden" name="itemId" value={item.id} />
 

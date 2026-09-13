@@ -20,6 +20,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Textarea, SelectField } from "@/components/ui/field";
 import { IconButton } from "@/components/ui/icon-button";
+import { formatCents } from "@/lib/money";
 import {
   Sheet,
   SheetClose,
@@ -338,6 +339,40 @@ export function KitchenSinkShowcase() {
           {PLAN_STATUSES.map((status) => (
             <StatusPill key={status} status={status} />
           ))}
+        </div>
+      </Section>
+
+      <Section title="Dinheiro">
+        <div className="flex flex-col gap-3">
+          <p className="type-body-s text-text-muted max-w-[52ch]">
+            Valor é inteiro de centavos em toda a pilha, formatado por{" "}
+            <code>formatCents</code>. Na lista, alinha à direita em tabular: é a
+            coluna que mais rápido denuncia um produto amador quando não alinha.
+          </p>
+          <ul className="border-border-subtle max-w-sm rounded-md border">
+            {[
+              { label: "Jantar", cents: 28_000 },
+              { label: "Estacionamento", cents: 4_000 },
+              { label: "Gorjeta", cents: 550 },
+              { label: "Café depois", cents: 5 },
+            ].map((linha) => (
+              <li
+                key={linha.label}
+                className="border-border-subtle flex items-center justify-between gap-4 border-b px-4 py-2 last:border-b-0"
+              >
+                <span className="type-body-s">{linha.label}</span>
+                <span className="type-body-s tnum text-right">
+                  {formatCents(linha.cents)}
+                </span>
+              </li>
+            ))}
+            <li className="flex items-center justify-between gap-4 px-4 py-3">
+              <span className="type-label text-text-muted">Total</span>
+              <span className="type-title tnum">
+                {formatCents(28_000 + 4_000 + 550 + 5)}
+              </span>
+            </li>
+          </ul>
         </div>
       </Section>
 

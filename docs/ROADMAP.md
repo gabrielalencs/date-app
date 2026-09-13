@@ -92,7 +92,15 @@ Visão mensal da `/agenda`: seis linhas sempre, semana começando na segunda, co
 
 ## B8 — Planejamento
 
-Reserva (necessidade, status, código, horário, link, observações), checklist ordenável com registro de quem marcou e quando, orçamento estimado e gastos reais com resumo.
+Reserva com estado e o acoplamento com a máquina de status nos dois sentidos, checklist ordenável com autor e horário, gastos em centavos com total. As três no detalhe do plano.
+
+**Entrega:** o ponto de arquitetura vale mais que as três funcionalidades — um status só é alcançável quando o fato que ele afirma existe, e transição manual não desfaz fato de domínio (D-091). `lib/money.ts` passa a ser o dono do dinheiro, com zona no ESLint e parse pt-BR que recusa o ambíguo em vez de adivinhar.
+
+**Migration:** só `reservations` e o CHECK de valor não negativo em `expenses`. `checklist_items` e `expenses` já existiam desde o B2 na forma certa, e o verbo `booking_updated` já existia no enum.
+
+**Revisões:** a mensagem do B6 sobre voltar para Planejado antes de desmarcar a data saiu, porque aquele caminho deixou de existir. `formatBRL` saiu de cena.
+
+**Documento:** `docs/PLANNING.md`.
 
 ## B9 — Memórias e timeline
 

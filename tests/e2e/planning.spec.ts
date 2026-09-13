@@ -88,7 +88,11 @@ async function populateMeasurePlan(): Promise<void> {
     {
       workspaceId: WORKSPACE,
       planId: MEASURE_PLAN,
-      label: "Levar os ingressos",
+      /* "estacionamento" tem 14 caracteres e ~90px: é a palavra que não cabe
+         na coluna estreita de 320px, e é ela que faz a medida de quebra no meio
+         da palavra medir alguma coisa. Com "ingressos" o teste passava sem
+         exercitar o caso — verde pelo motivo errado. */
+      label: "Confirmar o estacionamento",
       position: 0,
       doneAt: new Date("2027-06-11T12:00:00Z"),
       doneBy: member.profileId,
@@ -96,7 +100,7 @@ async function populateMeasurePlan(): Promise<void> {
     {
       workspaceId: WORKSPACE,
       planId: MEASURE_PLAN,
-      label: "Separar um casaco",
+      label: "Separar uma roupa bonita",
       position: 1,
     },
   ]);
@@ -350,10 +354,49 @@ for (const width of [320, 390, 1280] as const) {
         }
       }
 
+      /* Quebra no meio da palavra.
+         A 320px os três botões de ícone comem 132px da linha, e o rótulo do
+         checklist ficava com ~80px — "estacionamento" quebrava em
+         "estaciona|mento". `break-words` só parte no meio quando a palavra não
+         cabe, então medir a palavra mais larga contra a coluna é exatamente a
+         pergunta certa. */
+      const midWordBreaks: string[] = [];
+      for (const element of document.querySelectorAll<HTMLElement>(
+        "[data-checklist-item] label span span:first-child, [data-expense] span span",
+      )) {
+        const available = element.getBoundingClientRect().width;
+        if (available === 0) continue;
+
+        /* Truncar é decisão, quebrar no meio é acidente. Um nome de exibição
+           pode ser um token único sem espaço, e ali reticências são a resposta
+           certa — o instrumento mede o acidente, não a decisão. */
+        if (getComputedStyle(element).textOverflow === "ellipsis") continue;
+
+        const probe = document.createElement("span");
+        probe.style.cssText =
+          "position:absolute;visibility:hidden;white-space:pre;left:-9999px";
+        probe.style.font = getComputedStyle(element).font;
+        document.body.append(probe);
+
+        let widest = 0;
+        for (const word of (element.textContent ?? "").trim().split(/\s+/)) {
+          probe.textContent = word;
+          widest = Math.max(widest, probe.getBoundingClientRect().width);
+        }
+        probe.remove();
+
+        if (widest > available + 0.5) {
+          midWordBreaks.push(
+            `"${element.textContent?.trim().slice(0, 28)}" palavra ${Math.round(widest)}px > coluna ${Math.round(available)}px`,
+          );
+        }
+      }
+
       const root = document.documentElement;
       return {
         tooSmall,
         tinyText,
+        midWordBreaks,
         horizontalScroll: root.scrollWidth > root.clientWidth,
         scrollWidth: root.scrollWidth,
         clientWidth: root.clientWidth,
@@ -362,6 +405,10 @@ for (const width of [320, 390, 1280] as const) {
 
     expect(measurements.tooSmall, "alvos abaixo de 44px").toEqual([]);
     expect(measurements.tinyText, "texto abaixo de 12px").toEqual([]);
+    expect(
+      measurements.midWordBreaks,
+      "rótulo quebrando no meio da palavra",
+    ).toEqual([]);
     expect(
       measurements.horizontalScroll,
       `scroll horizontal: ${measurements.scrollWidth} > ${measurements.clientWidth}`,

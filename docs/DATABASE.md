@@ -36,7 +36,7 @@ Não na V1. A Data API está desligada, o banco só é acessado pelo servidor, e
 
 ## 4. Entidades
 
-Quatorze tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo.
+Quinze tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo, e `reservations` entrou no B8.
 
 ### `profiles`
 
@@ -79,6 +79,17 @@ O centro do produto.
 
 `id` · `workspace_id` · `option_id` (FK) · `profile_id` (FK) · `vote` (enum `yes` | `maybe` | `no`) · `created_at` · `updated_at`
 Único em (`option_id`, `profile_id`).
+
+### `reservations`
+
+`id` · `workspace_id` · `plan_id` · `status` (enum `pending` | `confirmed` | `cancelled`) · `code` (nullable) · `reserved_time` (`time` nullable) · `url` (nullable) · `notes` (nullable) · `created_by` (FK) · `created_at` · `updated_at`
+Único em (`plan_id`): uma reserva por plano.
+
+Acrescentada no B8. `plans.requires_booking` diz se o plano precisa de reserva; esta tabela é a reserva em si, e só existe quando alguém começou a tratá-la.
+
+`reserved_time` é hora de parede — `20:30`, sem dia e sem fuso —, não `timestamptz`. O dia da reserva **é** o dia da data confirmada, por construção: reserva exige data confirmada. Guardar um instante completo duplicaria o dia em dois lugares, e dois lugares divergem — bastaria a data confirmada mudar para a reserva exibir um dia que contradiz o plano, em silêncio.
+
+`confirmed` é o fato que o status `reserved` do plano afirma, e as duas coisas se movem na mesma transação (D-088).
 
 ### `checklist_items`
 
@@ -143,7 +154,7 @@ Na V1, append-only é contrato da camada de aplicação: a camada de acesso não
 
 ## 5. Enums
 
-São oito enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos distintos porque representam conceitos diferentes e podem divergir no futuro.
+São nove enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos distintos porque representam conceitos diferentes e podem divergir no futuro.
 
 - `plan_status`: `idea` · `deciding` · `planned` · `reserved` · `completed` · `cancelled`
 - `vote_value` e `repeat_answer`: `yes` · `maybe` · `no`
@@ -151,6 +162,7 @@ São oito enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos dist
 - `reaction_type`: `favorite` · `want_a_lot`
 - `media_purpose`: `cover` · `gallery` · `memory` · `avatar`
 - `member_role`: `owner` · `member`
+- `reservation_status`: `pending` · `confirmed` · `cancelled`
 - `activity_verb`: `plan_created` · `date_suggested` · `vote_cast` · `date_confirmed` · `booking_updated` · `plan_completed` · `memory_added`
 
 Enum de Postgres, não `text` com CHECK. Alterar enum exige migration, o que é a intenção.
@@ -159,7 +171,7 @@ Enum de Postgres, não `text` com CHECK. Alterar enum exige migration, o que é 
 
 ## 6. Índices
 
-Além das PKs e dos únicos já citados: `workspace_id` em todas as tabelas de negócio; (`workspace_id`, `status`) e (`workspace_id`, `created_at DESC`) em `plans`; (`workspace_id`, `starts_at`) em `plan_date_options`; (`plan_id`) em toda tabela filha; (`workspace_id`, `created_at DESC`) em `activity_events`.
+Além das PKs e dos únicos já citados: `workspace_id` em todas as tabelas de negócio; (`workspace_id`, `status`) e (`workspace_id`, `created_at DESC`) em `plans`; (`workspace_id`, `starts_at`) em `plan_date_options`; (`plan_id`) em toda tabela filha, único em `reservations`; (`workspace_id`, `created_at DESC`) em `activity_events`.
 
 Índice em coluna de FK não é automático no Postgres. Criar explicitamente.
 

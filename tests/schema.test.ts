@@ -45,7 +45,7 @@ function enumsFromDoc(): Map<string, string[]> {
 describe("enums do schema batem com docs/DATABASE.md", () => {
   const documented = enumsFromDoc();
 
-  it("o documento declara os oito tipos", () => {
+  it("o documento declara os nove tipos", () => {
     expect([...documented.keys()].sort()).toEqual([
       "activity_verb",
       "link_type",
@@ -54,6 +54,7 @@ describe("enums do schema batem com docs/DATABASE.md", () => {
       "plan_status",
       "reaction_type",
       "repeat_answer",
+      "reservation_status",
       "vote_value",
     ]);
   });
@@ -76,8 +77,8 @@ describe("enums do schema batem com docs/DATABASE.md", () => {
 });
 
 describe("escopo de workspace", () => {
-  it("declara as quatorze tabelas da seção 4", () => {
-    expect(tables.length).toBe(14);
+  it("declara as quinze tabelas da seção 4", () => {
+    expect(tables.length).toBe(15);
   });
 
   it.each(

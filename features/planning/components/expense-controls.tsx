@@ -38,7 +38,14 @@ export function ExpenseRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="type-body-s break-words">{expense.label}</span>
         {expense.paidByName ? (
-          <span className="type-meta text-text-muted">
+          /* `truncate` e não quebra: um nome de exibição pode ser um token
+             único sem espaço, e aí a única alternativa a truncar é hifenizar no
+             meio da palavra. Reticências dizem "tem mais"; "gabrieldealenc|ar"
+             não diz nada. */
+          <span
+            className="type-meta text-text-muted truncate"
+            title={`Pagou: ${expense.paidByName}`}
+          >
             Pagou: {expense.paidByName}
           </span>
         ) : null}

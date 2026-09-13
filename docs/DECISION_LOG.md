@@ -4,6 +4,47 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-098 — Reserva exige data confirmada; checklist e gasto não exigem nada
+**13/09/2026.** Reserva sem data não é reserva, então a seção só existe em `planned` ou `reserved` e com data confirmada — e a checagem é do **fato**, não do status, porque um plano pode estar em `planned` sem data se alguém a desmarcou. Checklist e gasto não exigem nada: dinheiro sai antes da data com mais frequência do que se gostaria, e "levar guarda-chuva" é um pensamento que ocorre quando ocorre. Plano cancelado ou arquivado é leitura nas três, recusado na camada de dados e não oferecido na tela.
+
+### D-097 — Checklist e gasto não emitem evento
+**13/09/2026.** Só a reserva entra no `activity_events`, com o verbo `booking_updated` que já existia no enum desde o B2 — e só quando o **estado** muda, não a cada edição de observação. O feed do B10 é a história do plano: criou, sugeriu, votou, confirmou, reservou, concluiu, lembrou. Quatro itens de checklist marcados num sábado à noite afogariam a história inteira. Provado contando as linhas de `activity_events` antes e depois de uma sessão de uso completa.
+
+### D-096 — "Quem pagou" é registro, não contabilidade
+**13/09/2026.** O campo serve para lembrar quem passou o cartão, e para nada mais. Não existe saldo, divisão, "fulano deve" nem acerto. Se em algum momento parecer natural somar por pessoa e mostrar a diferença, é aí que o produto vira Splitwise, e o spec proíbe. A ausência de rateio não é só decisão de produto: é o que mantém a aritmética exata de ponta a ponta, porque sem divisão não há arredondamento.
+
+### D-095 — O horário da reserva é hora de parede, não instante
+**13/09/2026.** `reservations.reserved_time` é `time` — "20:30", sem dia e sem fuso —, não `timestamptz`. O dia da reserva **é** o dia da data confirmada, por construção, já que reserva exige data confirmada (D-098). Guardar um instante completo duplicaria o dia em dois lugares, e dois lugares divergem: bastaria a data confirmada mudar para a reserva exibir um dia que contradiz o plano, em silêncio. É também literalmente o que o restaurante disse.
+
+### D-094 — Uma reserva por plano, sem anexo
+**13/09/2026.** Índice único em `plan_id`: duas reservas para o mesmo date é estado impossível, e estado impossível vive no banco (D-065). `cancelled` cobre também "tentamos e não tinha vaga" — é informação que muda a decisão de data, e o lugar dela é o campo de observações, não um quarto estado que ninguém saberia quando usar. Voucher em arquivo fica fora: código e link resolvem o caso real, e arquivo é mídia, que tem bloco próprio.
+
+### D-093 — Confirmar reserva move o plano; desfazer traz de volta
+**13/09/2026.** Confirmar a reserva em `planned` move para `reserved`; desfazer, de `confirmed` para `pending` ou `cancelled`, devolve a `planned`. Sempre na mesma transação da escrita que a causou, sempre emitindo evento — simetria exata com o que o B6 fez com a confirmação de data (D-063). É o inverso do botão de status, e de propósito: quem põe e tira a etiqueta `reserved` é a reserva.
+
+### D-092 — Pré-condições moram num lugar só e são consultadas duas vezes
+**13/09/2026.** `lib/plan-preconditions.ts` é puro: recebe os fatos prontos em vez de ir buscá-los, então testa sem banco, e `lib/plan-status.ts` continua conhecendo só o grafo. É consultado duas vezes — por `offerableTransitions`, para a interface saber que botões existem, e dentro da transação que já travou o plano, antes de escrever. **As duas, não uma.** A interface que não pergunta oferece um botão que sempre falha; a mutation que não pergunta confia no frontend, e o frontend nunca é fonte de autoridade. Um teste percorre todo o grafo garantindo que oferecer e aceitar concordam em toda combinação de fatos.
+
+### D-091 — Um status só é alcançável quando o fato que ele afirma existe
+**13/09/2026.** E transição manual não desfaz fato de domínio. O B6 fez metade: `deciding → planned` exige data confirmada. O B8 fecha a outra com `planned → reserved`, que exige reserva confirmada, e principalmente com `reserved → planned`, que exige que **não** haja. Essa terceira é a que fecha o loop. Revoga o caminho do B6 em que `unconfirmDateOption` recusava em `reserved` mandando "Volte para Planejado antes de desmarcar a data": aquele botão passou a ser recusado, e a ordem certa é de fora para dentro — desfaz a reserva, o plano volta sozinho, e só então a data se desmarca. A mensagem virou "Esse plano tem reserva. Desfaça a reserva antes de mudar a data."
+
+### D-090 — Regras de parse pt-BR determinísticas, recusando o ambíguo
+**13/09/2026.** A vírgula manda: havendo vírgula, ela é o decimal e os pontos antes dela são milhar. Sem vírgula, o ponto é milhar quando todos os grupos depois dele têm três dígitos, e decimal quando há um só ponto com uma ou duas casas. `1.234` é mil duzentos e trinta e quatro; `1.23` é um real e vinte e três. Qualquer outra combinação — `12.3456`, `1,234`, `-10`, `1e3`, vazio — é **recusada**, nunca adivinhada. A tabela da seção 2 do `docs/PLANNING.md` é o teste, linha por linha, e as recusas contam como asserção: metade do valor deste parse está no que ele não aceita.
+
+### D-089 — Campo de valor é `type="text"` com `inputMode="decimal"`
+**13/09/2026.** `type="number"` em pt-BR recusa a vírgula que o teclado do celular oferece e devolve string vazia — o campo fica em branco sem dizer por quê. Tem ainda spinner que ninguém quer e aceita notação científica. `inputMode="decimal"` abre o teclado numérico sem nada disso. É o ponto onde nenhum teste em Node veria o defeito, e por isso a prova é em navegador.
+
+### D-088 — Zona no ESLint para dinheiro, e a colisão de regra que ela revelou
+**13/09/2026.** Fora do `lib/money.ts` ficam proibidos `parseFloat`, `Number.parseFloat` e `toFixed`, em `app/`, `components/`, `features/`, `lib/` e `db/`. `tests/` fica de fora: medir pixel com `parseFloat` em navegador é uso legítimo e não tem nada a ver com dinheiro.
+
+A montagem inicial nasceu quebrada e vale registrar: `no-restricted-properties` é **uma** regra, e em flat config o último bloco que a define para um arquivo substitui os anteriores em vez de acumular. Como a zona do tempo já usava essa regra para todos os arquivos, o bloco do dinheiro foi apagado em silêncio — o lint ficou verde sobre um arquivo que tinha `Number.parseFloat` e `toFixed`. A lista passou a ser única, com as exceções por módulo declaradas depois. É por isso que a prova da zona é sempre com arquivo plantado, nunca por leitura do config.
+
+### D-087 — `lib/money.ts` é o dono do dinheiro, e a unidade vai no nome
+**13/09/2026.** `formatBRL(value: number)` não dizia se `value` era real ou centavo, e essa ambiguidade é exatamente como dinheiro erra por cem — as duas chamadas existentes passavam `estimatedBudgetCents / 100`, com só uma divisão solta segurando a diferença. `formatBRL` sai de cena; entram `parseBRLToCents`, `formatCents`, `centsToInputValue`, `sumCents` e `MAX_CENTS`, todas com a unidade no nome. O teto de `MAX_CENTS` é validado no Zod para o banco nunca ser quem recusa: erro de driver não tem como ser explicado a quem digitou.
+
+### D-086 — Dinheiro é inteiro de centavos em toda a pilha
+**13/09/2026.** No banco, na camada de dados, no domínio e no componente. Sem float, sem `numeric` convertido, sem arredondamento — e não há arredondamento porque não há divisão (D-096). O parse monta o inteiro por concatenação de dígitos, não por `Number(x) * 100`, e o formato também sai dos dígitos em vez de formatar `cents / 100`; a suíte compara o resultado com o `Intl` valor a valor para a montagem manual não divergir do locale. Defeito plantado: trocando o parse por `parseFloat`, vinte testes ficam vermelhos — `1.234,56` vira 123 centavos, `0,05` vira zero, e `-10` e `1e3` passam calados.
+
 ### D-085 — Ordem das opções de data ratificada
 **11/09/2026.** Confirmada no topo, depois consenso, depois data. Era regra tácita que só existia no `sort` de `listPlanDateOptions`; passa a estar escrita na seção 5 do `docs/DATES_AND_VOTING.md`. A ordem é de produto, não de apresentação, e por isso é calculada na camada de dados: quem decide olha "qual data a gente já concorda", não qual foi criada primeiro. `blocked` vai para o fim porque um `no` já resolveu aquela linha.
 
