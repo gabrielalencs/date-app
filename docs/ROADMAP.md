@@ -104,7 +104,15 @@ Reserva com estado e o acoplamento com a máquina de status nos dois sentidos, c
 
 ## B9 — Memórias e timeline
 
-Pós-`completed`: galeria, avaliação por usuário, "repetiria?", destaque, gastos reais. Timeline cronológica por mês e ano.
+Travessia para `completed` com pré-condição e confirmação, avaliação das duas pessoas, fotos com `purpose = 'memory'` e a timeline em `/memorias`, agrupada por mês.
+
+**Entrega:** a memória não é entidade nova — é o plano, depois (D-099). O que o bloco acrescenta de fato é pequeno: a travessia e a avaliação. O resto é uma segunda leitura do que já estava gravado, como o calendário do B7 foi para as datas.
+
+**Migration:** nenhuma. `memories`, `memory_ratings` com o CHECK de 1 a 5 e o único por (memória, pessoa), o `memory` do enum de `purpose` e os verbos `plan_completed` e `memory_added` já existiam desde o B2, todos na forma certa.
+
+**Revisões:** `completed` deixou de ser oferecido como um botão na fila de status e passou a exigir data confirmada em dia civil não futuro (D-100), com confirmação em modal (D-101). O checklist virou leitura depois do date, e o voto na data sumiu (D-102). `setPlanCover` deixou de reescrever o `purpose` de uma foto de memória (D-110), e `reorderPlanMedia` passou a operar só sobre as fotos que não são de memória (D-103). O seed passou a dar data confirmada ao plano realizado, que sem ela não teria lugar na linha do tempo.
+
+**Documento:** `docs/MEMORIES.md`.
 
 ## B10 — Descoberta
 

@@ -9,6 +9,7 @@ import {
   changeStatusAction,
   type ActionState,
 } from "@/features/plans/actions/plan-actions";
+import { CompletePlanDialog } from "@/features/plans/components/complete-plan-dialog";
 import { offerableTransitions, type PlanFacts } from "@/lib/plan-preconditions";
 import { statusLabel, type PlanStatus } from "@/lib/status";
 
@@ -36,7 +37,13 @@ export function PlanStatusControl({
     changeStatusAction,
     INITIAL,
   );
-  const options = offerableTransitions(status, facts);
+  const oferecidas = offerableTransitions(status, facts);
+
+  /* `completed` sai da fila de botões e vira modal: é irreversível, e ação
+     irreversível passa por confirmação (D-080). As outras continuam sendo um
+     clique só — voltar de `planned` para `deciding` se desfaz sozinho. */
+  const podeConcluir = oferecidas.includes("completed");
+  const options = oferecidas.filter((option) => option !== "completed");
 
   return (
     <section className="flex flex-col gap-3">
@@ -44,7 +51,7 @@ export function PlanStatusControl({
 
       <div className="flex items-center gap-3">
         <StatusPill status={status} />
-        {options.length === 0 ? (
+        {oferecidas.length === 0 ? (
           <span className="type-meta text-text-muted">
             Realizado é definitivo.
           </span>
@@ -73,6 +80,8 @@ export function PlanStatusControl({
           ))}
         </form>
       ) : null}
+
+      {podeConcluir ? <CompletePlanDialog planId={planId} /> : null}
 
       {state.error ? (
         <p role="alert" className="type-body-s text-danger">

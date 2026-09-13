@@ -119,12 +119,20 @@ export function DateOptionRow({
         <p className="type-body-s text-text-muted">{option.note}</p>
       ) : null}
 
+      {/* Votar numa data de um date que já aconteceu não é caso de uso: a
+          negociação terminou, e o controle ali só empurraria para baixo o que
+          passou a importar — a avaliação, as fotos e o gasto. O mesmo vale para
+          plano cancelado. Os votos que existiram continuam visíveis. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <VoteControl
-          planId={planId}
-          optionId={option.id}
-          myVote={option.myVote}
-        />
+        {encerrado ? (
+          <span />
+        ) : (
+          <VoteControl
+            planId={planId}
+            optionId={option.id}
+            myVote={option.myVote}
+          />
+        )}
 
         <ul className="type-meta text-text-muted flex items-center gap-3">
           {option.votes.map((voto) => (

@@ -26,6 +26,17 @@ import type { PlanStatus } from "@/lib/status";
 export type PlanFacts = {
   hasConfirmedDate: boolean;
   hasConfirmedReservation: boolean;
+  /**
+   * A data confirmada cai num dia civil **posterior** ao de hoje (B9).
+   *
+   * Fato, e não relógio: este módulo continua puro. Quem lê o banco resolve a
+   * comparação com `isFutureCivilDay`, que conta dias de calendário no fuso do
+   * app — nunca subtração de milissegundos (D-061). Um date hoje às 20h ainda
+   * é hoje às 23h, e marcar como realizado tem de funcionar.
+   *
+   * `false` quando não há data confirmada: ali quem recusa é `hasConfirmedDate`.
+   */
+  confirmedDateIsFuture: boolean;
 };
 
 export const NO_CONFIRMED_DATE =
@@ -45,6 +56,19 @@ export const NO_CONFIRMED_RESERVATION =
  */
 export const RESERVATION_HOLDS_PLAN =
   "Esse plano tem reserva. Desfaça a reserva antes de mudar a data.";
+
+/**
+ * As duas do B9.
+ *
+ * `completed` afirma que o date aconteceu, e é a afirmação mais séria do
+ * produto porque é a única sem volta: desfazer deixaria a avaliação e as fotos
+ * penduradas num plano que voltou a ser ideia.
+ */
+export const NO_DATE_TO_COMPLETE =
+  "Confirme a data do date antes de marcar que ele aconteceu.";
+
+export const DATE_STILL_AHEAD =
+  "Esse date ainda não chegou. Dá para marcar como realizado a partir do dia.";
 
 /**
  * `null` quando a transição pode acontecer; a mensagem do impedimento quando
@@ -78,6 +102,22 @@ export function transitionBlock(
     facts.hasConfirmedReservation
   ) {
     return RESERVATION_HOLDS_PLAN;
+  }
+
+  /* A do B9, e a única que olha só o destino: chega-se a `completed` de
+     `planned` e de `reserved`, e a exigência é a mesma nos dois casos.
+
+     Marcar como realizado um date que é semana que vem não é caso de uso, é
+     erro de digitação — e como a transição não tem volta, a recusa precisa vir
+     antes, não depois. Hoje conta; amanhã não. */
+  if (to === "completed") {
+    if (!facts.hasConfirmedDate) {
+      return NO_DATE_TO_COMPLETE;
+    }
+
+    if (facts.confirmedDateIsFuture) {
+      return DATE_STILL_AHEAD;
+    }
   }
 
   return null;

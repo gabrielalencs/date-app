@@ -88,6 +88,25 @@ function assertWritable(plano: PlanoTravado): void {
   }
 }
 
+/**
+ * O checklist fecha quando o date acontece (seção 3 do docs/MEMORIES.md).
+ *
+ * `completed` é terminal na transição e **não** na escrita — é por isso que
+ * gasto continua editável ali, e é depois que se sabe quanto custou. O
+ * checklist é a exceção declarada: "o que levar" perde a função no momento em
+ * que as duas pessoas já foram, e marcar um item depois não afirma nada sobre
+ * o mundo.
+ */
+function assertChecklistWritable(plano: PlanoTravado): void {
+  assertWritable(plano);
+
+  if (plano.status === "completed") {
+    throw new ValidationError(
+      "Esse date já aconteceu. O checklist fica só de leitura.",
+    );
+  }
+}
+
 /** Move o status do plano e emite o evento, na transação de quem chamou. */
 async function moveStatus(
   tx: Tx,
@@ -271,7 +290,7 @@ export async function addChecklistItem(
 
   await db.transaction(async (tx) => {
     const plano = await lockPlan(tx, ctx, planId);
-    assertWritable(plano);
+    assertChecklistWritable(plano);
 
     const [contagem] = await tx
       .select({
@@ -329,7 +348,7 @@ export async function toggleChecklistItem(
       throw new NotFoundError("Item");
     }
 
-    assertWritable(await lockPlan(tx, ctx, item.planId));
+    assertChecklistWritable(await lockPlan(tx, ctx, item.planId));
 
     await tx
       .update(checklistItems)
@@ -367,7 +386,7 @@ export async function deleteChecklistItem(
       throw new NotFoundError("Item");
     }
 
-    assertWritable(await lockPlan(tx, ctx, item.planId));
+    assertChecklistWritable(await lockPlan(tx, ctx, item.planId));
 
     await tx
       .delete(checklistItems)
@@ -414,7 +433,7 @@ export async function moveChecklistItem(
       throw new NotFoundError("Item");
     }
 
-    assertWritable(await lockPlan(tx, ctx, item.planId));
+    assertChecklistWritable(await lockPlan(tx, ctx, item.planId));
 
     const subindo = direction === "up";
 

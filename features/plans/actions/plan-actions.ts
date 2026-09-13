@@ -167,6 +167,12 @@ export async function changeStatusAction(
   revalidatePath(`/planos/${planId}`);
   revalidatePath("/ideias");
   revalidatePath("/");
+  /* Marcar como realizado é a transição que muda o plano de casa: ele sai de
+     `/ideias` e do "Próximo DATE", e passa a existir em `/memorias`. A agenda
+     continua mostrando o dia em que aconteceu (D-079), mas a faixa de próximos
+     deixa de listá-lo. */
+  revalidatePath("/memorias");
+  revalidatePath("/agenda");
   return EMPTY;
 }
 

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DATE_STILL_AHEAD,
   NO_CONFIRMED_DATE,
   NO_CONFIRMED_RESERVATION,
+  NO_DATE_TO_COMPLETE,
   offerableTransitions,
   RESERVATION_HOLDS_PLAN,
   transitionBlock,
@@ -20,16 +22,27 @@ import { PLAN_STATUSES } from "@/lib/status";
 const NADA: PlanFacts = {
   hasConfirmedDate: false,
   hasConfirmedReservation: false,
+  confirmedDateIsFuture: false,
 };
 
+/** Data confirmada que já passou, ou é hoje: o date pode ter acontecido. */
 const SO_DATA: PlanFacts = {
   hasConfirmedDate: true,
   hasConfirmedReservation: false,
+  confirmedDateIsFuture: false,
 };
 
 const DATA_E_RESERVA: PlanFacts = {
   hasConfirmedDate: true,
   hasConfirmedReservation: true,
+  confirmedDateIsFuture: false,
+};
+
+/** Data confirmada que ainda não chegou: o date é semana que vem. */
+const DATA_NO_FUTURO: PlanFacts = {
+  hasConfirmedDate: true,
+  hasConfirmedReservation: false,
+  confirmedDateIsFuture: true,
 };
 
 describe("deciding → planned exige data confirmada (do B6)", () => {
@@ -72,6 +85,47 @@ describe("reserved → planned exige que NÃO haja reserva confirmada", () => {
     // caminho deixou de existir: o botão de voltar é que passa a ser recusado.
     expect(RESERVATION_HOLDS_PLAN).toContain("Desfaça a reserva");
     expect(RESERVATION_HOLDS_PLAN).not.toContain("Volte para");
+  });
+});
+
+describe("→ completed exige data confirmada em dia civil não futuro (B9)", () => {
+  it("recusa sem data confirmada, dos dois estados de origem", () => {
+    expect(transitionBlock("planned", "completed", NADA)).toBe(
+      NO_DATE_TO_COMPLETE,
+    );
+    expect(transitionBlock("reserved", "completed", NADA)).toBe(
+      NO_DATE_TO_COMPLETE,
+    );
+  });
+
+  it("recusa com data confirmada no futuro", () => {
+    expect(transitionBlock("planned", "completed", DATA_NO_FUTURO)).toBe(
+      DATE_STILL_AHEAD,
+    );
+  });
+
+  it("aceita com data confirmada que já chegou — hoje conta", () => {
+    expect(transitionBlock("planned", "completed", SO_DATA)).toBeNull();
+    expect(transitionBlock("reserved", "completed", DATA_E_RESERVA)).toBeNull();
+  });
+
+  it("a falta de data manda confirmar; a data futura manda esperar", () => {
+    // Duas recusas distintas: quem não confirmou data e quem confirmou para
+    // semana que vem precisam de instruções diferentes.
+    expect(NO_DATE_TO_COMPLETE).not.toBe(DATE_STILL_AHEAD);
+    expect(NO_DATE_TO_COMPLETE).toContain("Confirme a data");
+    expect(DATE_STILL_AHEAD).toContain("ainda não chegou");
+  });
+
+  it("a interface não oferece realizado em nenhum dos dois casos", () => {
+    expect(offerableTransitions("planned", NADA)).not.toContain("completed");
+    expect(offerableTransitions("planned", DATA_NO_FUTURO)).not.toContain(
+      "completed",
+    );
+    expect(offerableTransitions("planned", SO_DATA)).toContain("completed");
+    expect(offerableTransitions("reserved", DATA_E_RESERVA)).toContain(
+      "completed",
+    );
   });
 });
 
@@ -139,7 +193,7 @@ describe("offerableTransitions — a primeira das duas consultas", () => {
    * a mesma função. Se divergirem, a tela mostra um botão que sempre falha.
    */
   it("oferecer e aceitar concordam em toda combinação", () => {
-    for (const facts of [NADA, SO_DATA, DATA_E_RESERVA]) {
+    for (const facts of [NADA, SO_DATA, DATA_E_RESERVA, DATA_NO_FUTURO]) {
       for (const from of PLAN_STATUSES) {
         const oferecidas = offerableTransitions(from, facts);
 

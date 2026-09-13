@@ -30,14 +30,24 @@ export function PlanDates({
   const cheio = options.length >= MAX_OPTIONS_PER_PLAN;
   const encerrado = planStatus === "completed" || planStatus === "cancelled";
 
+  /* Depois de realizado, a seção encolhe para a data que aconteceu (seção 9 do
+     docs/MEMORIES.md). As candidatas que perderam a votação são história da
+     negociação, e a negociação acabou — mantê-las na tela empurraria para
+     baixo tudo que passou a importar: a avaliação, as fotos e o gasto. */
+  const realizado = planStatus === "completed";
+  const confirmada = options.filter((option) => option.isConfirmed);
+  const visiveis = realizado && confirmada.length > 0 ? confirmada : options;
+
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="section-heading">Datas para vocês</h2>
+        <h2 className="section-heading">
+          {realizado ? "Aconteceu em" : "Datas para vocês"}
+        </h2>
         {cheio || encerrado ? null : <AddDateForm planId={planId} />}
       </div>
 
-      {options.length === 0 ? (
+      {visiveis.length === 0 ? (
         <div className="bg-mist-soft flex flex-col items-center gap-3 rounded-lg px-6 py-8 text-center">
           <CalendarDays
             aria-hidden="true"
@@ -51,7 +61,7 @@ export function PlanDates({
         </div>
       ) : (
         <ul className="flex flex-col">
-          {options.map((option) => (
+          {visiveis.map((option) => (
             <DateOptionRow
               key={option.id}
               planId={planId}

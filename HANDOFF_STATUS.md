@@ -26,6 +26,9 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Workspace de development normalizado para **exatamente dois membros**, as duas contas reais (D-084). Alex e Nina seguem como autores de planos e opções, não como membros; o seed corrige isso sozinho a cada execução.
 - B8 concluído: reserva com estado, checklist com autor e horário, gastos em centavos com total. A máquina de status passa a exigir o fato que cada etiqueta afirma, nos dois sentidos. Ver `docs/PLANNING.md`.
 - `lib/money.ts` é o dono do dinheiro; `formatBRL` não existe mais. Zona no ESLint barra `parseFloat`, `Number.parseFloat` e `toFixed` fora dele.
+- B9 concluído: travessia para `completed` com pré-condição e confirmação em modal, avaliação das duas pessoas, fotos com `purpose = 'memory'` e a timeline em `/memorias`. **Sem migration** — o B2 já tinha `memories`, `memory_ratings`, o `memory` do enum de propósito e os dois verbos de evento. Ver `docs/MEMORIES.md`.
+- O número de consultas da timeline é constante em relação ao número de planos, provado com fixture de sessenta planos realizados e instrumentação do pool.
+- O seed passou a dar data confirmada ao plano realizado: sem ela, um plano `completed` não tem lugar na linha do tempo — estado que a pré-condição do B9 tornou inalcançável pela interface.
 - Migration `0002` (`reservations` mais o CHECK de valor não negativo em `expenses`) aplicada somente em `development`
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
 - Ambiente local já preparado e atualizado:
@@ -56,7 +59,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Próximo bloco funcional: **B7 — Calendário**. B6 já existia na base recebida para o R1 e foi preservado.
+- Próximo bloco funcional: **B10 — Descoberta** (favoritos, "quero muito", filtros combinados, sorteador e activity feed). B6 já existia na base recebida para o R1 e foi preservado.
 
 ## Regra de ambientes
 

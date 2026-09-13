@@ -31,7 +31,13 @@ const vitest = fileURLToPath(
  * calendário entra aqui porque agrupamento por dia civil é exatamente o tipo de
  * defeito que só aparece fora do fuso de quem escreve (D-073).
  */
-const SUITES = ["tests/datetime.test.ts", "tests/calendar.test.ts"];
+const SUITES = [
+  "tests/datetime.test.ts",
+  "tests/calendar.test.ts",
+  // A timeline agrupa por mês civil, e agrupar por mês erra do mesmo jeito que
+  // agrupar por dia: um date às 23:00 do dia 30 é dia 1º em UTC (B9).
+  "tests/memories-timeline.test.ts",
+];
 
 const alvo = process.argv.slice(2);
 const padrao = alvo.length > 0 ? alvo : SUITES;

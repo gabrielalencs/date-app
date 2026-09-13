@@ -19,7 +19,10 @@ import {
   listExpenses,
   readPlanFacts,
   reservationAvailable,
+  totalCents,
 } from "@/features/planning/data/queries";
+import { PlanMemorySection } from "@/features/memories/components/plan-memory";
+import { getPlanMemory } from "@/features/memories/data/queries";
 import { MediaImage } from "@/features/media/components/media-image";
 import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
@@ -39,6 +42,11 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
+  /* `now` desce do servidor e atravessa tudo, inclusive as pré-condições: é
+     ele que decide se a data confirmada já chegou, e um segundo relógio faria
+     a tela oferecer uma ação que a mutation recusaria. */
+  const now = new Date();
+
   const [
     photos,
     dateOptions,
@@ -47,6 +55,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     expenses,
     members,
     facts,
+    memory,
   ] = await Promise.all([
     listPlanMedia(ctx, plan.id),
     listPlanDateOptions(ctx, plan.id),
@@ -54,7 +63,11 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     listChecklist(ctx, plan.id),
     listExpenses(ctx, plan.id),
     listWorkspaceMembers(ctx),
-    readPlanFacts(ctx, plan.id),
+    readPlanFacts(ctx, plan.id, undefined, now),
+    /* Uma consulta a mais na página, não uma por avaliação: as duas notas
+       chegam juntas, e as fotos e os gastos vêm das camadas do B5 e do B8 que
+       já estavam aqui (seção 7 do docs/MEMORIES.md). */
+    getPlanMemory(ctx, plan.id),
   ]);
 
   /* Plano cancelado ou arquivado é leitura nas três seções (seção 8 do
@@ -63,8 +76,17 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
   const somenteLeitura = isReadOnly(plan);
   const reservaDisponivel =
     plan.requiresBooking && reservationAvailable(plan, facts);
-  const now = new Date();
   const cover = photos.find((photo) => photo.id === plan.coverMediaId);
+
+  /* `gallery` é antes, `memory` é depois: mesma tabela, mesma consulta, duas
+     grades (seção 5 do docs/MEMORIES.md). A capa aparece na grade a que ela
+     pertence — uma foto de memória que virou capa continua sendo memória, e é
+     por isso que `setPlanCover` não reescreve mais o propósito dela. */
+  const fotosDoPlano = photos.filter((photo) => photo.purpose !== "memory");
+  const fotosDaMemoria = photos.filter((photo) => photo.purpose === "memory");
+
+  const realizado = plan.status === "completed";
+  const totalGasto = expenses.length > 0 ? totalCents(expenses) : null;
   return (
     <div className="page-stack">
       <Link
@@ -172,11 +194,15 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
           />
           {/* No desktop a reserva fica no rail; no mobile o rail vem antes
               desta coluna, preservando reserva -> checklist -> gastos. */}
+          {/* Depois de realizado, o checklist é leitura (seção 3 do
+              docs/MEMORIES.md): "o que levar" não tem mais função depois de a
+              pessoa já ter ido. Os gastos, ao contrário, continuam editáveis —
+              é depois que se sabe quanto custou. */}
           <PlanChecklist
             planId={plan.id}
             items={checklist}
             now={now}
-            readOnly={somenteLeitura}
+            readOnly={somenteLeitura || realizado}
           />
           <PlanExpenses
             planId={plan.id}
@@ -185,10 +211,22 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             members={members}
             readOnly={somenteLeitura}
           />
+          {realizado ? (
+            <PlanMemorySection
+              planId={plan.id}
+              planTitle={plan.title}
+              memory={memory}
+              photos={fotosDaMemoria}
+              coverMediaId={plan.coverMediaId}
+              totalSpentCents={totalGasto}
+              viewerProfileId={ctx.profileId}
+              readOnly={somenteLeitura}
+            />
+          ) : null}
           <PlanPhotos
             planId={plan.id}
             planTitle={plan.title}
-            photos={photos}
+            photos={fotosDoPlano}
             coverMediaId={plan.coverMediaId}
             showCover={false}
           />

@@ -62,7 +62,7 @@ Ponto que precisa ficar escrito, porque a palavra "terminal" convida ao erro opo
 - **avaliação**: só existe depois;
 - **fotos de memória**: só existem depois;
 - **gastos**: continuam editáveis, e o B8 já disse por quê — é depois que se sabe quanto custou;
-- **checklist**: leitura.
+- **checklist**: leitura — recusado na camada de dados e não oferecido na tela. "O que levar" perde a função no momento em que as duas pessoas já foram, e marcar um item depois não afirma nada sobre o mundo (D-102). Votar numa data some pelo mesmo motivo: a negociação terminou.
 
 O que é terminal é a **transição**, não a escrita. Uma regra do tipo "status terminal é somente leitura" mataria a funcionalidade inteira.
 
@@ -95,6 +95,8 @@ Este bloco não reinventa o que o B6 já decidiu sobre duas pessoas opinando:
 - **não avaliar é estado distinto de dar nota baixa.** A ausência aparece como "Alex ainda não avaliou", não como zero;
 - **reenviar a mesma nota a retira**, como no controle de voto;
 - a nota é alterável a qualquer momento.
+
+E o que a implementação obrigou a decidir (D-104): **retirar a nota leva o "repetiria?" junto**. `rating` é `NOT NULL` desde o B2, então não existe avaliação sem nota, e uma resposta de "repetiria" sozinha seria uma avaliação pela metade que a tela não saberia mostrar. Pelo mesmo motivo, o controle de "repetiria?" só aparece **depois** da nota — e a camada de dados recusa de novo, porque o frontend nunca é fonte de autoridade.
 
 ### Média
 
@@ -130,6 +132,11 @@ Uma foto de memória pode virar a capa do plano, com o `setPlanCover` que já ex
 
 Vale dizer em voz alta o que isso faz: é o momento em que o card em `/memorias` deixa de mostrar a foto do site do restaurante e passa a mostrar a foto que as duas pessoas tiraram lá. É a promessa da prancha, e é quando o produto para de parecer um catálogo.
 
+Duas consequências que o B5 não podia prever (D-110, D-103):
+
+- **a foto de memória que vira capa continua sendo memória.** `plans.cover_media_id` é a autoridade sobre qual é a capa, e `media.purpose` só registra por onde a foto entrou; sobrescrevê-lo tiraria a foto da grade de "Como foi?" no exato instante em que ela vira capa;
+- **a grade de memória não reordena.** O que se fotografou depois do date é registro, e a ordem dele é a ordem em que aconteceu. Por isso `reorderPlanMedia` passou a operar só sobre as fotos que não são de memória — sem esse recorte, a lista fechada que a grade do plano envia nunca conferiria com o total do plano.
+
 ---
 
 ## 6. A timeline
@@ -149,6 +156,8 @@ Por número de página, na URL: `/memorias?pagina=2`.
 Cursor seria mais correto num feed vivo, mas aqui a lista é de passado e praticamente imóvel — um plano só entra nela quando alguém marca algo como realizado, o que acontece uma vez por date. Cursor composto de instante mais id numa URL é feio e não compra nada neste caso.
 
 Navegação por link, como o mês da agenda (D-078): a leitura funciona sem JavaScript e cada página é uma URL de verdade. Página inválida cai na primeira, sem erro.
+
+O parser tem teto de sete dígitos, e não é preciosismo: `?pagina=99999999999` viraria um `OFFSET` que não cabe no `integer` do Postgres, e a consulta responderia vazio de qualquer jeito — mas como erro de driver em vez de página vazia.
 
 ---
 

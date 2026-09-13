@@ -12,6 +12,7 @@ import {
   reservations,
 } from "@/db/schema/index.ts";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
+import { isFutureCivilDay } from "@/lib/datetime";
 import type { PlanFacts } from "@/lib/plan-preconditions";
 import { sumCents } from "@/lib/money";
 
@@ -118,9 +119,15 @@ export async function readPlanFacts(
   ctx: AuthorizedContext,
   planId: string,
   tx: Pick<typeof db, "select"> = db,
+  now: Date = new Date(),
 ): Promise<PlanFacts> {
+  /* Lê o instante em vez de contar (B9): o fato "existe data confirmada" e o
+     fato "essa data ainda não chegou" saem da mesma linha, e continuam sendo
+     uma consulta só. O corte por dia civil acontece em JavaScript porque o
+     banco não conhece `America/Sao_Paulo` — um `starts_at < now()` no `where`
+     recusaria, às três da tarde, um date que é hoje às oito (D-061). */
   const [datas] = await tx
-    .select({ total: count() })
+    .select({ startsAt: planDateOptions.startsAt })
     .from(planDateOptions)
     .where(
       and(
@@ -128,7 +135,8 @@ export async function readPlanFacts(
         eq(planDateOptions.planId, planId),
         eq(planDateOptions.isConfirmed, true),
       ),
-    );
+    )
+    .limit(1);
 
   const [reserva] = await tx
     .select({ total: count() })
@@ -142,8 +150,10 @@ export async function readPlanFacts(
     );
 
   return {
-    hasConfirmedDate: (datas?.total ?? 0) > 0,
+    hasConfirmedDate: datas !== undefined,
     hasConfirmedReservation: (reserva?.total ?? 0) > 0,
+    confirmedDateIsFuture:
+      datas !== undefined && isFutureCivilDay(datas.startsAt, now),
   };
 }
 

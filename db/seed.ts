@@ -282,6 +282,18 @@ async function main(): Promise<void> {
             isConfirmed: true,
             createdBy: NINA,
           },
+          /* O plano realizado precisa de data confirmada (B9): `/memorias`
+             ordena por quando o date aconteceu, e um plano `completed` sem data
+             não teria lugar na linha do tempo. A pré-condição de `completed`
+             tornou esse estado inalcançável pela interface; o seed vinha de
+             antes dela e produzia justamente ele. */
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: COMPLETED_PLAN.id,
+            startsAt: utc("2026-08-22T23:00:00"),
+            isConfirmed: true,
+            createdBy: ALEX,
+          },
         ])
         .returning({ id: schema.planDateOptions.id });
 

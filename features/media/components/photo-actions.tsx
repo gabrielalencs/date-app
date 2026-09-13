@@ -39,10 +39,17 @@ export function PhotoActions({
   planId: string;
   mediaId: string;
   isCover: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  /** Devolve a nova ordem completa; a action recusa lista que não confira. */
-  onMove: (direction: -1 | 1) => string[];
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  /**
+   * Devolve a nova ordem completa; a action recusa lista que não confira.
+   *
+   * Opcional desde o B9: a grade de fotos de memória não reordena. O que se
+   * fotografou depois do date é registro, e a ordem dele é a ordem em que
+   * aconteceu — não uma curadoria. Sem `onMove`, as setas não existem, em vez
+   * de existirem desabilitadas para sempre.
+   */
+  onMove?: (direction: -1 | 1) => string[];
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>("parado");
@@ -91,27 +98,31 @@ export function PhotoActions({
           }
         />
 
-        <IconButton
-          label="Mover para trás"
-          icon={<ArrowLeft className="size-4" />}
-          disabled={ocupado || !canMoveUp}
-          onClick={() =>
-            void executar(() =>
-              reorderMediaAction({ planId, orderedMediaIds: onMove(-1) }),
-            )
-          }
-        />
+        {onMove ? (
+          <>
+            <IconButton
+              label="Mover para trás"
+              icon={<ArrowLeft className="size-4" />}
+              disabled={ocupado || !canMoveUp}
+              onClick={() =>
+                void executar(() =>
+                  reorderMediaAction({ planId, orderedMediaIds: onMove(-1) }),
+                )
+              }
+            />
 
-        <IconButton
-          label="Mover para frente"
-          icon={<ArrowRight className="size-4" />}
-          disabled={ocupado || !canMoveDown}
-          onClick={() =>
-            void executar(() =>
-              reorderMediaAction({ planId, orderedMediaIds: onMove(1) }),
-            )
-          }
-        />
+            <IconButton
+              label="Mover para frente"
+              icon={<ArrowRight className="size-4" />}
+              disabled={ocupado || !canMoveDown}
+              onClick={() =>
+                void executar(() =>
+                  reorderMediaAction({ planId, orderedMediaIds: onMove(1) }),
+                )
+              }
+            />
+          </>
+        ) : null}
 
         <Dialog open={confirmRemoval} onOpenChange={setConfirmRemoval}>
           <DialogTrigger asChild>

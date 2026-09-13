@@ -207,7 +207,20 @@ describe("o que aparece e o que não aparece (D-079)", () => {
       startsAt: asHoras(dia, 21),
     });
     await confirmDateOption(ctxB, opcaoDoShow.id);
-    await changePlanStatus(ctxB, realizado, "completed");
+
+    /* O último passo é `UPDATE` direto, e não `changePlanStatus`, porque o B9
+       passou a exigir que a data confirmada esteja num dia civil não futuro
+       para o plano virar `completed` — e o mês deste arquivo é escolhido no
+       futuro de propósito, longe do seed e de qualquer "hoje".
+
+       Forçar o status aqui não enfraquece a asserção: o que este teste prova é
+       que um plano realizado **aparece** na grade do mês em que aconteceu
+       (D-079). A travessia em si tem prova própria, com os três casos da
+       pré-condição, em `memories-isolation.integration.test.ts`. */
+    await database
+      .update(schema.plans)
+      .set({ status: "completed" })
+      .where(eq(schema.plans.id, realizado));
 
     const cancelado = await novoPlano("Passeio cancelado");
     await createDateOption(ctxB, cancelado, { startsAt: asHoras(dia, 19) });

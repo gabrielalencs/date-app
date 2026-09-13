@@ -239,6 +239,16 @@ export async function setPlanCover(
  * Reordena a galeria. Recebe a ordem inteira, não um par de índices: enviar a
  * lista fechada evita que uma reordenação concorrente componha duas trocas
  * parciais num estado que ninguém pediu.
+ *
+ * "A galeria" passou a excluir as fotos de memória (B9). Elas moram em outra
+ * seção da página, na ordem em que foram tiradas, e não têm setas: o que se
+ * fotografou depois do date é registro, não curadoria. Sem este recorte, a
+ * lista fechada que a grade de fotos do plano envia nunca conferiria com o
+ * total do plano, e reordenar passaria a falhar assim que a primeira foto de
+ * memória existisse.
+ *
+ * Posição repetida entre as duas grades não incomoda: cada uma é lida com o
+ * seu filtro de propósito, e `createdAt` desempata dentro de cada uma.
  */
 export async function reorderPlanMedia(
   ctx: AuthorizedContext,
@@ -261,7 +271,11 @@ export async function reorderPlanMedia(
       .select({ id: media.id })
       .from(media)
       .where(
-        and(eq(media.workspaceId, ctx.workspaceId), eq(media.planId, planId)),
+        and(
+          eq(media.workspaceId, ctx.workspaceId),
+          eq(media.planId, planId),
+          ne(media.purpose, "memory"),
+        ),
       )
       .for("update");
 
@@ -309,7 +323,7 @@ async function promoteToCover(
     throw new NotFoundError("Plano");
   }
 
-  // Exatamente um `cover` por plano: as outras voltam a ser galeria.
+  // No máximo um `cover` por plano: a anterior volta a ser galeria.
   await tx
     .update(media)
     .set({ purpose: "gallery" })
@@ -322,10 +336,23 @@ async function promoteToCover(
       ),
     );
 
+  /* Foto de memória que vira capa **continua** sendo memória (B9).
+     `plans.cover_media_id` é a autoridade sobre qual é a capa, e esta linha
+     existe só para `purpose` registrar por onde a foto entrou. Sobrescrever
+     `memory` com `cover` aqui tiraria a foto da grade de "Como foi?" no exato
+     momento em que ela vira a capa — que é justamente o momento em que o card
+     de `/memorias` deixa de mostrar a foto do site do restaurante e passa a
+     mostrar a que as duas tiraram lá. */
   await tx
     .update(media)
     .set({ purpose: "cover" })
-    .where(and(eq(media.workspaceId, ctx.workspaceId), eq(media.id, mediaId)));
+    .where(
+      and(
+        eq(media.workspaceId, ctx.workspaceId),
+        eq(media.id, mediaId),
+        ne(media.purpose, "memory"),
+      ),
+    );
 }
 
 /**
