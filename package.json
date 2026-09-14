@@ -32,7 +32,9 @@
     "test:calendar": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/calendar.spec.ts",
     "shots:calendar": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/calendar-shots.spec.ts",
     "test:planning": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/planning.spec.ts",
-    "shots:planning": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/planning-shots.spec.ts"
+    "shots:planning": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/planning-shots.spec.ts",
+    "test:memories": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/memories.spec.ts",
+    "shots:memories": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/memories-shots.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1129.0",

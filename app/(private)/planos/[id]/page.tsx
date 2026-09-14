@@ -9,6 +9,8 @@ import {
   listWorkspaceMembers,
 } from "@/features/dates/data/queries";
 import { PlanPhotos } from "@/features/media/components/plan-photos";
+import { PlanReview } from "@/features/memories/components/plan-review";
+import { listPlanRatings } from "@/features/memories/data/queries";
 import { PlanChecklist } from "@/features/planning/components/plan-checklist";
 import { PlanExpenses } from "@/features/planning/components/plan-expenses";
 import { PlanReservation } from "@/features/planning/components/plan-reservation";
@@ -39,6 +41,8 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
+  const realizado = plan.status === "completed";
+
   const [
     photos,
     dateOptions,
@@ -47,6 +51,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     expenses,
     members,
     facts,
+    ratings,
   ] = await Promise.all([
     listPlanMedia(ctx, plan.id),
     listPlanDateOptions(ctx, plan.id),
@@ -55,7 +60,17 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     listExpenses(ctx, plan.id),
     listWorkspaceMembers(ctx),
     readPlanFacts(ctx, plan.id),
+    /* Avaliações, fotos de memória e gastos são três consultas, não três por
+       linha (seção 7 do docs/MEMORIES.md). As fotos já vêm inteiras de
+       `listPlanMedia`, e a separação por `purpose` acontece em memória. */
+    realizado ? listPlanRatings(ctx, plan.id) : null,
   ]);
+
+  /* `gallery` é antes, `memory` é depois. Duas grades, conjuntos disjuntos —
+     e a capa acompanha a grade onde ela está, porque `setPlanCover` muda o
+     `purpose` da foto promovida para `cover`. */
+  const fotosDoPlano = photos.filter((photo) => photo.purpose !== "memory");
+  const fotosDaMemoria = photos.filter((photo) => photo.purpose === "memory");
 
   /* Plano cancelado ou arquivado é leitura nas três seções (seção 8 do
      docs/PLANNING.md). A camada de dados recusa de novo — isto aqui é só para
@@ -170,6 +185,32 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             options={dateOptions}
             now={now}
           />
+
+          {/* "Como foi?" vem logo depois da data: no plano realizado, é a
+              primeira coisa que as duas pessoas vão procurar (seção 9). */}
+          {realizado && ratings ? (
+            <PlanReview planId={plan.id} ratings={ratings} />
+          ) : null}
+
+          {/* `completed` é terminal na transição, não na escrita: a grade de
+              fotos de memória só existe depois, e é onde vive o que vocês
+              fotografaram lá. */}
+          {realizado ? (
+            <PlanPhotos
+              planId={plan.id}
+              planTitle={plan.title}
+              photos={fotosDaMemoria}
+              allPhotos={photos}
+              coverMediaId={plan.coverMediaId}
+              showCover={false}
+              showReorder={false}
+              title="As fotos de vocês"
+              uploadPurpose="memory"
+              addLabel="Adicionar foto"
+              emptyText="Nenhuma foto desse date ainda. Suba as que vocês tiraram."
+              readOnly={somenteLeitura}
+            />
+          ) : null}
           {/* No desktop a reserva fica no rail; no mobile o rail vem antes
               desta coluna, preservando reserva -> checklist -> gastos. */}
           <PlanChecklist
@@ -188,9 +229,11 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
           <PlanPhotos
             planId={plan.id}
             planTitle={plan.title}
-            photos={photos}
+            photos={fotosDoPlano}
+            allPhotos={photos}
             coverMediaId={plan.coverMediaId}
             showCover={false}
+            readOnly={somenteLeitura}
           />
           <details className="editor-disclosure panel">
             <summary>

@@ -137,7 +137,11 @@ Qualquer outra combinação é `InvalidTransitionError`, não um no-op silencios
 
 `completed` é terminal de propósito: desfazer um date realizado apagaria a memória associada. Se algum dia precisar, vira decisão explícita com migration.
 
+Terminal na **transição**, não na escrita (D-103). É depois de `completed` que a avaliação e as fotos de memória passam a existir, e os gastos continuam editáveis porque é depois que se sabe quanto custou. Uma regra do tipo "status terminal é somente leitura" mataria metade do B9. Quem é leitura em tudo é `cancelled` e o plano arquivado.
+
 A partir do B6, `deciding → planned` ganha uma pré-condição extra: precisa existir uma opção de data confirmada. A máquina em si não muda; a pré-condição é acrescentada na camada de dados.
+
+Desde o B8 as pré-condições moram todas em `lib/plan-preconditions.ts`, puro, recebendo os fatos prontos em `PlanFacts`, e são consultadas **duas vezes**: pela interface, para decidir quais botões existem, e dentro da transação da mutation, antes de escrever. O B9 acrescentou o terceiro fato, `confirmedDateHasArrived`, e as duas recusas de `completed`: sem data confirmada, e com data confirmada num dia civil ainda por vir. A comparação é de dia civil pela aritmética do B7, nunca por subtração de milissegundos — um date hoje às 20h tem `starts_at` no futuro a tarde inteira e precisa ser aceito igual (D-102).
 
 `archived_at` é ortogonal a status. Arquivar esconde da lista; cancelar é um estado do plano. Um plano cancelado pode estar visível; um arquivado pode estar em qualquer status.
 
@@ -148,6 +152,8 @@ A partir do B6, `deciding → planned` ganha uma pré-condição extra: precisa 
 Toda mutação relevante grava uma linha em `activity_events` dentro da **mesma transação** da escrita. Se o evento falhar, a escrita reverte.
 
 O B4 emite `plan_created` e `plan_completed`. Os outros verbos entram com os blocos que os produzem.
+
+Nem toda escrita emite. A régua, fixada do B8 ao B9: entra no feed o que aconteceu com o date, não o log de edição. Checklist, gasto e foto de memória não emitem (D-097, D-110); a **primeira** avaliação de cada pessoa emite `memory_added`, e editar a nota depois não emite (D-109). O `vote_cast` do B6, que emite a cada mudança, é a exceção deliberada: lá a mudança de voto é a negociação acontecendo.
 
 Retroencaixar emissão de evento depois de o CRUD existir é muito mais caro que emitir desde a primeira escrita, e é por isso que isso entra agora e não no B10.
 

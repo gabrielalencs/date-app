@@ -15,9 +15,23 @@ import { activityVerb, repeatAnswer } from "./enums.ts";
 import { profiles, workspaces } from "./identity.ts";
 import { plans } from "./plans.ts";
 
-/** Uma memória por plano, existindo só depois de `completed`. */
-export const memories = pgTable(
-  "memories",
+/**
+ * A avaliação de uma pessoa sobre um date realizado.
+ *
+ * **Não existe tabela `memories`.** O B2 criou uma, com `highlight` e `notes`
+ * dentro, e o `docs/MEMORIES.md` seção 4 põe os dois campos na avaliação de
+ * cada pessoa — o que esvaziava aquela tabela de conteúdo próprio e a deixava
+ * como junção pura entre `plans` e isto aqui. Ela foi removida no B9 (D-099).
+ *
+ * A tese da seção 1 é essa: memória não é entidade nova, é o plano depois. O
+ * título, a data, o local, os gastos e as fotos continuam onde já estavam, e
+ * o que o B9 acrescenta ao banco é uma linha por pessoa por plano.
+ *
+ * Tabela separada de `plans` porque são duas pessoas avaliando de forma
+ * independente; colar isso em `rating_user_a`/`rating_user_b` travaria a V2.
+ */
+export const memoryRatings = pgTable(
+  "memory_ratings",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     workspaceId: uuid("workspace_id")
@@ -26,7 +40,14 @@ export const memories = pgTable(
     planId: uuid("plan_id")
       .notNull()
       .references(() => plans.id, { onDelete: "cascade" }),
+    profileId: text("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    rating: smallint("rating").notNull(),
+    wouldRepeat: repeatAnswer("would_repeat"),
+    /** "Melhor parte", texto curto. */
     highlight: text("highlight"),
+    /** Observações, texto livre. */
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -36,45 +57,17 @@ export const memories = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique("memories_plan_id_unique").on(table.planId),
-    index("memories_workspace_id_idx").on(table.workspaceId),
-  ],
-);
-
-/**
- * Tabela separada porque são duas pessoas avaliando de forma independente;
- * colar isso em rating_user_a/rating_user_b travaria a V2.
- */
-export const memoryRatings = pgTable(
-  "memory_ratings",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
-    memoryId: uuid("memory_id")
-      .notNull()
-      .references(() => memories.id, { onDelete: "cascade" }),
-    profileId: text("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    rating: smallint("rating").notNull(),
-    wouldRepeat: repeatAnswer("would_repeat"),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
+    /* Nota fora de 1–5 é estado impossível, e estado impossível vive no banco
+       (D-065). O Zod recusa antes, com uma frase; este CHECK é a garantia. */
     check("memory_ratings_rating_range", sql`${table.rating} between 1 and 5`),
-    unique("memory_ratings_memory_profile_unique").on(
-      table.memoryId,
+    /* Uma avaliação por pessoa por plano, como manda a seção 10 — agora
+       literalmente em (plan_id, profile_id), e não transitivamente. */
+    unique("memory_ratings_plan_profile_unique").on(
+      table.planId,
       table.profileId,
     ),
     index("memory_ratings_workspace_id_idx").on(table.workspaceId),
-    index("memory_ratings_memory_id_idx").on(table.memoryId),
+    index("memory_ratings_plan_id_idx").on(table.planId),
     index("memory_ratings_profile_id_idx").on(table.profileId),
   ],
 );

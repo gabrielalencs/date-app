@@ -16,6 +16,8 @@ O título já existe. A data é a opção confirmada do B6. O local está na `pl
 
 A tentação é criar uma tabela `memories` com título, data e local dentro. Ela parece organizada por uma semana, e no primeiro plano editado depois de realizado as duas versões divergem em silêncio, sem ninguém saber qual está certa.
 
+> **Implementado.** O B2 tinha criado uma tabela `memories` — sem título nem data, mas com "melhor parte" e observações dentro, compartilhados pelo plano. Como a seção 4 abaixo põe os dois campos na avaliação de **cada pessoa**, aquela tabela ficava sem conteúdo próprio, e foi dropada no B9 (D-099). `memory_ratings` aponta para `plan_id` direto.
+
 O B2 já acertou isso: `memories` tem apenas `plan_id`, `highlight` e `notes`. Nenhum título, nenhuma data, nenhum lugar.
 
 O que o B9 acrescenta de fato é pequeno: a travessia para `completed`, e a avaliação de cada pessoa. O resto é uma segunda leitura do que já está gravado — como o calendário do B7 foi para as datas.
@@ -222,6 +224,12 @@ O contraste de sempre (D-065):
 | tamanho dos textos | aplicação | usabilidade |
 
 O único em `memory_ratings` é por `memory_id`, não por `plan_id` — e como `memories` já é único por plano, o efeito é o mesmo com uma FK a menos.
+
+---
+
+## 10.1. Uma consequência que vale dizer
+
+`rating` é NOT NULL, então a avaliação **nasce** pela nota: "repetiria?", "melhor parte" e observações são campos da mesma linha e só existem depois dela. Por isso retirar a nota — reenviá-la, como manda a seção 4 — apaga os textos junto. O controle na tela avisa isso antes do clique, e mudar de 4 para 5 não apaga nada.
 
 ---
 

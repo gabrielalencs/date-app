@@ -12,6 +12,7 @@ import {
   reservations,
 } from "@/db/schema/index.ts";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
+import { isFutureCivilDay } from "@/lib/datetime";
 import type { PlanFacts } from "@/lib/plan-preconditions";
 import { sumCents } from "@/lib/money";
 
@@ -118,9 +119,13 @@ export async function readPlanFacts(
   ctx: AuthorizedContext,
   planId: string,
   tx: Pick<typeof db, "select"> = db,
+  now: Date = new Date(),
 ): Promise<PlanFacts> {
-  const [datas] = await tx
-    .select({ total: count() })
+  /* A data confirmada vem inteira, e não como contagem: o B9 precisa saber
+     **quando** ela é, não só que existe. O único parcial de `is_confirmed`
+     garante que há no máximo uma. */
+  const [data] = await tx
+    .select({ startsAt: planDateOptions.startsAt })
     .from(planDateOptions)
     .where(
       and(
@@ -128,7 +133,8 @@ export async function readPlanFacts(
         eq(planDateOptions.planId, planId),
         eq(planDateOptions.isConfirmed, true),
       ),
-    );
+    )
+    .limit(1);
 
   const [reserva] = await tx
     .select({ total: count() })
@@ -142,8 +148,14 @@ export async function readPlanFacts(
     );
 
   return {
-    hasConfirmedDate: (datas?.total ?? 0) > 0,
+    hasConfirmedDate: Boolean(data),
     hasConfirmedReservation: (reserva?.total ?? 0) > 0,
+    /* Dia civil no fuso do app, nunca `startsAt < now`. Um date hoje às 20h
+       tem `startsAt` no futuro a tarde inteira, e recusar marcá-lo como
+       realizado às 23h seria o erro de um dia que o B7 existe para impedir. */
+    confirmedDateHasArrived: data
+      ? !isFutureCivilDay(data.startsAt, now)
+      : false,
   };
 }
 

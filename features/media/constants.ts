@@ -16,10 +16,18 @@ export function isMediaVariant(value: unknown): value is MediaVariant {
 }
 
 /**
- * `avatar` e `memory` existem no enum do banco e não são usadas na V1: memória
- * é B9 e avatar é depois. Estar no enum não é motivo para implementar.
+ * `gallery` é antes, `memory` é depois (D-104).
+ *
+ * `cover` é a capa do plano; `gallery` é inspiração — o print do restaurante,
+ * a referência que fez vocês quererem ir; `memory` é o que vocês fotografaram
+ * lá. Mesma tabela, mesmo fluxo de upload assinado, mesma rota autenticada de
+ * leitura, mesmo reprocessamento no cliente que descarta EXIF. O que muda é o
+ * `purpose` e onde a grade aparece.
+ *
+ * `avatar` continua no enum do banco e continua sem uso. Estar no enum não é
+ * motivo para implementar.
  */
-export const UPLOADABLE_PURPOSES = ["cover", "gallery"] as const;
+export const UPLOADABLE_PURPOSES = ["cover", "gallery", "memory"] as const;
 
 export type UploadablePurpose = (typeof UPLOADABLE_PURPOSES)[number];
 

@@ -29,9 +29,15 @@ const vitest = fileURLToPath(
 /**
  * A lista padrão cresce com cada bloco que acrescenta lógica de tempo. O
  * calendário entra aqui porque agrupamento por dia civil é exatamente o tipo de
- * defeito que só aparece fora do fuso de quem escreve (D-073).
+ * defeito que só aparece fora do fuso de quem escreve (D-073). A timeline do B9
+ * entra pelo mesmo motivo: ela agrupa por mês civil, e um date às 23:30 do dia
+ * 31 muda de mês em UTC.
  */
-const SUITES = ["tests/datetime.test.ts", "tests/calendar.test.ts"];
+const SUITES = [
+  "tests/datetime.test.ts",
+  "tests/calendar.test.ts",
+  "tests/memories.test.ts",
+];
 
 const alvo = process.argv.slice(2);
 const padrao = alvo.length > 0 ? alvo : SUITES;

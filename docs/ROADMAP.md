@@ -104,7 +104,17 @@ Reserva com estado e o acoplamento com a máquina de status nos dois sentidos, c
 
 ## B9 — Memórias e timeline
 
-Pós-`completed`: galeria, avaliação por usuário, "repetiria?", destaque, gastos reais. Timeline cronológica por mês e ano.
+A travessia para `completed`, a avaliação de cada pessoa, as fotos com `purpose = 'memory'` e a timeline em `/memorias`, agrupada por mês.
+
+**Entrega:** memória não é entidade nova — é o plano, depois (D-100). O que o bloco acrescenta ao banco é uma linha por pessoa por plano; título, data, local, gastos e fotos continuam onde já estavam. `completed` é terminal na transição e não na escrita (D-103).
+
+**Migration:** `0003` e `0004`, que dropam a tabela `memories` do B2 e movem "melhor parte" e observações para a avaliação de cada pessoa, com o único em (`plan_id`, `profile_id`) (D-099).
+
+**Escala:** o número de consultas da timeline é constante em relação ao número de planos, provado com fixture de sessenta realizados e com o contador em `db/query-counter.ts` (D-108). Provar com os oito do seed não provaria nada.
+
+**Revisões:** `memory` entrou em `UPLOADABLE_PURPOSES`; do B5 não mudou mais nada de substância (D-104). A suíte do agrupamento por mês entrou no `pnpm test:tz`.
+
+**Documento:** `docs/MEMORIES.md`.
 
 ## B10 — Descoberta
 

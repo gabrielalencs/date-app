@@ -9,8 +9,11 @@ const DECIDING_PLAN_ID = "22222222-0000-4000-8000-000000000003";
 const RESERVED_PLAN_ID = "22222222-0000-4000-8000-000000000006";
 const COMPLETED_PLAN_ID = "22222222-0000-4000-8000-000000000007";
 const MISSING_PLAN_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+/* Onze depois do B9: os oito originais mais três realizados, para `/memorias`
+   ter mais de um mês de histórico e para a virada de mês existir no dado real
+   (D-102). */
 const EXPECTED_PLAN_IDS = Array.from(
-  { length: 8 },
+  { length: 11 },
   (_, index) =>
     `22222222-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
 );
@@ -132,7 +135,7 @@ describe("banco Neon development semeado", () => {
     );
   });
 
-  it("mantém os oito plans do seed, sem duplicar, cobrindo os seis status", async () => {
+  it("mantém os onze plans do seed, sem duplicar, cobrindo os seis status", async () => {
     const plans = await database
       .select({
         id: schema.plans.id,
@@ -142,7 +145,7 @@ describe("banco Neon development semeado", () => {
       .from(schema.plans)
       .where(eq(schema.plans.workspaceId, WORKSPACE_ID));
 
-    /* Os oito do seed existem e aparecem uma vez cada. Não se afirma que o
+    /* Os onze do seed existem e aparecem uma vez cada. Não se afirma que o
        workspace tem SÓ eles: plano criado à mão ou por outra suíte é dado
        legítimo do produto, e proibi-lo fazia esta asserção quebrar por uso
        normal em vez de por defeito do seed. */
@@ -254,7 +257,7 @@ describe("banco Neon development semeado", () => {
     );
   });
 
-  it("liga reactions aos profiles/plans e a memória concluída às avaliações", async () => {
+  it("liga reactions aos profiles/plans e as avaliações a dates realizados", async () => {
     const reactions = await database
       .select({
         planId: schema.reactions.planId,
@@ -267,17 +270,17 @@ describe("banco Neon development semeado", () => {
         eq(schema.reactions.profileId, schema.profiles.id),
       )
       .where(eq(schema.reactions.workspaceId, WORKSPACE_ID));
-    const memories = await database
-      .select({ id: schema.memories.id, status: schema.plans.status })
-      .from(schema.memories)
-      .innerJoin(schema.plans, eq(schema.memories.planId, schema.plans.id))
-      .where(eq(schema.memories.workspaceId, WORKSPACE_ID));
+    /* Não há mais tabela `memories`: a avaliação aponta direto para o plano
+       (D-099). O join com `plans` é o que prova o que a antiga afirmava — que
+       toda avaliação pertence a um date realizado. */
     const ratings = await database
       .select({
-        memoryId: schema.memoryRatings.memoryId,
+        planId: schema.memoryRatings.planId,
         profileId: schema.memoryRatings.profileId,
+        status: schema.plans.status,
       })
       .from(schema.memoryRatings)
+      .innerJoin(schema.plans, eq(schema.memoryRatings.planId, schema.plans.id))
       .innerJoin(
         schema.profiles,
         eq(schema.memoryRatings.profileId, schema.profiles.id),
@@ -293,15 +296,20 @@ describe("banco Neon development semeado", () => {
         PROFILE_IDS.some((expected) => expected === profileId),
       ),
     ).toBe(true);
-    expect(memories).toHaveLength(1);
-    expect(memories[0]?.status).toBe("completed");
-    expect(ratings).toHaveLength(2);
-    expect(ratings.every(({ memoryId }) => memoryId === memories[0]?.id)).toBe(
-      true,
-    );
-    expect(new Set(ratings.map(({ profileId }) => profileId))).toEqual(
-      new Set(PROFILE_IDS),
-    );
+    /* Três avaliações em dois planos: duas num (que por isso tem média) e uma
+       no outro (que por isso não tem). O seed só as lança quando o workspace
+       tem dois membros, então zero é resultado legítimo num banco sem
+       bootstrap — o que se afirma sempre é que nenhuma pertence a plano que
+       não esteja realizado. */
+    expect(ratings.every(({ status }) => status === "completed")).toBe(true);
+    expect(
+      ratings.every(({ planId }) => EXPECTED_PLAN_IDS.includes(planId)),
+    ).toBe(true);
+
+    if (ratings.length > 0) {
+      expect(ratings).toHaveLength(3);
+      expect(new Set(ratings.map(({ planId }) => planId)).size).toBe(2);
+    }
   });
 
   it("deixa a FK rejeitar uma relação inválida sem persistir resíduo", async () => {

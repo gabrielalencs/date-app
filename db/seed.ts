@@ -140,18 +140,62 @@ const PLANS: PlanSeed[] = [
     requiresBooking: false,
     createdBy: NINA,
   },
+  /* Três realizados a mais, para `/memorias` ter mais de um mês de histórico
+     (B9). Um deles cai às 23:30 do último dia de julho de propósito: em UTC
+     aquilo é 1º de agosto, e é o caso que o agrupamento por mês precisa
+     acertar na tela real, não só no teste. */
+  {
+    id: "22222222-0000-4000-8000-000000000009",
+    title: "Café da manhã no mercado",
+    category: "gastronomia",
+    status: "completed",
+    priority: 1,
+    city: "São Paulo",
+    placeName: "Mercado municipal fictício",
+    estimatedBudgetCents: 9000,
+    requiresBooking: false,
+    createdBy: NINA,
+  },
+  {
+    id: "22222222-0000-4000-8000-000000000010",
+    title: "Cinema ao ar livre na praça",
+    category: "cultura",
+    status: "completed",
+    priority: 1,
+    city: "São Paulo",
+    placeName: "Praça do bairro",
+    estimatedBudgetCents: 6000,
+    requiresBooking: false,
+    createdBy: ALEX,
+  },
+  {
+    id: "22222222-0000-4000-8000-000000000011",
+    title: "Piquenique no parque",
+    category: "ar_livre",
+    status: "completed",
+    priority: 0,
+    city: "São Paulo",
+    placeName: "Parque do lago",
+    estimatedBudgetCents: 7000,
+    requiresBooking: false,
+    createdBy: NINA,
+  },
 ];
 
 const DECIDING_PLAN = PLANS[2]!;
 const PLANNED_PLAN = PLANS[4]!;
 const RESERVED_PLAN = PLANS[5]!;
 const COMPLETED_PLAN = PLANS[6]!;
+const BREAKFAST_PLAN = PLANS[8]!;
+const OPEN_AIR_PLAN = PLANS[9]!;
+const PICNIC_PLAN = PLANS[10]!;
 
 async function main(): Promise<void> {
   const target = requireDevelopmentBranch();
 
   let membrosDoWorkspace = 0;
   let votosLancados = 0;
+  let avaliacoesLancadas = 0;
 
   const pool = new Pool({ connectionString: target.url });
   const db = drizzle(pool, { schema });
@@ -282,6 +326,43 @@ async function main(): Promise<void> {
             isConfirmed: true,
             createdBy: NINA,
           },
+          /* Todo plano realizado tem data confirmada e passada. Depois do B9 a
+             pré-condição torna `completed` sem data inalcançável pelo produto,
+             e o seed não pode ser a única fonte de um estado impossível — sem
+             data, aliás, eles nem apareceriam na timeline.
+
+             Os instantes vão em UTC e são lidos em São Paulo: 2026-08-01T02:30Z
+             é 31 de julho às 23:30 daqui, e é ele que prova a virada de mês na
+             tela. */
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: COMPLETED_PLAN.id,
+            startsAt: utc("2026-08-23T00:00:00"),
+            isConfirmed: true,
+            createdBy: ALEX,
+          },
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: BREAKFAST_PLAN.id,
+            startsAt: utc("2026-09-05T12:00:00"),
+            isConfirmed: true,
+            createdBy: NINA,
+          },
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: OPEN_AIR_PLAN.id,
+            startsAt: utc("2026-08-01T02:30:00"),
+            isConfirmed: true,
+            createdBy: ALEX,
+          },
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: PICNIC_PLAN.id,
+            startsAt: utc("2026-06-14T14:00:00"),
+            allDay: true,
+            isConfirmed: true,
+            createdBy: NINA,
+          },
         ])
         .returning({ id: schema.planDateOptions.id });
 
@@ -405,40 +486,55 @@ async function main(): Promise<void> {
         },
       ]);
 
-      const [memory] = await tx
-        .insert(schema.memories)
-        .values({
-          workspaceId: WORKSPACE_ID,
-          planId: COMPLETED_PLAN.id,
-          highlight: "O segundo set, quando o baixista assumiu o solo.",
-          notes: "Chegar mais cedo na próxima para pegar mesa perto do palco.",
-        })
-        .returning({ id: schema.memories.id });
+      /* Avaliar é ato de membro, e os membros são as contas reais (D-084) —
+         a mesma correção que os votos precisaram. Antes o seed avaliava como
+         Alex e Nina: as linhas existiriam e a interface não as mostraria,
+         porque `listPlanRatings` monta as avaliações a partir de
+         `listWorkspaceMembers`.
 
-      if (memory) {
+         Os três estados que a tela precisa mostrar ficam cobertos: um plano
+         com as duas avaliações (e portanto média), um com só uma (onde a
+         ausência aparece como ausência, e não há média) e dois sem nenhuma. */
+      if (um && dois) {
         await tx.insert(schema.memoryRatings).values([
           {
             workspaceId: WORKSPACE_ID,
-            memoryId: memory.id,
-            profileId: ALEX,
+            planId: COMPLETED_PLAN.id,
+            profileId: um.profileId,
             rating: 5,
             wouldRepeat: "yes",
+            highlight: "O segundo set, quando o baixista assumiu o solo.",
+            notes:
+              "Chegar mais cedo na próxima para pegar mesa perto do palco.",
           },
           {
             workspaceId: WORKSPACE_ID,
-            memoryId: memory.id,
-            profileId: NINA,
+            planId: COMPLETED_PLAN.id,
+            profileId: dois.profileId,
             rating: 4,
             wouldRepeat: "maybe",
+            highlight: "Sair na chuva depois e achar o lugar do pastel.",
+            notes: null,
+          },
+          {
+            workspaceId: WORKSPACE_ID,
+            planId: BREAKFAST_PLAN.id,
+            profileId: um.profileId,
+            rating: 4,
+            wouldRepeat: "yes",
+            highlight: null,
+            notes: "Ir mais cedo: depois das dez fica cheio demais.",
           },
         ]);
+        avaliacoesLancadas = 3;
       }
     });
 
     console.log(`Seed aplicado no workspace ${WORKSPACE_ID}.`);
     console.log(`Planos: ${PLANS.length}. Perfis autores: 2 (Alex, Nina).`);
     console.log(
-      `Membros do workspace: ${membrosDoWorkspace}. Votos lançados: ${votosLancados}.`,
+      `Membros do workspace: ${membrosDoWorkspace}. Votos lançados: ${votosLancados}. ` +
+        `Avaliações lançadas: ${avaliacoesLancadas}.`,
     );
 
     if (membrosDoWorkspace === 0) {

@@ -77,8 +77,12 @@ describe("enums do schema batem com docs/DATABASE.md", () => {
 });
 
 describe("escopo de workspace", () => {
-  it("declara as quinze tabelas da seção 4", () => {
-    expect(tables.length).toBe(15);
+  it("declara as catorze tabelas da seção 4", () => {
+    /* Eram quinze até o B9 dropar `memories` (D-099): com "melhor parte" e
+       observações passando a ser campos da avaliação de cada pessoa, aquela
+       tabela ficava sem conteúdo próprio, como junção pura entre `plans` e
+       `memory_ratings`. */
+    expect(tables.length).toBe(14);
   });
 
   it.each(

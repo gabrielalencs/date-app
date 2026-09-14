@@ -35,6 +35,7 @@ export function PhotoActions({
   canMoveUp,
   canMoveDown,
   onMove,
+  showReorder = true,
 }: {
   planId: string;
   mediaId: string;
@@ -43,6 +44,12 @@ export function PhotoActions({
   canMoveDown: boolean;
   /** Devolve a nova ordem completa; a action recusa lista que não confira. */
   onMove: (direction: -1 | 1) => string[];
+  /**
+   * A grade de fotos de memória não reordena (B9): a ordem delas é a ordem em
+   * que aconteceram, e não uma curadoria. Dois botões permanentemente
+   * desabilitados seriam pior que dois botões que não existem.
+   */
+  showReorder?: boolean;
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>("parado");
@@ -91,27 +98,31 @@ export function PhotoActions({
           }
         />
 
-        <IconButton
-          label="Mover para trás"
-          icon={<ArrowLeft className="size-4" />}
-          disabled={ocupado || !canMoveUp}
-          onClick={() =>
-            void executar(() =>
-              reorderMediaAction({ planId, orderedMediaIds: onMove(-1) }),
-            )
-          }
-        />
+        {showReorder ? (
+          <>
+            <IconButton
+              label="Mover para trás"
+              icon={<ArrowLeft className="size-4" />}
+              disabled={ocupado || !canMoveUp}
+              onClick={() =>
+                void executar(() =>
+                  reorderMediaAction({ planId, orderedMediaIds: onMove(-1) }),
+                )
+              }
+            />
 
-        <IconButton
-          label="Mover para frente"
-          icon={<ArrowRight className="size-4" />}
-          disabled={ocupado || !canMoveDown}
-          onClick={() =>
-            void executar(() =>
-              reorderMediaAction({ planId, orderedMediaIds: onMove(1) }),
-            )
-          }
-        />
+            <IconButton
+              label="Mover para frente"
+              icon={<ArrowRight className="size-4" />}
+              disabled={ocupado || !canMoveDown}
+              onClick={() =>
+                void executar(() =>
+                  reorderMediaAction({ planId, orderedMediaIds: onMove(1) }),
+                )
+              }
+            />
+          </>
+        ) : null}
 
         <Dialog open={confirmRemoval} onOpenChange={setConfirmRemoval}>
           <DialogTrigger asChild>
