@@ -32,7 +32,7 @@ export function MonthNav({
   const noMesDeHoje = isSameCivilMonth(month, today);
 
   const seta =
-    "text-text-muted hover:bg-surface-soft hover:text-text grid size-11 place-items-center rounded-full transition-colors";
+    "text-text-muted hover:bg-surface-soft hover:text-text grid size-11 shrink-0 place-items-center rounded-full transition-colors";
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">

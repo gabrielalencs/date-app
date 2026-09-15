@@ -169,7 +169,7 @@ Três verbos do enum entram aqui, todos na mesma transação da escrita:
 - `vote_cast` — voto registrado ou alterado;
 - `date_confirmed` — opção promovida a data oficial.
 
-`metadata` carrega o mínimo para o feed do B10 fazer sentido depois: id da opção, e o valor do voto quando for o caso. Nada de texto pronto para exibição — rótulo é decisão de apresentação e muda.
+`metadata` carrega o fato mínimo para o feed do B10 fazer sentido depois: id da opção, `startsAt`, `allDay` quando aplicável e o valor do voto quando for o caso. Nada de texto pronto para exibição — rótulo é decisão de apresentação e muda. Eventos anteriores ao B10 não recebem backfill: quando não têm `startsAt`, o feed degrada para um texto honesto sem inventar a data.
 
 ---
 

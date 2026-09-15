@@ -118,7 +118,13 @@ A travessia para `completed`, a avaliação de cada pessoa, as fotos com `purpos
 
 ## B10 — Descoberta
 
-Favoritos e "quero muito", filtros combinados, sorteador "escolhe pra gente" com animação curta, activity feed leve.
+Concluído em `development`: favoritos pessoais e silenciosos, “quero muito” compartilhado com evento, filtros combinados na URL, sorteador “Escolhe pra gente” por Server Action e feed paginado no detalhe. Eventos novos de data carregam `startsAt`; os antigos degradam honestamente. Votos são colapsados apenas na leitura, e o feed foi medido em duas consultas com dez e duzentos eventos.
+
+**Migration:** `0005`, que acrescenta `want_a_lot` ao enum `activity_verb`. A tabela e o enum das reações já existiam desde o B2.
+
+**Documento:** `docs/REACTIONS_AND_ACTIVITY.md`.
+
+**Corte:** atividade recente na Home e agrupamento do feed por dia ficaram abaixo da linha de corte. O sorteador coube sem roleta. Estatísticas continuam fora da V1 até decisão do proprietário (D-125).
 
 ## B11 — PWA e endurecimento
 

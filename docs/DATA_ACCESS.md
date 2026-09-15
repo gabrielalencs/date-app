@@ -155,7 +155,9 @@ O B4 emite `plan_created` e `plan_completed`. Os outros verbos entram com os blo
 
 Nem toda escrita emite. A régua, fixada do B8 ao B9: entra no feed o que aconteceu com o date, não o log de edição. Checklist, gasto e foto de memória não emitem (D-097, D-110); a **primeira** avaliação de cada pessoa emite `memory_added`, e editar a nota depois não emite (D-109). O `vote_cast` do B6, que emite a cada mudança, é a exceção deliberada: lá a mudança de voto é a negociação acontecendo.
 
-Retroencaixar emissão de evento depois de o CRUD existir é muito mais caro que emitir desde a primeira escrita, e é por isso que isso entra agora e não no B10.
+O B10 passou a consumir esse histórico. Favoritar continua silencioso; acrescentar `want_a_lot` emite na mesma transação da reação, enquanto retirar preserva o evento antigo. Os três escritores de data passaram a carregar `startsAt` como fato mínimo. Não existe backfill do histórico anterior: evento antigo sem esse fato degrada sem inventar data (D-112, D-116 a D-118).
+
+O feed lê total e página em duas consultas constantes. O último voto por ator e opção é colapsado por janela SQL sem apagar o histórico; nenhuma resolução acontece linha por linha (D-119, D-120).
 
 ---
 

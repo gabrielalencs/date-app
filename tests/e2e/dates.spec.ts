@@ -82,7 +82,7 @@ test("o dia escolhido no formulário é o dia que volta na tela", async ({
   await sugerir(page, "2027-06-14", "20:30");
 
   await expect(
-    page.getByText("Segunda-feira, 14 de junho de 2027"),
+    page.getByText("Segunda-feira, 14 de junho de 2027", { exact: true }),
   ).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("20:30", { exact: true })).toBeVisible();
 

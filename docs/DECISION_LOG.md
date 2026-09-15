@@ -4,6 +4,54 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-127 — Foto removida e gasto excluído não têm texto no feed
+**15/09/2026.** O exemplo de degradação do documento do B10 cita foto e gasto, mas esses sujeitos nunca emitiram evento: D-097 excluiu gasto e checklist, e D-110 excluiu foto. Inventar verbos agora contrariaria decisões anteriores e transformaria o feed em log de edição. A degradação testável e implementada é a das opções de data, que são os únicos sujeitos removíveis presentes no enum.
+
+### D-126 — `status_changed` não entra retroativamente
+**15/09/2026.** A tabela provável do documento do B10 supunha um evento de mudança de status “ok, do B4”, mas nem o enum, nem as migrations, nem os escritores jamais tiveram `status_changed`; o spec 4.17 também não o pede. O feed preserva os fatos semânticos existentes (`plan_created`, `date_confirmed`, `booking_updated`, `plan_completed`) e não fabrica retrospectivamente uma trilha genérica que o produto nunca gravou.
+
+### D-125 — Estatísticas ficam fora do B10 e da V1 até decisão do proprietário
+**15/09/2026.** A seção 4.16 do spec já as coloca em fase posterior, e o B10 não a antecipa. Total de DATEs, gastos por categoria, cidades e rankings criariam justamente a leitura de painel que o R1 removeu. Se voltarem, precisam de decisão explícita do proprietário e de uma forma editorial, não de um dashboard.
+
+### D-124 — O sorteador não tem roleta
+**15/09/2026.** O sorteio é imediato e a chegada ao plano é a resposta visual. Uma animação de espera afirmaria que ainda há trabalho acontecendo quando não há, além de conflitar com a proibição de animação gratuita e com reduced motion. O estado pendente troca apenas o rótulo do botão.
+
+### D-123 — Sorteio é Server Action e o resultado fica na URL
+**15/09/2026.** Escolher em render faria cada revalidação escolher de novo e `Math.random()` no cliente ainda abriria divergência de hidratação. A ação escolhe uma vez com `crypto.randomInt` e redireciona para `/planos/[id]`; recarregar, voltar e compartilhar conservam o mesmo resultado.
+
+### D-122 — O sorteador usa os filtros que já estão em `/ideias`
+**15/09/2026.** Categoria, cidade, teto, status e favorito são os filtros GET da lista e descem como campos da Server Action. Um segundo conjunto de filtros duplicaria regra e tornaria impossível explicar entre quais ideias ocorreu a escolha.
+
+### D-121 — Tempo relativo em horas é função de servidor em `lib/datetime.ts`
+**15/09/2026.** `formatRelativeHours` recebe o instante e `now`; não lê relógio do browser. Assim segue o dono único das regras de data, entra na matriz de fusos e não muda entre SSR e hidratação.
+
+### D-120 — O feed faz duas consultas independentemente da quantidade de eventos
+**15/09/2026.** O fato mínimo em `metadata` elimina a necessidade de buscar cada sujeito. `listPlanActivity` faz uma consulta para o total colapsado e outra para a página com o ator; o logger real do Drizzle contou 2 consultas tanto com 10 quanto com 200 eventos.
+
+### D-119 — O feed mostra só o último voto por pessoa e opção
+**15/09/2026.** `vote_cast` continua append-only e registra cada mudança porque a negociação é história. Na apresentação, `row_number()` particiona por ator e opção e conserva somente o mais recente; cinco eventos permanecem no banco e ocupam uma linha no feed. Nenhum outro verbo colapsa.
+
+### D-118 — Histórico não recebe backfill
+**15/09/2026.** Eventos antigos de data sem `startsAt` não são reescritos. Para sujeito vivo, copiar o valor atual fingiria que ele era o valor histórico; para sujeito apagado, nem há valor a copiar. A apresentação degrada para “sugeriu uma data”, “votou … em uma data” ou “confirmou uma data”, sem inventar o que não sabe.
+
+### D-117 — Eventos novos de data carregam `startsAt`
+**15/09/2026.** `date_suggested`, `vote_cast` e `date_confirmed` passam a guardar `startsAt` no `metadata`, além dos fatos já existentes. É o mínimo que permite escrever a data mesmo depois de a opção ser apagada; os rótulos continuam fora do banco.
+
+### D-116 — Metadata guarda fatos mínimos, nunca texto de interface
+**15/09/2026.** Completa a decisão do B6: ids sozinhos não bastam para histórico append-only quando o sujeito pode desaparecer. Cada escritor guarda os valores factuais necessários para o rótulo futuro; idioma, capitalização e formato continuam sendo decisões da apresentação.
+
+### D-115 — O feed vive no detalhe do plano
+**15/09/2026.** “O que aconteceu” encerra `/planos/[id]` como lista discreta e paginada. Não há aba, feed global ou novo destino na navegação: atividade só tem contexto útil quando alguém já abriu o DATE sobre o qual quer se atualizar.
+
+### D-114 — Reações são por pessoa, visíveis às duas e alternáveis
+**15/09/2026.** Cada tipo tem no máximo uma linha por plano e perfil, garantida pelo banco. As duas pessoas veem os dois estados; repetir a ação retira. Favorito e “quero muito” não mudam status nem são pré-condição de nenhuma operação.
+
+### D-113 — O filtro de favoritos é pessoal e mora na URL
+**15/09/2026.** `/ideias?favoritos=1` consulta exclusivamente a reação `favorite` do perfil atual. Favorito da outra pessoa pode ser visível no detalhe, mas não organiza a minha lista. Como os demais filtros desde o B4, é navegação GET compartilhável, não estado de cliente.
+
+### D-112 — Favorito organiza; “quero muito” comunica
+**15/09/2026.** Favorito significa “quero achar depois”, é pessoal e não emite evento. “Quero muito” significa “olha isso” para a outra pessoa, aparece no card e emite `want_a_lot` ao entrar. A diferença de público, não de intensidade, justifica os dois tipos.
+
 ### D-111 — O teste de escala do B9 comparava o tamanho da página, não o total
 **15/09/2026.** `memories-isolation.integration.test.ts` nunca tinha rodado contra um banco de verdade (D-099 a D-110 foram escritas e commitadas numa máquina sem `.env.local`). Ao rodar pela primeira vez, a asserção "com sessenta deve ter mais entradas que com um" comparava `result.entries.length` — que `listMemories` sempre limita a `MEMORIES_PER_PAGE` (12) — e o seed de `development` já tinha planos realizados suficientes para lotar a página 1 mesmo antes da fixture de sessenta. As duas contagens davam 12 e a asserção falhava, mesmo com a leitura em bloco funcionando exatamente como projetada. A correção compara `result.total`, que de fato cresce; `entries.length` continua igual por construção, e essa é a prova de que a página não escala com o banco.
 

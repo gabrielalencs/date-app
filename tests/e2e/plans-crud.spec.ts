@@ -1,8 +1,7 @@
-import { inArray } from "drizzle-orm";
 import { expect, test, type Page } from "@playwright/test";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
-import { closeFixtureDb, fixtureDb, schema } from "./db-fixture.ts";
+import { closeFixtureDb, removeOwnedPlans } from "./db-fixture.ts";
 
 /**
  * Ciclo do CRUD contra o banco de development, autenticado de verdade.
@@ -33,9 +32,7 @@ const criados: string[] = [];
 
 test.afterAll(async () => {
   if (criados.length > 0) {
-    await fixtureDb()
-      .delete(schema.plans)
-      .where(inArray(schema.plans.id, criados));
+    await removeOwnedPlans(criados);
   }
   await closeFixtureDb();
 });

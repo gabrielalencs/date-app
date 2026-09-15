@@ -118,7 +118,7 @@ Conteúdo máximo 1360px incluindo padding; uma coluna mobile. Desktop usa colun
 
 - Login: fotografia e marca + área de acesso; hero compacto no celular, formulário com teclado adequado e sem autofocus que pule o hero. Nunca signup.
 - Home: saudação editorial, próximo DATE real quando disponível, inspiração estática e ideias existentes. Resumo discreto de status sem cartões de KPI. Não chamar contagens globais de resumo mensal.
-- Ideias: heading e introdução, controles integrados e grade visual. Filtros continuam GET, sem busca nova ou dados inventados.
+- Ideias: heading e introdução, controles integrados e grade visual. Filtros continuam GET, agora incluindo cidade, teto e “Meus favoritos”. O bloco “Escolhe pra gente” usa a mesma URL e o mesmo conjunto filtrado; não tem roleta nem outro formulário.
 - Nova ideia: cadastro rápido e rail editorial de orientação; uma coluna mobile. Não antecipar campos de negócio.
 - Detalhe: capa, categoria, título, descrição e metadados; rail de status, reserva e ações; datas, checklist, gastos, galeria e edição recolhível. Mobile coloca o status antes das seções de trabalho, e empilha na ordem de uso: reserva, checklist, gastos.
 - Seção do detalhe **só existe quando tem o que mostrar**: reserva não requerida não aparece, e checklist e gastos vazios entram como uma linha e um campo, nunca como bloco vazio com borda tracejada. Três caixas vazias empilhadas são o "cards por todo lado sem hierarquia" que o spec proíbe.
@@ -127,6 +127,7 @@ Conteúdo máximo 1360px incluindo padding; uma coluna mobile. Desktop usa colun
 - Perfil: identidade institucional, papel, tema e logout existentes.
 - Agenda: o calendário do B7 ocupa a coluna principal e o rail leva o dia selecionado e os próximos DATEs reais. Título do mês em Fraunces, chevrons de 44px, filtro de categoria em chips como na prancha. A grade é `<table>` — o dado é tabular — com seis linhas sempre, semana começando na segunda e dias de fora do mês em tom apagado com conteúdo real. No mobile ela sai do padding do shell e encosta nas bordas: com `px-5`, 320px dariam 40px de coluna, abaixo do alvo de toque. Célula sem conteúdo não é link nem parada de tabulação. Nada de grade de datas fake.
 - Memórias B9: estado preparatório editorial; nenhuma memória falsa. A futura timeline reutiliza tipografia, fotografias, cards e superfícies daqui.
+- Descoberta B10: favorito e “quero muito” são botões de estado com `aria-pressed`, ícone preenchido e texto explícito. No card, “quero muito” usa coração mais rótulo e nomes, portanto sobrevive sem cor. O feed fecha o detalhe como lista entre divisórias, nunca como card por evento; ator, fato e tempo relativo são legíveis sem ícone. O vazio é uma única linha.
 
 ## Movimento
 

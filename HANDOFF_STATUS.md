@@ -1,6 +1,6 @@
 # DATE — Handoff status
 
-Data do handoff: **11/09/2026**
+Data do handoff: **15/09/2026**
 
 Este arquivo registra o estado factual atual para a continuidade da implementação.
 
@@ -27,6 +27,10 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - B8 concluído: reserva com estado, checklist com autor e horário, gastos em centavos com total. A máquina de status passa a exigir o fato que cada etiqueta afirma, nos dois sentidos. Ver `docs/PLANNING.md`.
 - B9 concluído: travessia para `completed` com pré-condição e confirmação em modal, avaliação de cada pessoa, fotos com `purpose = 'memory'` e a timeline em `/memorias`. A tabela `memories` do B2 foi removida (D-099); memória é o plano depois, não entidade nova. Ver `docs/MEMORIES.md`.
 - Migrations `0003` e `0004` aplicadas em `development`. `pnpm db:seed` rodado, `pnpm test:db` (136 testes), `pnpm test:memories` (9) e `pnpm shots:memories` (8) passando contra o banco real. Duas correções feitas nessa verificação: a asserção de escala comparava `entries.length` (limitado por `MEMORIES_PER_PAGE`) em vez de `total`, e os dois cliques de mouse no radio de nota precisaram de `force: true` no teste — o radio é `sr-only` e o clique real chega por encaminhamento nativo do `<label>`, que o hit-test do Playwright não reconhece.
+- B10 concluído: favoritos pessoais e silenciosos, “quero muito” compartilhado, filtros combinados em `/ideias`, sorteador por Server Action e feed paginado no detalhe. Eventos novos de data carregam `startsAt`; os antigos degradam sem inventar informação. Ver `docs/REACTIONS_AND_ACTIVITY.md`.
+- Migration `0005` aplicada somente em `development`, acrescentando `want_a_lot` ao enum `activity_verb`. A tabela `reactions`, seu enum e o único por plano/pessoa/tipo já existiam desde o B2.
+- B10 fechado contra o banco e o navegador reais: `pnpm test` (395), `pnpm test:db` (144), `pnpm test:tz` (116 em cada um dos três fusos), `pnpm test:media` (8) e Playwright completo com um worker (172) passando, mais a prova visual de escala de cinza acrescentada e executada isoladamente. O feed manteve 2 consultas com 10 e 200 eventos. As 24 capturas da matriz cobrem quatro estados, três larguras e dois temas; uma 25ª captura prova “quero muito” sem cor.
+- A limpeza das fixtures agora remove eventos cujo plano aparece em `metadata.planId`, além dos eventos que apontam direto para o plano. Dezessete eventos órfãos criados pelas próprias execuções de teste foram removidos de `development`; nenhuma linha de produto foi tocada.
 - `lib/money.ts` é o dono do dinheiro; `formatBRL` não existe mais. Zona no ESLint barra `parseFloat`, `Number.parseFloat` e `toFixed` fora dele.
 - Migration `0002` (`reservations` mais o CHECK de valor não negativo em `expenses`) aplicada somente em `development`
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
@@ -58,8 +62,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Próximo bloco funcional: **B10 — Descoberta**.
-- B9 fechado contra o banco real: migrations aplicadas, seed rodado, `pnpm test:db`, `pnpm test:memories` e `pnpm shots:memories` passando, além de lint, typecheck, `pnpm test`, `pnpm test:tz` nos três fusos e `pnpm build`.
+- Próximo bloco funcional: **B11 — PWA e endurecimento**.
 
 ## Regra de ambientes
 
@@ -93,12 +96,11 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm test:dates` · `shots:dates` | Neon `development` + sessão de development |
 | `pnpm test:planning` · `shots:planning` | Neon `development` + sessão de development |
 | `pnpm test:memories` · `shots:memories` | Neon `development` + sessão de development |
+| `pnpm test:discovery` · `shots:discovery` | Neon `development` + sessão de development |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
 
 ## Próxima ação
 
 A continuidade visual segue obrigatoriamente os tokens, primitives e padrões do R1 em `docs/DESIGN_SYSTEM.md`. O relatório de implementação, capturas e verificações está em `docs/R1_VISUAL_REBRAND.md`. `/kitchen-sink` demonstra o sistema novo; os mockups fornecidos são referência de direção, sem autorização para inventar features ou dados.
 
-B10 — Descoberta. Nenhum bloqueio humano conhecido: banco, auth, mídia, datas, calendário, planejamento e memórias já estão implementados e verificados contra `development`.
-
-O B10 herda duas coisas do B9: o `activity_events` já tem os verbos que o feed vai ler, e `db/query-counter.ts` é o instrumento para provar que o feed também não consulta por linha.
+B11 — PWA e endurecimento. Nenhum bloqueio humano conhecido para preparar manifest, assets, headers e a bateria de auditorias em desenvolvimento. Deploy e qualquer configuração de produção continuam reservados ao B12 e dependem de confirmação humana.

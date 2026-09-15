@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Pool } from "@neondatabase/serverless";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
 import * as schema from "@/db/schema/index.ts";
@@ -119,7 +119,14 @@ export async function removeOwnedPlans(ids: readonly string[]): Promise<void> {
   const db = fixtureDb();
   await db
     .delete(schema.activityEvents)
-    .where(inArray(schema.activityEvents.subjectId, [...ids]));
+    .where(
+      or(
+        inArray(schema.activityEvents.subjectId, [...ids]),
+        inArray(sql<string>`${schema.activityEvents.metadata} ->> 'planId'`, [
+          ...ids,
+        ]),
+      ),
+    );
   await db.delete(schema.plans).where(inArray(schema.plans.id, [...ids]));
 }
 

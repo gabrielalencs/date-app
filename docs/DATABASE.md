@@ -161,7 +161,7 @@ São nove enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos dist
 - `media_purpose`: `cover` · `gallery` · `memory` · `avatar`
 - `member_role`: `owner` · `member`
 - `reservation_status`: `pending` · `confirmed` · `cancelled`
-- `activity_verb`: `plan_created` · `date_suggested` · `vote_cast` · `date_confirmed` · `booking_updated` · `plan_completed` · `memory_added`
+- `activity_verb`: `plan_created` · `date_suggested` · `vote_cast` · `date_confirmed` · `booking_updated` · `plan_completed` · `memory_added` · `want_a_lot`
 
 Enum de Postgres, não `text` com CHECK. Alterar enum exige migration, o que é a intenção.
 
