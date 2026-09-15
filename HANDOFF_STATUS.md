@@ -25,8 +25,8 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - B7 concluído: calendário mensal da `/agenda`, com navegação por URL, dia selecionado em painel e filtro por categoria. Sem escrita nova e sem migration — o calendário só lê o que o B6 grava. Ver `docs/CALENDAR.md`.
 - Workspace de development normalizado para **exatamente dois membros**, as duas contas reais (D-084). Alex e Nina seguem como autores de planos e opções, não como membros; o seed corrige isso sozinho a cada execução.
 - B8 concluído: reserva com estado, checklist com autor e horário, gastos em centavos com total. A máquina de status passa a exigir o fato que cada etiqueta afirma, nos dois sentidos. Ver `docs/PLANNING.md`.
-- B9 implementado: travessia para `completed` com pré-condição e confirmação em modal, avaliação de cada pessoa, fotos com `purpose = 'memory'` e a timeline em `/memorias`. A tabela `memories` do B2 foi removida (D-099); memória é o plano depois, não entidade nova. Ver `docs/MEMORIES.md`.
-- Migrations `0003` e `0004` **geradas e não aplicadas**: o `.env.local` não existe nesta máquina, então nada rodou contra `development`.
+- B9 concluído: travessia para `completed` com pré-condição e confirmação em modal, avaliação de cada pessoa, fotos com `purpose = 'memory'` e a timeline em `/memorias`. A tabela `memories` do B2 foi removida (D-099); memória é o plano depois, não entidade nova. Ver `docs/MEMORIES.md`.
+- Migrations `0003` e `0004` aplicadas em `development`. `pnpm db:seed` rodado, `pnpm test:db` (136 testes), `pnpm test:memories` (9) e `pnpm shots:memories` (8) passando contra o banco real. Duas correções feitas nessa verificação: a asserção de escala comparava `entries.length` (limitado por `MEMORIES_PER_PAGE`) em vez de `total`, e os dois cliques de mouse no radio de nota precisaram de `force: true` no teste — o radio é `sr-only` e o clique real chega por encaminhamento nativo do `<label>`, que o hit-test do Playwright não reconhece.
 - `lib/money.ts` é o dono do dinheiro; `formatBRL` não existe mais. Zona no ESLint barra `parseFloat`, `Number.parseFloat` e `toFixed` fora dele.
 - Migration `0002` (`reservations` mais o CHECK de valor não negativo em `expenses`) aplicada somente em `development`
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
@@ -59,7 +59,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
 - Próximo bloco funcional: **B10 — Descoberta**.
-- **Pendente do B9, por falta de `.env.local` nesta máquina:** aplicar as migrations `0003`/`0004` em `development`, rodar o seed, e executar `pnpm test:db`, `pnpm test:memories` e `pnpm shots:memories`. Todo o resto do B9 está verificado (lint, typecheck, `pnpm test`, `pnpm test:tz` nos três fusos e `pnpm build`).
+- B9 fechado contra o banco real: migrations aplicadas, seed rodado, `pnpm test:db`, `pnpm test:memories` e `pnpm shots:memories` passando, além de lint, typecheck, `pnpm test`, `pnpm test:tz` nos três fusos e `pnpm build`.
 
 ## Regra de ambientes
 
@@ -99,8 +99,6 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 
 A continuidade visual segue obrigatoriamente os tokens, primitives e padrões do R1 em `docs/DESIGN_SYSTEM.md`. O relatório de implementação, capturas e verificações está em `docs/R1_VISUAL_REBRAND.md`. `/kitchen-sink` demonstra o sistema novo; os mockups fornecidos são referência de direção, sem autorização para inventar features ou dados.
 
-B10 — Descoberta. Nenhum bloqueio humano conhecido: banco, auth, mídia, datas, calendário, planejamento e memórias já estão implementados.
-
-Antes do B10, porém, o B9 precisa ser fechado contra o banco real: recriar o `.env.local` a partir do `.env.example`, aplicar `pnpm db:migrate` (migrations `0003` e `0004`), rodar `pnpm db:seed` e então `pnpm test:db`, `pnpm test:memories` e `pnpm shots:memories`. A `0004` dropa a tabela `memories`, que está vazia de conteúdo próprio desde a `0003`; a conferência de linhas antes do `NOT NULL` está escrita na própria migration e aborta com mensagem se o backfill não tiver coberto tudo.
+B10 — Descoberta. Nenhum bloqueio humano conhecido: banco, auth, mídia, datas, calendário, planejamento e memórias já estão implementados e verificados contra `development`.
 
 O B10 herda duas coisas do B9: o `activity_events` já tem os verbos que o feed vai ler, e `db/query-counter.ts` é o instrumento para provar que o feed também não consulta por linha.

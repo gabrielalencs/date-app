@@ -4,6 +4,9 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-111 — O teste de escala do B9 comparava o tamanho da página, não o total
+**15/09/2026.** `memories-isolation.integration.test.ts` nunca tinha rodado contra um banco de verdade (D-099 a D-110 foram escritas e commitadas numa máquina sem `.env.local`). Ao rodar pela primeira vez, a asserção "com sessenta deve ter mais entradas que com um" comparava `result.entries.length` — que `listMemories` sempre limita a `MEMORIES_PER_PAGE` (12) — e o seed de `development` já tinha planos realizados suficientes para lotar a página 1 mesmo antes da fixture de sessenta. As duas contagens davam 12 e a asserção falhava, mesmo com a leitura em bloco funcionando exatamente como projetada. A correção compara `result.total`, que de fato cresce; `entries.length` continua igual por construção, e essa é a prova de que a página não escala com o banco.
+
 ### D-110 — Foto de memória não emite evento
 **14/09/2026.** Mesmo motivo do checklist no D-097: o feed do B10 é a história do date, não o log de edição. Subir seis fotos de uma noite geraria seis linhas que empurram para fora do feed a única coisa que importa ali — que o date aconteceu e que vocês dois avaliaram.
 
