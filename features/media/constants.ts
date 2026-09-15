@@ -16,13 +16,16 @@ export function isMediaVariant(value: unknown): value is MediaVariant {
 }
 
 /**
- * `gallery` é antes e `memory` é depois: inspiração e referência de um lado, o
- * que as duas pessoas fotografaram do outro (seção 5 do docs/MEMORIES.md). Mesma
- * tabela, mesmo upload assinado, mesma rota de leitura, mesmo reprocessamento
- * que descarta EXIF — o que muda é o propósito e onde a grade aparece.
+ * `gallery` é antes, `memory` é depois (D-104).
  *
- * `avatar` continua no enum e continua sem uso. Estar no enum não é motivo para
- * implementar.
+ * `cover` é a capa do plano; `gallery` é inspiração — o print do restaurante,
+ * a referência que fez vocês quererem ir; `memory` é o que vocês fotografaram
+ * lá. Mesma tabela, mesmo fluxo de upload assinado, mesma rota autenticada de
+ * leitura, mesmo reprocessamento no cliente que descarta EXIF. O que muda é o
+ * `purpose` e onde a grade aparece.
+ *
+ * `avatar` continua no enum do banco e continua sem uso. Estar no enum não é
+ * motivo para implementar.
  */
 export const UPLOADABLE_PURPOSES = ["cover", "gallery", "memory"] as const;
 

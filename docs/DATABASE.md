@@ -36,7 +36,7 @@ Não na V1. A Data API está desligada, o banco só é acessado pelo servidor, e
 
 ## 4. Entidades
 
-Quinze tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo, e `reservations` entrou no B8.
+Catorze tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo, `reservations` entrou no B8 e `memories` saiu no B9 (D-099).
 
 ### `profiles`
 
@@ -127,20 +127,18 @@ Qual foto é a capa de um plano é decidido por `plans.cover_media_id`, não por
 
 O formato anterior descrito aqui, `{workspace_id}/{plan_id|misc}/{uuid}.{ext}`, foi substituído no B5 e não existe em lugar nenhum do código.
 
-### `memories`
-
-`id` · `workspace_id` · `plan_id` (FK, único) · `highlight` · `notes` · `created_at` · `updated_at`
-
-Uma memória por plano, existindo só depois de `completed`.
-
 ### `memory_ratings`
 
-`id` · `workspace_id` · `memory_id` (FK) · `profile_id` (FK) · `rating` (smallint 1–5, CHECK) · `would_repeat` (enum `yes` | `maybe` | `no`) · `created_at` · `updated_at`
-Único em (`memory_id`, `profile_id`).
+`id` · `workspace_id` · `plan_id` (FK) · `profile_id` (FK) · `rating` (smallint 1–5, CHECK) · `would_repeat` (enum `yes` | `maybe` | `no`) · `highlight` · `notes` · `created_at` · `updated_at`
+Único em (`plan_id`, `profile_id`).
 
-`would_repeat` é nullable: a avaliação pode existir antes de a pessoa responder se repetiria a experiência.
+Uma avaliação por pessoa por plano, existindo só depois de `completed` — e a checagem do status vive na aplicação, dentro da transação, porque status muda.
 
-Tabela separada porque são duas pessoas avaliando de forma independente, e colar isso em colunas `rating_user_a`/`rating_user_b` seria exatamente o tipo de atalho que trava a V2.
+`would_repeat`, `highlight` e `notes` são nullable: a avaliação nasce pela nota, que é NOT NULL, e o resto vem depois se vier.
+
+Tabela separada de `plans` porque são duas pessoas avaliando de forma independente, e colar isso em colunas `rating_user_a`/`rating_user_b` seria exatamente o tipo de atalho que trava a V2.
+
+**Não existe tabela `memories`.** O B2 criou uma, com `highlight` e `notes` dentro, compartilhados pelo plano; a seção 4 do `docs/MEMORIES.md` põe os dois na avaliação de cada pessoa, o que esvaziava aquela tabela de conteúdo próprio. Ela foi dropada na migration `0004` (D-099). Memória não é entidade nova: é o plano, depois — título, data, local, gastos e fotos continuam onde já estavam (D-100).
 
 ### `activity_events`
 
@@ -173,6 +171,8 @@ Enum de Postgres, não `text` com CHECK. Alterar enum exige migration, o que é 
 
 Além das PKs e dos únicos já citados: `workspace_id` em todas as tabelas de negócio; (`workspace_id`, `status`) e (`workspace_id`, `created_at DESC`) em `plans`; (`workspace_id`, `starts_at`) em `plan_date_options`; (`plan_id`) em toda tabela filha, único em `reservations`; (`workspace_id`, `created_at DESC`) em `activity_events`.
 
+O (`workspace_id`, `status`) de `plans` é o índice que a timeline do B9 usa: ela lê `completed` não arquivado com `inner join` na opção confirmada, em duas consultas fixas, independentemente de quantos planos existirem (D-108).
+
 Índice em coluna de FK não é automático no Postgres. Criar explicitamente.
 
 ---
@@ -199,7 +199,7 @@ db/
 │   ├── plans.ts       plans, plan_links, plan_date_options, plan_date_votes
 │   ├── planning.ts    checklist_items, expenses
 │   ├── media.ts       media, reactions
-│   └── memories.ts    memories, memory_ratings, activity_events
+│   └── memories.ts    memory_ratings, activity_events
 ├── migrations/        gerado pelo drizzle-kit, versionado
 └── seed.ts
 ```

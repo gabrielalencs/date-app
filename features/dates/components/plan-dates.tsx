@@ -15,6 +15,11 @@ import type { PlanStatus } from "@/lib/status";
  * `now` desce do servidor para a formatação não depender do relógio do
  * navegador — com dois relógios, o HTML do servidor e o do cliente divergem e
  * o React reclama de hidratação.
+ *
+ * No plano realizado a seção **encolhe para a data que aconteceu** (seção 9 do
+ * docs/MEMORIES.md). As outras candidatas continuam gravadas, mas deixaram de
+ * ser informação: quem abre a página de um date que já aconteceu quer saber
+ * quando ele foi, não quais sábados estavam em disputa três meses atrás.
  */
 export function PlanDates({
   planId,
@@ -29,20 +34,19 @@ export function PlanDates({
 }) {
   const cheio = options.length >= MAX_OPTIONS_PER_PLAN;
   const encerrado = planStatus === "completed" || planStatus === "cancelled";
-
-  /* Depois de realizado, a seção encolhe para a data que aconteceu (seção 9 do
-     docs/MEMORIES.md). As candidatas que perderam a votação são história da
-     negociação, e a negociação acabou — mantê-las na tela empurraria para
-     baixo tudo que passou a importar: a avaliação, as fotos e o gasto. */
   const realizado = planStatus === "completed";
-  const confirmada = options.filter((option) => option.isConfirmed);
-  const visiveis = realizado && confirmada.length > 0 ? confirmada : options;
+
+  /* Realizado tem data confirmada por pré-condição (D-102); o `?? options` é
+     só para um plano antigo, de antes dela, não sumir com a seção inteira. */
+  const confirmadas = options.filter((option) => option.isConfirmed);
+  const visiveis =
+    realizado && confirmadas.length > 0 ? confirmadas : options;
 
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="section-heading">
-          {realizado ? "Aconteceu em" : "Datas para vocês"}
+          {realizado ? "Quando foi" : "Datas para vocês"}
         </h2>
         {cheio || encerrado ? null : <AddDateForm planId={planId} />}
       </div>
@@ -73,7 +77,7 @@ export function PlanDates({
         </ul>
       )}
 
-      {cheio ? (
+      {cheio && !realizado ? (
         <p className="type-meta text-text-muted">
           São {MAX_OPTIONS_PER_PLAN} datas, o máximo por plano. Apague uma para
           sugerir outra.

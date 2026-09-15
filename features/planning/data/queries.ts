@@ -121,12 +121,10 @@ export async function readPlanFacts(
   tx: Pick<typeof db, "select"> = db,
   now: Date = new Date(),
 ): Promise<PlanFacts> {
-  /* Lê o instante em vez de contar (B9): o fato "existe data confirmada" e o
-     fato "essa data ainda não chegou" saem da mesma linha, e continuam sendo
-     uma consulta só. O corte por dia civil acontece em JavaScript porque o
-     banco não conhece `America/Sao_Paulo` — um `starts_at < now()` no `where`
-     recusaria, às três da tarde, um date que é hoje às oito (D-061). */
-  const [datas] = await tx
+  /* A data confirmada vem inteira, e não como contagem: o B9 precisa saber
+     **quando** ela é, não só que existe. O único parcial de `is_confirmed`
+     garante que há no máximo uma. */
+  const [data] = await tx
     .select({ startsAt: planDateOptions.startsAt })
     .from(planDateOptions)
     .where(
@@ -150,10 +148,14 @@ export async function readPlanFacts(
     );
 
   return {
-    hasConfirmedDate: datas !== undefined,
+    hasConfirmedDate: Boolean(data),
     hasConfirmedReservation: (reserva?.total ?? 0) > 0,
-    confirmedDateIsFuture:
-      datas !== undefined && isFutureCivilDay(datas.startsAt, now),
+    /* Dia civil no fuso do app, nunca `startsAt < now`. Um date hoje às 20h
+       tem `startsAt` no futuro a tarde inteira, e recusar marcá-lo como
+       realizado às 23h seria o erro de um dia que o B7 existe para impedir. */
+    confirmedDateHasArrived: data
+      ? !isFutureCivilDay(data.startsAt, now)
+      : false,
   };
 }
 

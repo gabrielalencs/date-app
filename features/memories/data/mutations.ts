@@ -3,51 +3,61 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
+import { activityEvents, memoryRatings, plans } from "@/db/schema/index.ts";
 import {
-  activityEvents,
-  memories,
-  memoryRatings,
-  plans,
-} from "@/db/schema/index.ts";
+  MAX_HIGHLIGHT_LENGTH,
+  MAX_NOTES_LENGTH,
+} from "@/features/memories/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import type { RatingValue, RepeatAnswer } from "@/lib/rating";
+import type { PlanStatus } from "@/lib/status";
 
 /**
- * Escritas das memórias.
+ * Escritas da avaliação.
  *
- * Duas coisas que este arquivo **não** faz, e que são o ponto do bloco:
+ * A **travessia** para `completed` não está aqui de propósito: ela já é
+ * `changePlanStatus`, que desde o B4 trava a linha, valida a transição no
+ * grafo, consulta as pré-condições dentro da transação e emite
+ * `plan_completed`. O B9 acrescentou a pré-condição em `lib/plan-preconditions`
+ * — o lugar que o B8 criou — e não um segundo caminho de escrita. Dois
+ * caminhos para a mesma transição é como um deles esquece de emitir o evento.
  *
- * 1. não copia título, data, local, gastos nem fotos para lugar nenhum. A
- *    memória é o plano depois; `memories` guarda só o que não existia antes —
- *    a melhor parte e as observações;
- * 2. não emite evento a cada edição. `memory_added` sai na **primeira**
- *    avaliação de cada pessoa e mais nenhuma vez. O feed do B10 conta o que
- *    aconteceu, não quantas vezes alguém mudou de ideia sobre um jantar de três
- *    meses atrás.
- *
- * Isso diverge de propósito do `vote_cast` do B6, que emite a cada mudança: lá
- * a mudança de voto é a negociação acontecendo e faz parte da história; aqui
- * não é. O B6 fica como está.
+ * O que muda aqui é o evento da avaliação: **a primeira** de cada pessoa emite
+ * `memory_added`; editar a nota depois não emite. O feed do B10 conta o que
+ * aconteceu, não quantas vezes alguém mudou de ideia sobre um jantar de três
+ * meses atrás. Isso diverge de propósito do `vote_cast` do B6, que emite a cada
+ * mudança — lá a mudança de voto é a negociação acontecendo e faz parte da
+ * história; aqui não é. O B6 fica como está (seção 8).
  */
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+type PlanoTravado = {
+  id: string;
+  status: PlanStatus;
+  archivedAt: Date | null;
+};
+
 /**
- * Trava o plano e exige que o date já tenha acontecido.
+ * Trava o plano e confere que ele aceita avaliação.
  *
- * `completed` é terminal na **transição**, não na escrita — é justamente o
- * estado em que avaliação e fotos de memória começam a existir (seção 3 do
- * docs/MEMORIES.md). Arquivado continua leitura em tudo, como no B8 (D-098).
+ * `completed` é terminal na **transição**, não na escrita (seção 3). É o estado
+ * em que metade do B9 começa a funcionar: avaliação e fotos de memória só
+ * existem depois dele, e os gastos continuam editáveis porque é depois que se
+ * sabe quanto custou. Uma regra do tipo "status terminal é somente leitura"
+ * mataria a funcionalidade inteira.
+ *
+ * A checagem é de status, e status muda — por isso ela vive na aplicação,
+ * dentro da transação, e não no banco (seção 10).
  */
 async function lockCompletedPlan(
   tx: Tx,
   ctx: AuthorizedContext,
   planId: string,
-): Promise<{ id: string; title: string }> {
+): Promise<PlanoTravado> {
   const [plano] = await tx
     .select({
       id: plans.id,
-      title: plans.title,
       status: plans.status,
       archivedAt: plans.archivedAt,
     })
@@ -62,131 +72,106 @@ async function lockCompletedPlan(
 
   if (plano.archivedAt !== null) {
     throw new ValidationError(
-      "Esse plano está arquivado. Desarquive para poder editar.",
+      "Esse plano está arquivado. Desarquive para poder avaliar.",
     );
   }
 
   if (plano.status !== "completed") {
     throw new ValidationError(
-      "Marque o date como realizado antes de contar como foi.",
+      "A avaliação aparece depois que o date é marcado como realizado.",
     );
   }
 
-  return { id: plano.id, title: plano.title };
+  return plano;
 }
 
-/**
- * A linha de `memories` do plano, criada se ainda não existir.
- *
- * Idempotente de propósito, e chamada tanto pela avaliação quanto pelo texto:
- * criar a memória na travessia para `completed` deixaria de fora todo plano
- * que já estivesse realizado antes deste bloco existir, e um `NotFound` ali
- * seria um erro que a pessoa não teria como corrigir.
- *
- * O `plan_id` é único desde o B2, então duas escritas simultâneas não podem
- * gerar duas memórias — e o plano já está travado por quem chamou.
- */
-async function ensureMemory(
+/** A avaliação de quem está escrevendo, com a linha do plano já travada. */
+async function minhaAvaliacao(
   tx: Tx,
   ctx: AuthorizedContext,
   planId: string,
-): Promise<string> {
-  const [criada] = await tx
-    .insert(memories)
-    .values({ workspaceId: ctx.workspaceId, planId })
-    .onConflictDoNothing({ target: memories.planId })
-    .returning({ id: memories.id });
-
-  if (criada) {
-    return criada.id;
-  }
-
-  const [existente] = await tx
-    .select({ id: memories.id })
-    .from(memories)
+): Promise<{ id: string } | null> {
+  const [linha] = await tx
+    .select({ id: memoryRatings.id })
+    .from(memoryRatings)
     .where(
       and(
-        eq(memories.workspaceId, ctx.workspaceId),
-        eq(memories.planId, planId),
+        eq(memoryRatings.workspaceId, ctx.workspaceId),
+        eq(memoryRatings.planId, planId),
+        eq(memoryRatings.profileId, ctx.profileId),
       ),
     )
     .limit(1);
 
-  if (!existente) {
-    throw new NotFoundError("Memória");
-  }
-
-  return existente.id;
+  return linha ?? null;
 }
 
 /**
- * A nota de quem está avaliando, de 1 a 5.
+ * Dá ou muda a nota. É por ela que a avaliação nasce: `rating` é NOT NULL, e
+ * "repetiria", "melhor parte" e observações são campos da mesma linha.
  *
- * O banco garante a faixa desde o B2 (`memory_ratings_rating_range`) e o único
- * por (memória, pessoa) impede que a mesma pessoa tenha duas notas. Aqui o
- * upsert existe para a primeira avaliação e a correção serem o mesmo caminho.
- *
- * `memory_added` sai **só** quando a linha nasce. Corrigir a nota depois não
- * acrescenta linha nenhuma ao feed.
+ * Devolve se esta foi a primeira avaliação desta pessoa neste plano. O evento
+ * já foi gravado aqui, na mesma transação; quem chama usa o retorno apenas
+ * para saber o que aconteceu.
  */
-export async function setMemoryRating(
+export async function rateMemory(
   ctx: AuthorizedContext,
   planId: string,
   rating: RatingValue,
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const plano = await lockCompletedPlan(tx, ctx, planId);
-    const memoryId = await ensureMemory(tx, ctx, planId);
+): Promise<{ firstTime: boolean }> {
+  return db.transaction(async (tx) => {
+    await lockCompletedPlan(tx, ctx, planId);
 
-    const [existente] = await tx
-      .select({ id: memoryRatings.id })
-      .from(memoryRatings)
-      .where(
-        and(
-          eq(memoryRatings.workspaceId, ctx.workspaceId),
-          eq(memoryRatings.memoryId, memoryId),
-          eq(memoryRatings.profileId, ctx.profileId),
-        ),
-      )
-      .limit(1);
+    /* Ler antes de escrever é o padrão proibido — exceto com a linha travada,
+       dentro da mesma transação (D-055). O plano está travado acima, e toda
+       escrita de avaliação passa por essa trava, então duas pessoas avaliando
+       ao mesmo tempo serializam e nenhuma das duas se vê como "primeira" por
+       engano. */
+    const existente = await minhaAvaliacao(tx, ctx, planId);
 
     await tx
       .insert(memoryRatings)
       .values({
         workspaceId: ctx.workspaceId,
-        memoryId,
+        planId,
         profileId: ctx.profileId,
         rating,
       })
+      /* O único em (plan_id, profile_id) é a garantia de "uma por pessoa"; o
+         upsert existe para a primeira nota e a correção serem o mesmo caminho.
+         Os textos não são tocados: mudar de 4 para 5 não apaga o que a pessoa
+         escreveu. */
       .onConflictDoUpdate({
-        target: [memoryRatings.memoryId, memoryRatings.profileId],
+        target: [memoryRatings.planId, memoryRatings.profileId],
         set: { rating, updatedAt: new Date() },
       });
 
     if (!existente) {
-      // Mesma transação: se o evento falhar, a avaliação reverte.
       await tx.insert(activityEvents).values({
         workspaceId: ctx.workspaceId,
         actorProfileId: ctx.profileId,
         verb: "memory_added",
         subjectType: "plan",
         subjectId: planId,
-        metadata: { title: plano.title },
+        metadata: { rating },
       });
     }
+
+    return { firstTime: !existente };
   });
 }
 
 /**
- * Retira a avaliação de quem está olhando — reenviar a mesma nota chega aqui.
+ * Retira a avaliação: reenviar a mesma nota devolve a pessoa a "ainda não
+ * avaliou", que é estado distinto de ter dado nota baixa (seção 4).
  *
- * Apaga a linha inteira, e com ela o "repetiria?". Não é descuido: `rating` é
- * `NOT NULL` desde o B2, então não existe avaliação sem nota, e uma resposta de
- * "repetiria" sozinha seria uma avaliação pela metade que a tela não saberia
- * mostrar. Sem nota, aquela pessoa volta a "ainda não avaliou" — o mesmo estado
- * em que estava antes, e que não é nota baixa (D-062).
+ * Apaga a linha inteira, e com ela "repetiria", "melhor parte" e observações —
+ * `rating` é NOT NULL, então avaliação sem nota não é um estado que exista. O
+ * controle na tela avisa isso antes do clique.
  *
- * Sem evento: o feed não registra arrependimento.
+ * Não emite evento, nem de retirada: o feed conta o que aconteceu no date, e
+ * desmarcar uma nota não é um acontecimento. Emitir aqui também faria a
+ * próxima nota da mesma pessoa contar como "primeira" de novo.
  */
 export async function clearMemoryRating(
   ctx: AuthorizedContext,
@@ -195,26 +180,12 @@ export async function clearMemoryRating(
   await db.transaction(async (tx) => {
     await lockCompletedPlan(tx, ctx, planId);
 
-    const [memoria] = await tx
-      .select({ id: memories.id })
-      .from(memories)
-      .where(
-        and(
-          eq(memories.workspaceId, ctx.workspaceId),
-          eq(memories.planId, planId),
-        ),
-      )
-      .limit(1);
-
-    // Nada para retirar não é erro: é o estado que se queria alcançar.
-    if (!memoria) return;
-
     await tx
       .delete(memoryRatings)
       .where(
         and(
           eq(memoryRatings.workspaceId, ctx.workspaceId),
-          eq(memoryRatings.memoryId, memoria.id),
+          eq(memoryRatings.planId, planId),
           eq(memoryRatings.profileId, ctx.profileId),
         ),
       );
@@ -222,91 +193,76 @@ export async function clearMemoryRating(
 }
 
 /**
- * "Repetiria?" — `yes`, `maybe`, `no`, ou `null` para retirar a resposta.
+ * "Repetiria?" — o controle segmentado do B6, com rótulos próprios. `null`
+ * retira a resposta sem tocar na nota.
  *
- * Depende da nota existir, pelo motivo do `clearMemoryRating`. A interface só
- * mostra o controle depois da nota, e isto aqui recusa de novo: o frontend
- * nunca é fonte de autoridade.
- *
- * Sem evento — é a mesma avaliação, mudando de detalhe.
+ * Exige avaliação existente: a coluna mora na mesma linha da nota.
  */
-export async function setMemoryRepeat(
+export async function setWouldRepeat(
   ctx: AuthorizedContext,
   planId: string,
-  wouldRepeat: RepeatAnswer | null,
+  answer: RepeatAnswer | null,
 ): Promise<void> {
-  await db.transaction(async (tx) => {
-    await lockCompletedPlan(tx, ctx, planId);
-
-    const [memoria] = await tx
-      .select({ id: memories.id })
-      .from(memories)
-      .where(
-        and(
-          eq(memories.workspaceId, ctx.workspaceId),
-          eq(memories.planId, planId),
-        ),
-      )
-      .limit(1);
-
-    const alteradas = memoria
-      ? await tx
-          .update(memoryRatings)
-          .set({ wouldRepeat, updatedAt: new Date() })
-          .where(
-            and(
-              eq(memoryRatings.workspaceId, ctx.workspaceId),
-              eq(memoryRatings.memoryId, memoria.id),
-              eq(memoryRatings.profileId, ctx.profileId),
-            ),
-          )
-          .returning({ id: memoryRatings.id })
-      : [];
-
-    if (alteradas.length === 0) {
-      throw new ValidationError(
-        "Dê sua nota antes de dizer se repetiria.",
-      );
-    }
-  });
+  await escreverNaMinhaAvaliacao(ctx, planId, { wouldRepeat: answer });
 }
 
-export type MemoryTextInput = {
+export type MemoryNotesInput = {
   highlight: string | null;
   notes: string | null;
 };
 
-/**
- * A melhor parte e as observações — do casal, uma por plano.
- *
- * Não é por pessoa de propósito (seção 4): a melhor parte de uma noite é uma
- * coisa só, escrita junto, e duplicá-la por pessoa transformaria uma lembrança
- * compartilhada em dois depoimentos paralelos. A nota é de cada um porque
- * opinião é de cada um; isto não é opinião.
- *
- * Sem evento, pelo mesmo motivo do checklist no B8 (D-097).
- */
-export async function saveMemoryText(
+export async function saveMemoryNotes(
   ctx: AuthorizedContext,
   planId: string,
-  input: MemoryTextInput,
+  input: MemoryNotesInput,
+): Promise<void> {
+  /* O Zod da action já recusa por tamanho, com a frase que a pessoa lê. Isto
+     aqui é a mesma recusa para quem chamar a camada de dados direto — teste de
+     integração incluído. */
+  if ((input.highlight?.length ?? 0) > MAX_HIGHLIGHT_LENGTH) {
+    throw new ValidationError("A melhor parte ficou longa demais.");
+  }
+
+  if ((input.notes?.length ?? 0) > MAX_NOTES_LENGTH) {
+    throw new ValidationError("As observações ficaram longas demais.");
+  }
+
+  await escreverNaMinhaAvaliacao(ctx, planId, {
+    highlight: input.highlight,
+    notes: input.notes,
+  });
+}
+
+/**
+ * Atualiza campos da própria avaliação. Ninguém escreve na avaliação do outro:
+ * o `where` fixa `ctx.profileId`, e não um id que viesse do formulário.
+ */
+async function escreverNaMinhaAvaliacao(
+  ctx: AuthorizedContext,
+  planId: string,
+  campos: Partial<{
+    wouldRepeat: RepeatAnswer | null;
+    highlight: string | null;
+    notes: string | null;
+  }>,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await lockCompletedPlan(tx, ctx, planId);
-    const memoryId = await ensureMemory(tx, ctx, planId);
 
-    await tx
-      .update(memories)
-      .set({
-        highlight: input.highlight,
-        notes: input.notes,
-        updatedAt: new Date(),
-      })
+    const [linha] = await tx
+      .update(memoryRatings)
+      .set({ ...campos, updatedAt: new Date() })
       .where(
         and(
-          eq(memories.workspaceId, ctx.workspaceId),
-          eq(memories.id, memoryId),
+          eq(memoryRatings.workspaceId, ctx.workspaceId),
+          eq(memoryRatings.planId, planId),
+          eq(memoryRatings.profileId, ctx.profileId),
         ),
-      );
+      )
+      .returning({ id: memoryRatings.id });
+
+    if (!linha) {
+      throw new ValidationError("Dê uma nota antes de escrever sobre o date.");
+    }
   });
 }

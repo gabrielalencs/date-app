@@ -1,88 +1,75 @@
 import Link from "next/link";
-import { Camera } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import { CategoryArt } from "@/components/brand/category-art";
 import { MediaImage } from "@/features/media/components/media-image";
-import type { MemoryCard as MemoryCardData } from "@/features/memories/data/queries";
-import { formatDateTime } from "@/lib/datetime";
-import { formatTenths } from "@/lib/rating";
+import type { MemoryEntry } from "@/features/memories/data/queries";
+import { formatDay } from "@/lib/datetime";
 
 /**
- * Um date que aconteceu.
+ * Um date realizado, na grade de `/memorias`.
  *
- * Fotografia é a protagonista, e esta é a tela onde isso é literal: a foto
- * ocupa o card inteiro e o texto é o mínimo — título, dia e cidade (seção 9 do
- * docs/MEMORIES.md).
+ * Fotografia é a protagonista, e esta é a tela onde isso é literal: foto
+ * grande, e por card o mínimo — título, dia e cidade (seção 9). Nota e
+ * contagem de fotos ficam de fora de propósito. Não é só economia de espaço:
+ * cada uma delas custaria uma consulta por linha, e é exatamente isso que a
+ * seção 7 proíbe.
  *
- * Plano realizado **sem** foto continua com a capa tipográfica (D-041). É
- * estado definitivo, não espera: ninguém vai voltar para subir a foto de um
- * date de dois anos atrás, e um retângulo cinza dizendo "sem imagem" seria pior
- * do que a arte de categoria.
+ * Plano realizado sem foto continua com a capa tipográfica (D-041). É estado
+ * definitivo, não espera — e não se preenche com foto genérica de um lugar.
  */
 export function MemoryCard({
-  memory,
+  entry,
   now,
-  priority,
 }: {
-  memory: MemoryCardData;
+  entry: MemoryEntry;
+  /** Vem da página, para o ano só aparecer quando não é o de agora. */
   now: Date;
-  /** A primeira da primeira página carrega antes: é o que aparece na dobra. */
-  priority?: boolean;
 }) {
-  const lugar = memory.city ?? memory.placeName;
+  const local = entry.placeName ?? entry.city;
 
   return (
-    <li className="min-w-0">
-      <Link
-        href={`/planos/${memory.planId}`}
-        className="group flex min-w-0 flex-col gap-3 rounded-lg"
-      >
-        <div className="border-border-subtle relative aspect-4/5 w-full overflow-hidden rounded-lg border sm:aspect-square">
-          {memory.coverMediaId ? (
-            <MediaImage
-              mediaId={memory.coverMediaId}
-              alt={`Foto de ${memory.title}`}
-              variant="thumb"
-              priority={priority}
-              sizes="(min-width: 1280px) 20rem, (min-width: 640px) 45vw, 92vw"
-            />
-          ) : (
-            <CategoryArt category={memory.category} className="h-full" />
-          )}
+    <Link
+      href={`/planos/${entry.planId}`}
+      data-memory-card={entry.planId}
+      className="border-border-subtle bg-surface group interactive-lift flex h-full min-w-0 flex-col overflow-hidden rounded-lg border"
+    >
+      {entry.coverMediaId ? (
+        <div className="relative aspect-4/5 w-full overflow-hidden">
+          <MediaImage
+            mediaId={entry.coverMediaId}
+            alt={entry.title}
+            variant="thumb"
+            sizes="(min-width: 1280px) 320px, (min-width: 640px) 40vw, 90vw"
+            className="photo-zoom"
+          />
         </div>
+      ) : (
+        <CategoryArt
+          category={entry.category}
+          title={entry.title}
+          className="min-h-44 sm:aspect-4/3"
+        />
+      )}
 
-        <div className="flex min-w-0 flex-col gap-1">
-          <h3 className="type-body-s text-text font-medium break-words">
-            {memory.title}
-          </h3>
-
-          <p className="type-meta text-text-muted break-words">
-            {formatDateTime(memory.happenedAt, { allDay: true, now })}
-            {lugar ? ` · ${lugar}` : ""}
+      <div className="flex flex-1 flex-col gap-2 p-5">
+        {entry.coverMediaId ? (
+          <p className="font-display line-clamp-2 text-[1.4rem] leading-tight tracking-tight break-words">
+            {entry.title}
           </p>
+        ) : null}
 
-          {/* Meta discreta, e só o que é verdade: a média exige as duas
-              avaliações (seção 4), e a contagem de fotos só existe se houver
-              foto. Nada de "0 fotos" nem de "sem avaliação". */}
-          {memory.averageTenths !== null || memory.photoCount > 0 ? (
-            <p className="type-meta text-text-muted tnum flex items-center gap-2">
-              {memory.averageTenths !== null ? (
-                <span>{formatTenths(memory.averageTenths)} de 5</span>
-              ) : null}
-              {memory.photoCount > 0 ? (
-                <span className="flex items-center gap-1">
-                  <Camera
-                    aria-hidden="true"
-                    className="size-3.5"
-                    strokeWidth={1.6}
-                  />
-                  {memory.photoCount}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-        </div>
-      </Link>
-    </li>
+        <p className="type-meta text-text-muted">
+          {formatDay(entry.happenedAt, now)}
+        </p>
+
+        {local ? (
+          <p className="type-meta text-text-muted flex items-center gap-2">
+            <MapPin aria-hidden="true" className="size-3.5 shrink-0" />
+            <span className="truncate">{local}</span>
+          </p>
+        ) : null}
+      </div>
+    </Link>
   );
 }

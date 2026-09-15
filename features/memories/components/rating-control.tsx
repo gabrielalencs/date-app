@@ -7,194 +7,115 @@ import {
   rateMemoryAction,
   type ActionState,
 } from "@/features/memories/actions/memory-actions";
-import { cn } from "@/lib/cn";
 import {
   RATING_VALUES,
   ratingOptionLabel,
   type RatingValue,
 } from "@/lib/rating";
+import { cn } from "@/lib/cn";
 
 const INITIAL: ActionState = {};
 
 /**
- * A nota de quem está olhando, de 1 a 5.
+ * A nota de 1 a 5 (seção 4 do docs/MEMORIES.md).
  *
- * É um **radiogroup com legenda**, não cinco ícones soltos (seção 4 do
- * docs/MEMORIES.md). Cada posição tem nome acessível próprio — "3 de 5" —,
- * porque "estrela 3" não diz a escala a quem ouve o rótulo sem ver o desenho.
+ * `<fieldset>` com `<legend>` e cinco `<input type="radio">` reais, não cinco
+ * ícones soltos com `onClick`. Radios de mesmo `name` já são um `radiogroup`
+ * para o leitor de tela, já navegam por seta e já têm nome acessível pelo
+ * `<label>` — escrever isso à mão com `role` e roving tabindex daria o mesmo
+ * comportamento com mais chance de errar.
  *
- * A distinção é por **preenchimento**, não por cor: a mesma exigência do
- * marcador do calendário do B7, e verificável em escala de cinza. Estrela cheia
- * e estrela contornada continuam diferentes sem nenhuma cor.
+ * A distinção entre marcada e vazia é por **preenchimento**, não por cor: a
+ * mesma exigência do marcador do calendário, e verificável numa captura em
+ * escala de cinza. Se as cinco estrelas virarem o mesmo cinza, a distinção
+ * estava só na cor.
  *
- * Reenviar a nota que já está escolhida a **retira**, como o controle de voto
- * do B6: o controle não tem "desmarcar", e a pessoa volta a "ainda não
- * avaliou" — estado distinto de ter dado nota baixa (D-062).
- *
- * Cada posição é um `<button type="submit">` com `value` próprio, então o
- * controle inteiro é um formulário só e funciona sem estado local. As setas do
- * teclado movem o foco, que é o que um radiogroup precisa fazer e o que uma
- * fila de botões não faz sozinha.
+ * Reenviar a mesma nota a retira, como o controle de voto do B6. O gesto é
+ * clicar na estrela que já está marcada: o radio é desmarcado, o `FormData`
+ * vai sem `rating`, e a action lê isso como retirar.
  */
 export function RatingControl({
   planId,
-  personName,
-  rating,
-  editable,
+  value,
+  hasNotes,
 }: {
   planId: string;
-  personName: string;
-  rating: RatingValue | null;
-  /** Só quem está olhando avalia a própria nota; a do outro é leitura. */
-  editable: boolean;
+  value: RatingValue | null;
+  /** Muda o aviso: retirar a nota leva junto o que a pessoa escreveu. */
+  hasNotes: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     rateMemoryAction,
     INITIAL,
   );
-  const grupo = useRef<HTMLDivElement>(null);
-
-  const legenda = editable ? "Sua nota" : "Nota";
-
-  if (!editable) {
-    /* Sem nota, a legenda "Nota" some: o nome da pessoa já é o cabeçalho da
-       coluna, e "Nota" seguido de "Fulano ainda não avaliou" põe o mesmo nome
-       três vezes na mesma altura da tela. */
-    return (
-      <div className="flex flex-col gap-1">
-        {rating === null ? null : (
-          <span className="type-meta text-text-muted">{legenda}</span>
-        )}
-        <StaticRating rating={rating} personName={personName} />
-      </div>
-    );
-  }
-
-  function moverFoco(evento: React.KeyboardEvent<HTMLDivElement>): void {
-    const passo =
-      evento.key === "ArrowRight" || evento.key === "ArrowDown"
-        ? 1
-        : evento.key === "ArrowLeft" || evento.key === "ArrowUp"
-          ? -1
-          : 0;
-
-    if (passo === 0) return;
-
-    const botoes = Array.from(
-      grupo.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ??
-        [],
-    );
-    const atual = botoes.findIndex((botao) => botao === document.activeElement);
-
-    if (atual === -1) return;
-
-    evento.preventDefault();
-    const proximo = (atual + passo + botoes.length) % botoes.length;
-    botoes[proximo]?.focus();
-  }
+  const formRef = useRef<HTMLFormElement>(null);
 
   return (
-    <div className="flex flex-col gap-1">
-      <form action={formAction} className="flex flex-col gap-1">
-        <input type="hidden" name="planId" value={planId} />
-        <span id={`nota-${planId}`} className="type-meta text-text-muted">
-          {legenda}
-        </span>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-2">
+      <input type="hidden" name="planId" value={planId} />
 
-        <div
-          ref={grupo}
-          role="radiogroup"
-          aria-labelledby={`nota-${planId}`}
-          onKeyDown={moverFoco}
-          className="flex items-center gap-0.5"
-        >
-          {RATING_VALUES.map((value, indice) => {
-            const preenchida = rating !== null && value <= rating;
-            const escolhida = rating === value;
+      <fieldset disabled={pending} className="flex flex-col gap-2">
+        <legend className="type-label text-text-muted mb-2">Sua nota</legend>
+
+        <div className="flex flex-wrap items-center gap-1">
+          {RATING_VALUES.map((nota) => {
+            const marcada = value !== null && nota <= value;
 
             return (
-              <button
-                key={value}
-                type="submit"
-                name="rating"
-                // Reenviar a nota escolhida a retira: não há "desmarcar".
-                value={escolhida ? "" : String(value)}
-                role="radio"
-                aria-checked={escolhida}
-                aria-label={ratingOptionLabel(value)}
-                /* Roving tabindex: o grupo inteiro é uma parada de tabulação,
-                   e as setas andam dentro dele. Sem escolha, a primeira
-                   posição recebe o foco. */
-                tabIndex={
-                  escolhida || (rating === null && indice === 0) ? 0 : -1
-                }
-                disabled={pending}
+              <label
+                key={nota}
                 className={cn(
-                  "ease-standard grid size-11 place-items-center rounded-sm",
-                  "transition-[opacity,transform] duration-[var(--duration-micro)]",
-                  "hover:bg-surface-sunken active:scale-[0.97]",
-                  "disabled:pointer-events-none disabled:opacity-60",
+                  "ease-standard grid min-h-11 min-w-11 cursor-pointer place-items-center rounded-md",
+                  "transition-[background-color,transform] duration-[var(--duration-micro)]",
+                  "hover:bg-surface-sunken active:scale-[0.98]",
+                  "focus-within:outline-accent focus-within:outline-2 focus-within:outline-offset-2",
                 )}
               >
+                <input
+                  type="radio"
+                  name="rating"
+                  value={nota}
+                  defaultChecked={value === nota}
+                  className="sr-only"
+                  onClick={(event) => {
+                    /* Clicar na nota que já vale retira a avaliação. `change`
+                       não dispara nesse caso — só `click` —, então é aqui que
+                       o radio é desmarcado antes de submeter. */
+                    if (value === nota) {
+                      event.currentTarget.checked = false;
+                    }
+                    formRef.current?.requestSubmit();
+                  }}
+                />
                 <Star
                   aria-hidden="true"
-                  className="size-6"
-                  fill={preenchida ? "currentColor" : "none"}
-                  strokeWidth={1.75}
+                  className={cn(
+                    "size-6",
+                    marcada ? "text-accent" : "text-text-muted",
+                  )}
+                  fill={marcada ? "currentColor" : "none"}
+                  strokeWidth={marcada ? 1 : 1.5}
                 />
-              </button>
+                <span className="sr-only">{ratingOptionLabel(nota)}</span>
+              </label>
             );
           })}
         </div>
-      </form>
+      </fieldset>
+
+      <p className="type-meta text-text-muted">
+        {value === null
+          ? "Toque numa estrela para avaliar."
+          : hasNotes
+            ? "Toque na nota atual para retirar sua avaliação — o que você escreveu sai junto."
+            : "Toque na nota atual para retirar sua avaliação."}
+      </p>
 
       {state.error ? (
         <p role="alert" className="type-meta text-danger">
           {state.error}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-/**
- * A nota da outra pessoa, em leitura.
- *
- * As duas avaliações são **sempre** visíveis: esconder até avaliar evitaria
- * ancoragem, e de novo a transparência é o produto (D-062). A ausência aparece
- * como frase, nunca como cinco estrelas vazias que se confundem com nota 0.
- */
-function StaticRating({
-  rating,
-  personName,
-}: {
-  rating: RatingValue | null;
-  personName: string;
-}) {
-  if (rating === null) {
-    return (
-      <p className="type-body-s text-text-muted">
-        {personName} ainda não avaliou.
-      </p>
-    );
-  }
-
-  return (
-    <div
-      className="flex items-center gap-0.5"
-      role="img"
-      aria-label={ratingOptionLabel(rating)}
-    >
-      {RATING_VALUES.map((value) => (
-        <span key={value} className="grid size-6 place-items-center">
-          <Star
-            aria-hidden="true"
-            className="size-5"
-            fill={value <= rating ? "currentColor" : "none"}
-            strokeWidth={1.75}
-          />
-        </span>
-      ))}
-    </div>
+    </form>
   );
 }

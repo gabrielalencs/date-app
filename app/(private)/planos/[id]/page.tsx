@@ -9,6 +9,8 @@ import {
   listWorkspaceMembers,
 } from "@/features/dates/data/queries";
 import { PlanPhotos } from "@/features/media/components/plan-photos";
+import { PlanReview } from "@/features/memories/components/plan-review";
+import { listPlanRatings } from "@/features/memories/data/queries";
 import { PlanChecklist } from "@/features/planning/components/plan-checklist";
 import { PlanExpenses } from "@/features/planning/components/plan-expenses";
 import { PlanReservation } from "@/features/planning/components/plan-reservation";
@@ -19,10 +21,7 @@ import {
   listExpenses,
   readPlanFacts,
   reservationAvailable,
-  totalCents,
 } from "@/features/planning/data/queries";
-import { PlanMemorySection } from "@/features/memories/components/plan-memory";
-import { getPlanMemory } from "@/features/memories/data/queries";
 import { MediaImage } from "@/features/media/components/media-image";
 import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
@@ -42,10 +41,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     if (error instanceof NotFoundError) notFound();
     throw error;
   });
-  /* `now` desce do servidor e atravessa tudo, inclusive as pré-condições: é
-     ele que decide se a data confirmada já chegou, e um segundo relógio faria
-     a tela oferecer uma ação que a mutation recusaria. */
-  const now = new Date();
+  const realizado = plan.status === "completed";
 
   const [
     photos,
@@ -55,7 +51,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     expenses,
     members,
     facts,
-    memory,
+    ratings,
   ] = await Promise.all([
     listPlanMedia(ctx, plan.id),
     listPlanDateOptions(ctx, plan.id),
@@ -63,12 +59,18 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     listChecklist(ctx, plan.id),
     listExpenses(ctx, plan.id),
     listWorkspaceMembers(ctx),
-    readPlanFacts(ctx, plan.id, undefined, now),
-    /* Uma consulta a mais na página, não uma por avaliação: as duas notas
-       chegam juntas, e as fotos e os gastos vêm das camadas do B5 e do B8 que
-       já estavam aqui (seção 7 do docs/MEMORIES.md). */
-    getPlanMemory(ctx, plan.id),
+    readPlanFacts(ctx, plan.id),
+    /* Avaliações, fotos de memória e gastos são três consultas, não três por
+       linha (seção 7 do docs/MEMORIES.md). As fotos já vêm inteiras de
+       `listPlanMedia`, e a separação por `purpose` acontece em memória. */
+    realizado ? listPlanRatings(ctx, plan.id) : null,
   ]);
+
+  /* `gallery` é antes, `memory` é depois. Duas grades, conjuntos disjuntos —
+     e a capa acompanha a grade onde ela está, porque `setPlanCover` muda o
+     `purpose` da foto promovida para `cover`. */
+  const fotosDoPlano = photos.filter((photo) => photo.purpose !== "memory");
+  const fotosDaMemoria = photos.filter((photo) => photo.purpose === "memory");
 
   /* Plano cancelado ou arquivado é leitura nas três seções (seção 8 do
      docs/PLANNING.md). A camada de dados recusa de novo — isto aqui é só para
@@ -76,17 +78,8 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
   const somenteLeitura = isReadOnly(plan);
   const reservaDisponivel =
     plan.requiresBooking && reservationAvailable(plan, facts);
+  const now = new Date();
   const cover = photos.find((photo) => photo.id === plan.coverMediaId);
-
-  /* `gallery` é antes, `memory` é depois: mesma tabela, mesma consulta, duas
-     grades (seção 5 do docs/MEMORIES.md). A capa aparece na grade a que ela
-     pertence — uma foto de memória que virou capa continua sendo memória, e é
-     por isso que `setPlanCover` não reescreve mais o propósito dela. */
-  const fotosDoPlano = photos.filter((photo) => photo.purpose !== "memory");
-  const fotosDaMemoria = photos.filter((photo) => photo.purpose === "memory");
-
-  const realizado = plan.status === "completed";
-  const totalGasto = expenses.length > 0 ? totalCents(expenses) : null;
   return (
     <div className="page-stack">
       <Link
@@ -192,17 +185,39 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             options={dateOptions}
             now={now}
           />
+
+          {/* "Como foi?" vem logo depois da data: no plano realizado, é a
+              primeira coisa que as duas pessoas vão procurar (seção 9). */}
+          {realizado && ratings ? (
+            <PlanReview planId={plan.id} ratings={ratings} />
+          ) : null}
+
+          {/* `completed` é terminal na transição, não na escrita: a grade de
+              fotos de memória só existe depois, e é onde vive o que vocês
+              fotografaram lá. */}
+          {realizado ? (
+            <PlanPhotos
+              planId={plan.id}
+              planTitle={plan.title}
+              photos={fotosDaMemoria}
+              allPhotos={photos}
+              coverMediaId={plan.coverMediaId}
+              showCover={false}
+              showReorder={false}
+              title="As fotos de vocês"
+              uploadPurpose="memory"
+              addLabel="Adicionar foto"
+              emptyText="Nenhuma foto desse date ainda. Suba as que vocês tiraram."
+              readOnly={somenteLeitura}
+            />
+          ) : null}
           {/* No desktop a reserva fica no rail; no mobile o rail vem antes
               desta coluna, preservando reserva -> checklist -> gastos. */}
-          {/* Depois de realizado, o checklist é leitura (seção 3 do
-              docs/MEMORIES.md): "o que levar" não tem mais função depois de a
-              pessoa já ter ido. Os gastos, ao contrário, continuam editáveis —
-              é depois que se sabe quanto custou. */}
           <PlanChecklist
             planId={plan.id}
             items={checklist}
             now={now}
-            readOnly={somenteLeitura || realizado}
+            readOnly={somenteLeitura}
           />
           <PlanExpenses
             planId={plan.id}
@@ -211,24 +226,14 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             members={members}
             readOnly={somenteLeitura}
           />
-          {realizado ? (
-            <PlanMemorySection
-              planId={plan.id}
-              planTitle={plan.title}
-              memory={memory}
-              photos={fotosDaMemoria}
-              coverMediaId={plan.coverMediaId}
-              totalSpentCents={totalGasto}
-              viewerProfileId={ctx.profileId}
-              readOnly={somenteLeitura}
-            />
-          ) : null}
           <PlanPhotos
             planId={plan.id}
             planTitle={plan.title}
             photos={fotosDoPlano}
+            allPhotos={photos}
             coverMediaId={plan.coverMediaId}
             showCover={false}
+            readOnly={somenteLeitura}
           />
           <details className="editor-disclosure panel">
             <summary>

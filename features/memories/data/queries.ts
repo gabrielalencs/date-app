@@ -1,282 +1,210 @@
 import "server-only";
 
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
-  media,
-  memories,
   memoryRatings,
   planDateOptions,
   plans,
 } from "@/db/schema/index.ts";
 import { listWorkspaceMembers } from "@/features/dates/data/queries";
 import { MEMORIES_PER_PAGE } from "@/features/memories/constants";
-import { pageOffset } from "@/features/memories/timeline";
+import { pageCount } from "@/features/memories/url";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import {
-  averageRatingTenths,
+  isRatingValue,
+  isRepeatAnswer,
+  summarizeRatings,
   type MemberRating,
-  type RatingValue,
-  type RepeatAnswer,
+  type RatingSummary,
 } from "@/lib/rating";
 
 /**
  * Leituras das memórias. Contexto em primeiro lugar, `workspaceId` nunca é
  * parâmetro, todo `where` começa pelo predicado de workspace (D-037).
  *
- * A regra que manda neste arquivo:
+ * A exigência de escala da seção 7 mora aqui:
  *
- * > O número de consultas é **constante** em relação ao número de planos.
+ * > O número de consultas da timeline é constante em relação ao número de
+ * > planos.
  *
- * O seed tem oito planos, e com oito uma timeline que consulta por linha
- * responde igual a uma que consulta em bloco: nada fica vermelho na máquina de
- * ninguém. Um casal com dois anos de uso tem uns 150 dates realizados, o banco
- * é Neon serverless em `sa-east-1`, e cada consulta é uma ida e volta de 20 a
- * 50 ms — uma página de 24 memórias buscando capa, fotos e avaliação por linha
- * faz 72 viagens em vez de 4, e a tela leva três segundos.
+ * `listMemories` faz **duas** consultas — o total e a página — e faria as
+ * mesmas duas com seiscentos planos realizados. A capa vem de
+ * `plans.cover_media_id`, que já está na linha do plano, e por isso não custa
+ * uma terceira. O que o documento descreve como defeito é a versão que busca
+ * capa, contagem de fotos e avaliação **por linha**: 24 memórias virariam 72
+ * idas e volta até `sa-east-1`, e a tela levaria três segundos.
  *
- * Por isso tudo aqui é `inArray` sobre os ids da página, e nunca um laço.
+ * A prova disso não é leitura de código: é `tests/integration/memories-scale`,
+ * que conta as consultas com um plano e com sessenta e compara os números.
  */
-
-export type MemoryCard = {
+export type MemoryEntry = {
   planId: string;
   title: string;
-  category: string | null;
   city: string | null;
   placeName: string | null;
+  /** Nulo mantém a capa tipográfica do card (D-041). */
   coverMediaId: string | null;
-  /** Quando o date aconteceu: a data confirmada do B6, e nada copiado. */
+  category: string | null;
+  /** A data confirmada: é ela que diz quando o date aconteceu. */
   happenedAt: Date;
   allDay: boolean;
-  photoCount: number;
-  /** Décimos da média, e só quando as duas pessoas avaliaram. */
-  averageTenths: number | null;
-  ratingsGiven: number;
-  memberCount: number;
 };
 
-export type MemoryPage = {
-  items: MemoryCard[];
+export type MemoriesPage = {
+  entries: MemoryEntry[];
+  /** Contado de 1, já preso ao intervalo existente. */
   page: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
+  pageCount: number;
+  total: number;
 };
 
 /**
- * Uma página da timeline, do mais recente para o mais antigo.
+ * A timeline: dates realizados, do mais recente para o mais antigo.
  *
- * Quatro consultas, sempre — com uma memória ou com sessenta:
+ * `innerJoin` com a opção confirmada, e não `leftJoin`: um plano `completed`
+ * sem data confirmada é inalcançável desde a pré-condição do B9, e se algum
+ * sobrou de antes, ele não tem onde entrar numa lista ordenada por data.
  *
- * 1. os planos realizados da página, já com a data confirmada junto;
- * 2. os membros do workspace, que dizem quantas avaliações uma média exige;
- * 3. as avaliações desses planos, em bloco;
- * 4. quantas fotos de memória cada um tem, em bloco.
- *
- * As três últimas só acontecem quando a página tem alguma linha: numa página
- * vazia, `inArray` de lista vazia seria consulta jogada fora.
- *
- * O `innerJoin` com a opção confirmada é de propósito. A timeline é ordenada
- * por *quando aconteceu*, e um plano realizado sem data confirmada não teria
- * lugar nela — estado que a pré-condição de `completed` torna inalcançável.
+ * Plano arquivado fica de fora, como em toda lista do produto. Cancelado
+ * também, mas por construção: `cancelled` não é `completed`.
  */
-export async function listMemoryTimeline(
+export async function listMemories(
   ctx: AuthorizedContext,
-  page: number,
-): Promise<MemoryPage> {
-  /* Uma linha a mais do que cabe na página: se ela vier, há próxima. Evita uma
-     consulta de total só para desenhar um link — e o total não é mostrado. */
-  const linhas = await db
+  options: { page?: number; perPage?: number } = {},
+): Promise<MemoriesPage> {
+  const perPage = options.perPage ?? MEMORIES_PER_PAGE;
+
+  const escopo = and(
+    eq(plans.workspaceId, ctx.workspaceId),
+    eq(planDateOptions.workspaceId, ctx.workspaceId),
+    eq(plans.status, "completed"),
+    eq(planDateOptions.isConfirmed, true),
+    isNull(plans.archivedAt),
+  );
+
+  // 1 de 2: o total, que a paginação precisa para saber onde a lista acaba.
+  const [contagem] = await db
+    .select({ total: count() })
+    .from(plans)
+    .innerJoin(planDateOptions, eq(planDateOptions.planId, plans.id))
+    .where(escopo);
+
+  const total = Number(contagem?.total ?? 0);
+  const paginas = pageCount(total, perPage);
+  /* Página além do fim cai na última, em vez de devolver lista vazia com
+     paginação quebrada — `?pagina=999` é URL editada à mão, não erro. */
+  const page = Math.min(Math.max(options.page ?? 1, 1), paginas);
+
+  // 2 de 2: a página. Uma consulta, quantos planos existirem.
+  const entries = await db
     .select({
       planId: plans.id,
       title: plans.title,
-      category: plans.category,
       city: plans.city,
       placeName: plans.placeName,
       coverMediaId: plans.coverMediaId,
+      category: plans.category,
       happenedAt: planDateOptions.startsAt,
       allDay: planDateOptions.allDay,
     })
     .from(plans)
-    .innerJoin(
-      planDateOptions,
-      and(
-        eq(planDateOptions.planId, plans.id),
-        eq(planDateOptions.workspaceId, ctx.workspaceId),
-        eq(planDateOptions.isConfirmed, true),
-      ),
-    )
-    .where(
-      and(
-        eq(plans.workspaceId, ctx.workspaceId),
-        eq(plans.status, "completed"),
-        isNull(plans.archivedAt),
-      ),
-    )
-    /* `plans.id` desempata: sem um segundo critério estável, dois dates no
-       mesmo instante poderiam trocar de lugar entre uma página e outra, e a
-       mesma memória apareceria duas vezes ou nenhuma. */
+    .innerJoin(planDateOptions, eq(planDateOptions.planId, plans.id))
+    .where(escopo)
+    /* `id` desempata: sem um critério estável, dois dates no mesmo instante
+       podem trocar de lugar entre uma página e outra e sumir da listagem. */
     .orderBy(desc(planDateOptions.startsAt), desc(plans.id))
-    .limit(MEMORIES_PER_PAGE + 1)
-    .offset(pageOffset(page, MEMORIES_PER_PAGE));
+    .limit(perPage)
+    .offset((page - 1) * perPage);
 
-  const daPagina = linhas.slice(0, MEMORIES_PER_PAGE);
-  const ids = daPagina.map((linha) => linha.planId);
-  const hasNext = linhas.length > MEMORIES_PER_PAGE;
-
-  if (ids.length === 0) {
-    return { items: [], page, hasPrevious: page > 1, hasNext: false };
-  }
-
-  const [membros, avaliacoes, fotos] = await Promise.all([
-    listWorkspaceMembers(ctx),
-    db
-      .select({
-        planId: memories.planId,
-        profileId: memoryRatings.profileId,
-        rating: memoryRatings.rating,
-      })
-      .from(memoryRatings)
-      .innerJoin(memories, eq(memories.id, memoryRatings.memoryId))
-      .where(
-        and(
-          eq(memoryRatings.workspaceId, ctx.workspaceId),
-          inArray(memories.planId, ids),
-        ),
-      ),
-    db
-      .select({ planId: media.planId, total: count() })
-      .from(media)
-      .where(
-        and(
-          eq(media.workspaceId, ctx.workspaceId),
-          eq(media.purpose, "memory"),
-          inArray(media.planId, ids),
-        ),
-      )
-      .groupBy(media.planId),
-  ]);
-
-  /* Indexado por pessoa, não por posição: casar nota com membro pela ordem de
-     chegada trocaria as duas avaliações entre si na hora em que a segunda
-     pessoa avaliasse antes da primeira. */
-  const porPlano = new Map<string, Map<string, number>>();
-  for (const linha of avaliacoes) {
-    const mapa = porPlano.get(linha.planId) ?? new Map<string, number>();
-    mapa.set(linha.profileId, linha.rating);
-    porPlano.set(linha.planId, mapa);
-  }
-
-  const fotosPorPlano = new Map<string, number>();
-  for (const linha of fotos) {
-    if (linha.planId !== null) {
-      fotosPorPlano.set(linha.planId, Number(linha.total));
-    }
-  }
-
-  return {
-    items: daPagina.map((linha): MemoryCard => {
-      const notas = porPlano.get(linha.planId);
-
-      /* A lista é reconstruída no tamanho do workspace, com as ausências
-         dentro. É isso que faz `averageRatingTenths` devolver `null` com
-         metade do casal em silêncio — a mesma função e a mesma regra que a
-         tela do plano usa (seção 4 do docs/MEMORIES.md). */
-      const comAusencias: MemberRating[] = membros.map((membro) => ({
-        profileId: membro.profileId,
-        displayName: membro.displayName,
-        rating: (notas?.get(membro.profileId) as RatingValue | undefined) ?? null,
-        wouldRepeat: null,
-      }));
-
-      return {
-        ...linha,
-        photoCount: fotosPorPlano.get(linha.planId) ?? 0,
-        averageTenths: averageRatingTenths(comAusencias),
-        ratingsGiven: comAusencias.filter((item) => item.rating !== null)
-          .length,
-        memberCount: membros.length,
-      };
-    }),
-    page,
-    hasPrevious: page > 1,
-    hasNext,
-  };
+  return { entries, page, pageCount: paginas, total };
 }
 
-export type MemoryRow = typeof memories.$inferSelect;
-
-export type PlanMemory = {
-  /** `null` enquanto ninguém avaliou nem escreveu nada sobre o date. */
-  memory: MemoryRow | null;
-  /** Sempre uma entrada por membro, na ordem estável do B6. */
-  ratings: MemberRating[];
-  averageTenths: number | null;
+export type PlanRatings = {
+  members: readonly MemberRating[];
+  summary: RatingSummary;
+  /** A avaliação de quem está olhando, para preencher o formulário. */
+  mine: MemberRating | null;
 };
 
 /**
- * A memória de um plano, com as duas avaliações — as duas **sempre** presentes.
+ * As duas avaliações de um plano, **sempre as duas**.
  *
- * Membro sem linha entra com `rating: null`: ausência é "ainda não avaliou",
- * estado distinto de ter dado nota baixa (D-062), e é a interface que a escreve
- * como "Alex ainda não avaliou".
+ * Membro sem linha entra com `rating: null`: não avaliar é estado distinto de
+ * dar nota baixa, e a ausência aparece como "Alex ainda não avaliou", não como
+ * zero (seção 4). É a mesma montagem que `listPlanDateOptions` faz com os
+ * votos, e pela mesma razão.
  *
- * Duas consultas quando não há memória, três quando há — nunca uma por pessoa.
- * As fotos e os gastos da mesma tela são lidos pelas camadas do B5 e do B8,
- * cada uma com a sua, e também nenhuma por linha.
+ * Duas consultas fixas — os membros e as avaliações —, não uma por pessoa.
  */
-export async function getPlanMemory(
+export async function listPlanRatings(
   ctx: AuthorizedContext,
   planId: string,
-): Promise<PlanMemory> {
+): Promise<PlanRatings> {
   const [membros, linhas] = await Promise.all([
     listWorkspaceMembers(ctx),
     db
-      .select()
-      .from(memories)
+      .select({
+        profileId: memoryRatings.profileId,
+        rating: memoryRatings.rating,
+        wouldRepeat: memoryRatings.wouldRepeat,
+        highlight: memoryRatings.highlight,
+        notes: memoryRatings.notes,
+      })
+      .from(memoryRatings)
       .where(
         and(
-          eq(memories.workspaceId, ctx.workspaceId),
-          eq(memories.planId, planId),
+          eq(memoryRatings.workspaceId, ctx.workspaceId),
+          eq(memoryRatings.planId, planId),
         ),
-      )
-      .limit(1),
+      ),
   ]);
 
-  const memoria = linhas[0] ?? null;
+  const porPessoa = new Map(linhas.map((linha) => [linha.profileId, linha]));
 
-  const notas = memoria
-    ? await db
-        .select({
-          profileId: memoryRatings.profileId,
-          rating: memoryRatings.rating,
-          wouldRepeat: memoryRatings.wouldRepeat,
-        })
-        .from(memoryRatings)
-        .where(
-          and(
-            eq(memoryRatings.workspaceId, ctx.workspaceId),
-            eq(memoryRatings.memoryId, memoria.id),
-          ),
-        )
-    : [];
-
-  const porPessoa = new Map(notas.map((nota) => [nota.profileId, nota]));
-
-  const ratings: MemberRating[] = membros.map((membro) => {
-    const nota = porPessoa.get(membro.profileId);
+  const members: MemberRating[] = membros.map((membro) => {
+    const linha = porPessoa.get(membro.profileId);
 
     return {
       profileId: membro.profileId,
       displayName: membro.displayName,
-      rating: (nota?.rating as RatingValue | undefined) ?? null,
-      wouldRepeat: (nota?.wouldRepeat as RepeatAnswer | null) ?? null,
+      /* `smallint` volta como number, mas a escala é um literal: o CHECK do
+         banco garante 1–5 e o guarda faz o tipo acompanhar sem `as`. */
+      rating: isRatingValue(linha?.rating) ? linha.rating : null,
+      wouldRepeat: isRepeatAnswer(linha?.wouldRepeat)
+        ? linha.wouldRepeat
+        : null,
+      highlight: linha?.highlight ?? null,
+      notes: linha?.notes ?? null,
     };
   });
 
   return {
-    memory: memoria,
-    ratings,
-    averageTenths: averageRatingTenths(ratings),
+    members,
+    summary: summarizeRatings(members),
+    mine: members.find((m) => m.profileId === ctx.profileId) ?? null,
   };
+}
+
+/**
+ * Quantos dates já foram realizados. A Home e o estado vazio perguntam isso, e
+ * carregar a timeline inteira para descobrir seria absurdo.
+ */
+export async function countMemories(ctx: AuthorizedContext): Promise<number> {
+  const [linha] = await db
+    .select({ total: count() })
+    .from(plans)
+    .innerJoin(planDateOptions, eq(planDateOptions.planId, plans.id))
+    .where(
+      and(
+        eq(plans.workspaceId, ctx.workspaceId),
+        eq(planDateOptions.workspaceId, ctx.workspaceId),
+        eq(plans.status, "completed"),
+        eq(planDateOptions.isConfirmed, true),
+        isNull(plans.archivedAt),
+      ),
+    );
+
+  return Number(linha?.total ?? 0);
 }

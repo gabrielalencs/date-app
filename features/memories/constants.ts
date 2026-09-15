@@ -1,35 +1,21 @@
-import type { RepeatAnswer } from "@/lib/rating";
-
 /**
- * Tetos e rótulos das memórias.
+ * Tetos e tamanhos do B9.
  *
- * Tetos de texto vivem na aplicação pelo mesmo motivo do D-065: mudar de ideia
- * sobre quantos caracteres cabem numa observação não pode custar migration. O
- * que é invariante — uma avaliação por pessoa, nota entre 1 e 5 — está no
- * banco desde o B2, e continua lá.
+ * Vivem na aplicação, e não no banco, pelo D-065: são limites de usabilidade,
+ * e virar constraint significaria migration para mudar de ideia. O contraste é
+ * o CHECK de 1–5 e o único em (plan_id, profile_id), que são estados
+ * impossíveis e por isso ficaram no banco (seção 10 do docs/MEMORIES.md).
  */
 
-/** Quantas memórias por página da timeline. */
-export const MEMORIES_PER_PAGE = 24;
-
+/** "Melhor parte": uma frase, não um parágrafo. */
 export const MAX_HIGHLIGHT_LENGTH = 200;
 
 export const MAX_NOTES_LENGTH = 2000;
 
 /**
- * Rótulos do "Repetiria?". Mesmo controle segmentado do voto do B6, rótulos
- * próprios — e o mesmo cuidado: sem ícone e sem emoji.
+ * Memórias por página da timeline.
  *
- * O enum do banco é `repeat_answer`, separado de `vote_value` de propósito
- * desde o B2, ainda que os três valores coincidam: são perguntas diferentes, e
- * colar as duas num tipo só travaria a primeira que precisasse de um quarto
- * valor.
+ * Doze fecha três linhas na grade de quatro colunas do desktop e seis no
+ * tablet, sem deixar uma linha órfã pela metade no caso mais comum.
  */
-export const REPEAT_LABELS: Readonly<Record<RepeatAnswer, string>> = {
-  yes: "Com certeza",
-  maybe: "Talvez",
-  no: "Não",
-};
-
-/** A pergunta inteira, para a legenda do controle. */
-export const REPEAT_QUESTION = "Repetiria?";
+export const MEMORIES_PER_PAGE = 12;

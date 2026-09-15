@@ -5,25 +5,26 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/field";
 import {
+  saveMemoryNotesAction,
+  type ActionState,
+} from "@/features/memories/actions/memory-actions";
+import {
   MAX_HIGHLIGHT_LENGTH,
   MAX_NOTES_LENGTH,
 } from "@/features/memories/constants";
-import {
-  saveMemoryTextAction,
-  type ActionState,
-} from "@/features/memories/actions/memory-actions";
 
 const INITIAL: ActionState = {};
 
 /**
- * A melhor parte e as observações — **do casal**, uma por plano.
+ * "Melhor parte" e observações, que são campos da própria avaliação.
  *
- * Não é por pessoa de propósito (seção 4 do docs/MEMORIES.md): a melhor parte
- * de uma noite é uma coisa só, escrita junto. Duplicá-la por pessoa
- * transformaria uma lembrança compartilhada em dois depoimentos paralelos.
+ * Só aparece depois de a pessoa dar uma nota: `rating` é NOT NULL, então a
+ * linha nasce pela nota, e escrever antes disso não teria onde gravar. A
+ * camada de dados recusa com essa mesma frase se alguém tentar pelo POST.
  *
- * Campo livre, sem contador regressivo e sem placeholder que sugira o que
- * escrever: quem viveu a noite sabe, e o produto não precisa dar ideia.
+ * Formulário com botão, e não salvamento a cada tecla: texto livre que se
+ * grava sozinho a cada pausa gera uma escrita por palavra digitada, e aqui não
+ * há nada que justifique isso.
  */
 export function MemoryNotesForm({
   planId,
@@ -35,46 +36,54 @@ export function MemoryNotesForm({
   notes: string | null;
 }) {
   const [state, formAction, pending] = useActionState(
-    saveMemoryTextAction,
+    saveMemoryNotesAction,
     INITIAL,
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="planId" value={planId} />
 
       <Input
-        label="A melhor parte"
         name="highlight"
+        label="Melhor parte"
         defaultValue={highlight ?? ""}
         maxLength={MAX_HIGHLIGHT_LENGTH}
-        autoComplete="off"
+        placeholder="O que você não quer esquecer"
       />
 
       <Textarea
-        label="Observações"
         name="notes"
+        label="Observações"
         defaultValue={notes ?? ""}
         maxLength={MAX_NOTES_LENGTH}
         rows={3}
+        placeholder="O que vale lembrar para a próxima vez"
       />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          loading={pending}
+          loadingLabel="Salvando"
+        >
+          Salvar
+        </Button>
+
+        {state.ok ? (
+          <span role="status" className="type-meta text-text-muted">
+            Salvo.
+          </span>
+        ) : null}
+      </div>
 
       {state.error ? (
         <p role="alert" className="type-body-s text-danger">
           {state.error}
         </p>
       ) : null}
-
-      <Button
-        type="submit"
-        variant="secondary"
-        size="sm"
-        loading={pending}
-        loadingLabel="Guardando"
-        className="self-start"
-      >
-        Guardar
-      </Button>
     </form>
   );
 }

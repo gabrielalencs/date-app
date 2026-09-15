@@ -5,11 +5,11 @@ import { Circle, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/ui/status-pill";
+import { CompletePlanControl } from "@/features/memories/components/complete-plan-control";
 import {
   changeStatusAction,
   type ActionState,
 } from "@/features/plans/actions/plan-actions";
-import { CompletePlanDialog } from "@/features/plans/components/complete-plan-dialog";
 import { offerableTransitions, type PlanFacts } from "@/lib/plan-preconditions";
 import { statusLabel, type PlanStatus } from "@/lib/status";
 
@@ -23,6 +23,11 @@ const INITIAL: ActionState = {};
  * É a primeira das duas consultas às pré-condições (seção 4 do
  * docs/PLANNING.md). Sem ela, a tela ofereceria Reservado num plano sem
  * reserva confirmada, e o clique só descobriria o impedimento depois do POST.
+ *
+ * `completed` sai da lista de botões e ganha controle próprio (B9): é a única
+ * transição irreversível do produto, e passa por confirmação em modal. A
+ * decisão de oferecê-la continua sendo a mesma — `offerableTransitions` —, o
+ * que muda é o que aparece quando ela é oferecida.
  */
 export function PlanStatusControl({
   planId,
@@ -38,10 +43,6 @@ export function PlanStatusControl({
     INITIAL,
   );
   const oferecidas = offerableTransitions(status, facts);
-
-  /* `completed` sai da fila de botões e vira modal: é irreversível, e ação
-     irreversível passa por confirmação (D-080). As outras continuam sendo um
-     clique só — voltar de `planned` para `deciding` se desfaz sozinho. */
   const podeConcluir = oferecidas.includes("completed");
   const options = oferecidas.filter((option) => option !== "completed");
 
@@ -57,6 +58,8 @@ export function PlanStatusControl({
           </span>
         ) : null}
       </div>
+
+      {podeConcluir ? <CompletePlanControl planId={planId} /> : null}
 
       {options.length > 0 ? (
         <form action={formAction} className="flex flex-col gap-2">
@@ -80,8 +83,6 @@ export function PlanStatusControl({
           ))}
         </form>
       ) : null}
-
-      {podeConcluir ? <CompletePlanDialog planId={planId} /> : null}
 
       {state.error ? (
         <p role="alert" className="type-body-s text-danger">

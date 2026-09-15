@@ -3,6 +3,7 @@ import "server-only";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
+import { queryCounter } from "@/db/query-counter.ts";
 import * as schema from "@/db/schema/index.ts";
 
 /**
@@ -25,7 +26,10 @@ function pooledUrl(): string {
 
 const pool = new Pool({ connectionString: pooledUrl() });
 
-export const db = drizzle(pool, { schema });
+/* O `logger` é o contador de consultas do B9, desligado por padrão: fora de
+   uma medição ele testa um booleano e retorna. É assim que a exigência de
+   escala da seção 7 do docs/MEMORIES.md deixa de ser opinião e vira número. */
+export const db = drizzle(pool, { schema, logger: queryCounter });
 
 /** Encerra o pool em processos finitos, como o teste de integração. */
 export async function closeDatabasePool(): Promise<void> {

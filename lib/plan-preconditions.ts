@@ -27,16 +27,16 @@ export type PlanFacts = {
   hasConfirmedDate: boolean;
   hasConfirmedReservation: boolean;
   /**
-   * A data confirmada cai num dia civil **posterior** ao de hoje (B9).
+   * A data confirmada já chegou: mesmo dia civil de hoje, ou anterior (B9).
    *
-   * Fato, e não relógio: este módulo continua puro. Quem lê o banco resolve a
-   * comparação com `isFutureCivilDay`, que conta dias de calendário no fuso do
-   * app — nunca subtração de milissegundos (D-061). Um date hoje às 20h ainda
-   * é hoje às 23h, e marcar como realizado tem de funcionar.
+   * Comparação de **dia civil**, pela aritmética do B7, nunca por subtração de
+   * milissegundos. Um date hoje às 20h ainda é hoje às 15h, e marcar como
+   * realizado precisa funcionar no fim da noite do próprio dia.
    *
-   * `false` quando não há data confirmada: ali quem recusa é `hasConfirmedDate`.
+   * `false` quando não há data confirmada — não existir data é o caso que
+   * `hasConfirmedDate` já reporta, e este campo não tem o que afirmar.
    */
-  confirmedDateIsFuture: boolean;
+  confirmedDateHasArrived: boolean;
 };
 
 export const NO_CONFIRMED_DATE =
@@ -44,6 +44,20 @@ export const NO_CONFIRMED_DATE =
 
 export const NO_CONFIRMED_RESERVATION =
   "Confirme a reserva antes de marcar o plano como reservado.";
+
+/**
+ * As duas recusas de `completed` (seção 2 do docs/MEMORIES.md).
+ *
+ * `completed` afirma que o date aconteceu, e a mesma regra do B8 vale: um
+ * status só é alcançável quando o fato que ele afirma existe. Marcar como
+ * realizado um date que é semana que vem não é caso de uso, é erro de
+ * digitação.
+ */
+export const NO_DATE_TO_COMPLETE =
+  "Confirme a data do date antes de marcar como realizado.";
+
+export const DATE_STILL_AHEAD =
+  "Esse date ainda não aconteceu. Volte aqui depois do dia.";
 
 /**
  * A mensagem que substitui a do B6.
@@ -56,19 +70,6 @@ export const NO_CONFIRMED_RESERVATION =
  */
 export const RESERVATION_HOLDS_PLAN =
   "Esse plano tem reserva. Desfaça a reserva antes de mudar a data.";
-
-/**
- * As duas do B9.
- *
- * `completed` afirma que o date aconteceu, e é a afirmação mais séria do
- * produto porque é a única sem volta: desfazer deixaria a avaliação e as fotos
- * penduradas num plano que voltou a ser ideia.
- */
-export const NO_DATE_TO_COMPLETE =
-  "Confirme a data do date antes de marcar que ele aconteceu.";
-
-export const DATE_STILL_AHEAD =
-  "Esse date ainda não chegou. Dá para marcar como realizado a partir do dia.";
 
 /**
  * `null` quando a transição pode acontecer; a mensagem do impedimento quando
@@ -104,18 +105,14 @@ export function transitionBlock(
     return RESERVATION_HOLDS_PLAN;
   }
 
-  /* A do B9, e a única que olha só o destino: chega-se a `completed` de
-     `planned` e de `reserved`, e a exigência é a mesma nos dois casos.
-
-     Marcar como realizado um date que é semana que vem não é caso de uso, é
-     erro de digitação — e como a transição não tem volta, a recusa precisa vir
-     antes, não depois. Hoje conta; amanhã não. */
+  /* As duas de `completed`, que vêm de `planned` e de `reserved`. A ordem
+     importa: sem data confirmada, não há o que comparar com hoje. */
   if (to === "completed") {
     if (!facts.hasConfirmedDate) {
       return NO_DATE_TO_COMPLETE;
     }
 
-    if (facts.confirmedDateIsFuture) {
+    if (!facts.confirmedDateHasArrived) {
       return DATE_STILL_AHEAD;
     }
   }

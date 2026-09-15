@@ -35,21 +35,21 @@ export function PhotoActions({
   canMoveUp,
   canMoveDown,
   onMove,
+  showReorder = true,
 }: {
   planId: string;
   mediaId: string;
   isCover: boolean;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  /** Devolve a nova ordem completa; a action recusa lista que não confira. */
+  onMove: (direction: -1 | 1) => string[];
   /**
-   * Devolve a nova ordem completa; a action recusa lista que não confira.
-   *
-   * Opcional desde o B9: a grade de fotos de memória não reordena. O que se
-   * fotografou depois do date é registro, e a ordem dele é a ordem em que
-   * aconteceu — não uma curadoria. Sem `onMove`, as setas não existem, em vez
-   * de existirem desabilitadas para sempre.
+   * A grade de fotos de memória não reordena (B9): a ordem delas é a ordem em
+   * que aconteceram, e não uma curadoria. Dois botões permanentemente
+   * desabilitados seriam pior que dois botões que não existem.
    */
-  onMove?: (direction: -1 | 1) => string[];
+  showReorder?: boolean;
 }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>("parado");
@@ -98,7 +98,7 @@ export function PhotoActions({
           }
         />
 
-        {onMove ? (
+        {showReorder ? (
           <>
             <IconButton
               label="Mover para trás"

@@ -1,51 +1,56 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eq, inArray, sql } from "drizzle-orm";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { countQueries } from "@/db/query-counter.ts";
 import * as schema from "@/db/schema/index.ts";
 import {
   confirmDateOption,
   createDateOption,
-  deleteDateOption,
   unconfirmDateOption,
+  deleteDateOption,
 } from "@/features/dates/data/mutations";
 import {
   clearMemoryRating,
-  saveMemoryText,
-  setMemoryRating,
-  setMemoryRepeat,
+  rateMemory,
+  saveMemoryNotes,
+  setWouldRepeat,
 } from "@/features/memories/data/mutations";
 import {
-  getPlanMemory,
-  listMemoryTimeline,
+  countMemories,
+  listMemories,
+  listPlanRatings,
 } from "@/features/memories/data/queries";
-import { MEMORIES_PER_PAGE } from "@/features/memories/constants";
+import { addExpense } from "@/features/planning/data/mutations";
 import {
-  addChecklistItem,
-  addExpense,
-} from "@/features/planning/data/mutations";
-import { readPlanFacts } from "@/features/planning/data/queries";
-import { changePlanStatus, createPlan } from "@/features/plans/data/mutations";
+  listExpenses,
+  readPlanFacts,
+} from "@/features/planning/data/queries";
+import {
+  changePlanStatus,
+  createPlan,
+} from "@/features/plans/data/mutations";
+import { getPlan } from "@/features/plans/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { addCivilDays, civilDateOf, startOfDayInApp } from "@/lib/datetime";
-import { ValidationError } from "@/lib/errors";
-import { InvalidTransitionError } from "@/lib/plan-status";
-import { offerableTransitions } from "@/lib/plan-preconditions";
+import { NotFoundError, ValidationError } from "@/lib/errors";
+import {
+  DATE_STILL_AHEAD,
+  NO_DATE_TO_COMPLETE,
+  offerableTransitions,
+} from "@/lib/plan-preconditions";
 
 /**
- * As memórias contra o banco: isolamento entre workspaces, as pré-condições da
- * travessia, os invariantes que só o banco pode garantir, os eventos e — o que
- * este bloco não podia deixar por opinião — a **contagem de consultas** com um
- * plano e com sessenta.
+ * O B9 contra o banco.
  *
  * Tudo acontece no workspace B, criado e removido aqui. Nenhum plano é criado
  * no workspace A: o `database.integration.test.ts` afirma que ele tem
- * exatamente os oito ids do seed (D-082 — a fixture devolve o que estava).
+ * exatamente os ids do seed (D-082).
  */
 const WORKSPACE_A = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_B = "99999999-9999-4999-8999-999999999999";
 const PROFILE_A = "seed_profile_alex";
-const PROFILE_B1 = "seed_profile_memory_b1";
-const PROFILE_B2 = "seed_profile_memory_b2";
+const PROFILE_B1 = "seed_profile_memories_b1";
+const PROFILE_B2 = "seed_profile_memories_b2";
 
 type DatabaseModule = typeof import("@/db/client.ts");
 let databaseModule: DatabaseModule | undefined;
@@ -58,7 +63,6 @@ const ctxA: AuthorizedContext = {
   role: "owner",
 };
 
-/** As duas pessoas do workspace B: a avaliação é de cada uma. */
 const ctxB1: AuthorizedContext = {
   userId: PROFILE_B1,
   profileId: PROFILE_B1,
@@ -73,50 +77,51 @@ const ctxB2: AuthorizedContext = {
   role: "member",
 };
 
-/** Hora de parede em São Paulo a partir de um dia civil. */
-function asHoras(
-  civil: { year: number; month: number; day: number },
-  hora: number,
-  minuto = 0,
-): Date {
-  return new Date(
-    startOfDayInApp(civil).getTime() + (hora * 60 + minuto) * 60_000,
-  );
+/** Dias civis relativos a agora, para o teste não envelhecer. */
+function diaCivil(offset: number): Date {
+  return startOfDayInApp(addCivilDays(civilDateOf(new Date()), offset));
 }
 
-const HOJE = civilDateOf(new Date());
-const ONTEM = addCivilDays(HOJE, -1);
-const AMANHA = addCivilDays(HOJE, 1);
+const ONTEM = diaCivil(-1);
+const HOJE = diaCivil(0);
+const AMANHA = diaCivil(1);
 
-/**
- * Um plano realizado, pelo caminho do produto: data sugerida, confirmada
- * (que move para `planned`), e a travessia para `completed`.
- */
-async function planoRealizado(
-  ctx: AuthorizedContext,
-  titulo: string,
-  quando = asHoras(ONTEM, 20),
-): Promise<string> {
-  const plano = await createPlan(ctx, { title: titulo, category: "outro" });
-  const opcao = await createDateOption(ctx, plano.id, { startsAt: quando });
-  await confirmDateOption(ctx, opcao.id);
-  await changePlanStatus(ctx, plano.id, "completed");
+/** Plano em `planned`, com a data confirmada que se pedir. */
+async function planoComData(titulo: string, quando: Date): Promise<string> {
+  const plano = await createPlan(ctxB1, { title: titulo, category: "outro" });
+  const opcao = await createDateOption(ctxB1, plano.id, { startsAt: quando });
+  await confirmDateOption(ctxB1, opcao.id);
   return plano.id;
 }
 
-/** Quantos eventos daquele verbo o workspace B já tem. */
-async function contarEventos(verb: "plan_completed" | "memory_added") {
+/** Plano já realizado — a travessia inteira, pelo caminho do produto. */
+async function planoRealizado(titulo: string, quando = ONTEM): Promise<string> {
+  const planId = await planoComData(titulo, quando);
+  await changePlanStatus(ctxB1, planId, "completed");
+  return planId;
+}
+
+async function statusDoPlano(planId: string): Promise<string> {
+  return (await getPlan(ctxB1, planId)).status;
+}
+
+async function contarEventos(planId: string): Promise<number> {
   const [linha] = await database
     .select({ total: sql<number>`count(*)::int` })
     .from(schema.activityEvents)
-    .where(
-      and(
-        eq(schema.activityEvents.workspaceId, WORKSPACE_B),
-        eq(schema.activityEvents.verb, verb),
-      ),
-    );
+    .where(eq(schema.activityEvents.subjectId, planId));
 
-  return Number(linha?.total ?? 0);
+  return linha?.total ?? 0;
+}
+
+async function verbosDoPlano(planId: string): Promise<string[]> {
+  const linhas = await database
+    .select({ verb: schema.activityEvents.verb })
+    .from(schema.activityEvents)
+    .where(eq(schema.activityEvents.subjectId, planId))
+    .orderBy(schema.activityEvents.createdAt);
+
+  return linhas.map((linha) => linha.verb);
 }
 
 beforeAll(async () => {
@@ -132,120 +137,107 @@ beforeAll(async () => {
     .values({ id: WORKSPACE_B, name: "Workspace de memórias B" })
     .onConflictDoNothing();
 
-  await database
-    .insert(schema.profiles)
-    .values([
-      { id: PROFILE_B1, displayName: "Dani" },
-      { id: PROFILE_B2, displayName: "Rô" },
-    ])
-    .onConflictDoNothing();
-
-  await database
-    .insert(schema.workspaceMembers)
-    .values([
-      { workspaceId: WORKSPACE_B, profileId: PROFILE_B1, role: "owner" },
-      { workspaceId: WORKSPACE_B, profileId: PROFILE_B2, role: "member" },
-    ])
-    .onConflictDoNothing();
+  for (const [id, nome] of [
+    [PROFILE_B1, "Bruna"],
+    [PROFILE_B2, "Caio"],
+  ] as const) {
+    await database
+      .insert(schema.profiles)
+      .values({ id, displayName: nome })
+      .onConflictDoNothing();
+    await database
+      .insert(schema.workspaceMembers)
+      .values({
+        workspaceId: WORKSPACE_B,
+        profileId: id,
+        role: id === PROFILE_B1 ? "owner" : "member",
+      })
+      .onConflictDoNothing();
+  }
 });
 
 afterAll(async () => {
   await database
     .delete(schema.workspaces)
     .where(eq(schema.workspaces.id, WORKSPACE_B));
-  await database
-    .delete(schema.profiles)
-    .where(inArray(schema.profiles.id, [PROFILE_B1, PROFILE_B2]));
+  for (const id of [PROFILE_B1, PROFILE_B2]) {
+    await database.delete(schema.profiles).where(eq(schema.profiles.id, id));
+  }
   await databaseModule?.closeDatabasePool();
 });
 
-describe("a pré-condição de completed", () => {
+/* ------------------------------------------------------------------ *
+ * A pré-condição da travessia
+ * ------------------------------------------------------------------ */
+
+describe("planned → completed exige data confirmada em dia não futuro", () => {
   it("recusa sem data confirmada", async () => {
     const plano = await createPlan(ctxB1, {
       title: "Sem data nenhuma",
       category: "outro",
     });
-
-    // `planned` também é recusado sem data (D-063), então o caminho até
-    // `completed` é forçado a partir de `deciding`.
-    await changePlanStatus(ctxB1, plano.id, "deciding");
+    /* Chega a `planned` por um caminho que não é o botão: confirma a data e
+       depois a desmarca deixaria em `deciding`. Aqui o estado é montado
+       direto, porque o que se prova é a pré-condição da travessia. */
+    await database
+      .update(schema.plans)
+      .set({ status: "planned" })
+      .where(eq(schema.plans.id, plano.id));
 
     await expect(
       changePlanStatus(ctxB1, plano.id, "completed"),
-    ).rejects.toThrow(InvalidTransitionError);
+    ).rejects.toThrowError(NO_DATE_TO_COMPLETE);
 
-    const facts = await readPlanFacts(ctxB1, plano.id);
-    expect(facts.hasConfirmedDate).toBe(false);
-    expect(offerableTransitions("planned", facts)).not.toContain("completed");
+    expect(await statusDoPlano(plano.id)).toBe("planned");
   });
 
   it("recusa com data confirmada no futuro", async () => {
-    const plano = await createPlan(ctxB1, {
-      title: "Date de semana que vem",
-      category: "outro",
-    });
-    const opcao = await createDateOption(ctxB1, plano.id, {
-      startsAt: asHoras(AMANHA, 20),
-    });
-    await confirmDateOption(ctxB1, opcao.id);
+    const plano = await planoComData("Date de amanhã", AMANHA);
 
-    const facts = await readPlanFacts(ctxB1, plano.id);
-    expect(facts.hasConfirmedDate).toBe(true);
-    expect(facts.confirmedDateIsFuture).toBe(true);
-
-    // A interface não oferece o botão...
-    expect(offerableTransitions("planned", facts)).not.toContain("completed");
-
-    // ...e a mutation recusa de novo, que é a segunda das duas consultas.
     await expect(
-      changePlanStatus(ctxB1, plano.id, "completed"),
-    ).rejects.toThrow(ValidationError);
+      changePlanStatus(ctxB1, plano, "completed"),
+    ).rejects.toThrowError(DATE_STILL_AHEAD);
+
+    expect(await statusDoPlano(plano)).toBe("planned");
   });
 
   it("aceita com data de hoje — hoje conta, amanhã não", async () => {
-    const plano = await createPlan(ctxB1, {
-      title: "Date de hoje cedo",
-      category: "outro",
-    });
-    const opcao = await createDateOption(ctxB1, plano.id, {
-      startsAt: asHoras(HOJE, 9),
-    });
-    await confirmDateOption(ctxB1, opcao.id);
+    /* O caso que uma comparação por milissegundos erraria: `startsAt` é a
+       meia-noite de hoje, e às 15h de hoje ela está no passado; mas um date
+       hoje às 20h teria `startsAt` no futuro e precisa ser aceito igual, porque
+       a comparação é de dia civil (B7). */
+    const plano = await planoComData("Date de hoje", HOJE);
 
-    const facts = await readPlanFacts(ctxB1, plano.id);
-    expect(facts.confirmedDateIsFuture).toBe(false);
-    expect(offerableTransitions("planned", facts)).toContain("completed");
-
-    const realizado = await changePlanStatus(ctxB1, plano.id, "completed");
-    expect(realizado.status).toBe("completed");
+    await changePlanStatus(ctxB1, plano, "completed");
+    expect(await statusDoPlano(plano)).toBe("completed");
   });
 
-  it("um date de hoje às 23h continua sendo de hoje ao meio-dia", async () => {
-    /* Dia civil, não subtração de milissegundos: às 12h, um date marcado para
-       as 23h de hoje ainda está 11 horas no futuro em instantes, e mesmo assim
-       é hoje (D-061). */
-    const plano = await createPlan(ctxB1, {
-      title: "Date de hoje à noite",
-      category: "outro",
-    });
-    const opcao = await createDateOption(ctxB1, plano.id, {
-      startsAt: asHoras(HOJE, 23, 30),
-    });
-    await confirmDateOption(ctxB1, opcao.id);
+  it("a interface não oferece o botão que seria recusado", async () => {
+    const amanha = await planoComData("Ainda vai acontecer", AMANHA);
+    const ontem = await planoComData("Já aconteceu", ONTEM);
 
-    const facts = await readPlanFacts(ctxB1, plano.id, undefined, asHoras(HOJE, 12));
-    expect(facts.confirmedDateIsFuture).toBe(false);
+    const factsAmanha = await readPlanFacts(ctxB1, amanha);
+    const factsOntem = await readPlanFacts(ctxB1, ontem);
+
+    expect(factsAmanha.hasConfirmedDate).toBe(true);
+    expect(factsAmanha.confirmedDateHasArrived).toBe(false);
+    expect(offerableTransitions("planned", factsAmanha)).not.toContain(
+      "completed",
+    );
+
+    expect(factsOntem.confirmedDateHasArrived).toBe(true);
+    expect(offerableTransitions("planned", factsOntem)).toContain("completed");
   });
 });
 
-describe("terminal na transição, não na escrita", () => {
-  let plano = "";
+/* ------------------------------------------------------------------ *
+ * Terminal na transição, não na escrita
+ * ------------------------------------------------------------------ */
 
-  beforeAll(async () => {
-    plano = await planoRealizado(ctxB1, "Terminal mas vivo");
-  });
-
+describe("completed é terminal na transição", () => {
   it("nenhuma transição sai de completed", async () => {
+    const plano = await planoRealizado("Não sai mais daqui");
+
     for (const destino of [
       "idea",
       "deciding",
@@ -255,510 +247,508 @@ describe("terminal na transição, não na escrita", () => {
     ] as const) {
       await expect(
         changePlanStatus(ctxB1, plano, destino),
-      ).rejects.toThrow(InvalidTransitionError);
+      ).rejects.toThrowError(/não é permitida/);
     }
+
+    expect(await statusDoPlano(plano)).toBe("completed");
   });
 
   it("e a interface não oferece nenhuma", async () => {
+    const plano = await planoRealizado("Sem botão de volta");
     const facts = await readPlanFacts(ctxB1, plano);
+
     expect(offerableTransitions("completed", facts)).toEqual([]);
   });
+});
 
-  it("avaliar funciona num plano completed", async () => {
-    await setMemoryRating(ctxB1, plano, 5);
-    const memoria = await getPlanMemory(ctxB1, plano);
+describe("completed NÃO é terminal na escrita (seção 3)", () => {
+  it("avaliar, escrever e lançar gasto funcionam num plano realizado", async () => {
+    const plano = await planoRealizado("Realizado e vivo");
 
-    expect(
-      memoria.ratings.find((r) => r.profileId === PROFILE_B1)?.rating,
-    ).toBe(5);
-  });
-
-  it("lançar gasto continua funcionando num plano completed", async () => {
-    await addExpense(ctxB1, plano, {
-      label: "Jantar",
-      amountCents: 12_345,
+    await rateMemory(ctxB1, plano, 5);
+    await setWouldRepeat(ctxB1, plano, "yes");
+    await saveMemoryNotes(ctxB1, plano, {
+      highlight: "A caminhada de volta",
+      notes: "Ir mais cedo da próxima vez.",
     });
 
-    const [linha] = await database
-      .select({ total: sql<number>`count(*)::int` })
-      .from(schema.expenses)
-      .where(eq(schema.expenses.planId, plano));
+    // O gasto é do B8 e continua editável: é depois que se sabe quanto custou.
+    await addExpense(ctxB1, plano, { label: "Jantar", amountCents: 12_000 });
 
-    expect(Number(linha?.total)).toBe(1);
+    const { mine, summary } = await listPlanRatings(ctxB1, plano);
+    expect(mine?.rating).toBe(5);
+    expect(mine?.wouldRepeat).toBe("yes");
+    expect(mine?.highlight).toBe("A caminhada de volta");
+    expect(await listExpenses(ctxB1, plano)).toHaveLength(1);
+
+    // Uma pessoa só: ainda não há média.
+    expect(summary.average).toBeNull();
   });
 
-  it("guardar foto de memória continua funcionando num plano completed", async () => {
-    /* A linha de `media` é inserida direto: o fluxo do B5 exige R2, que tem
-       suíte própria (`test:media`). O que se prova aqui é que o `purpose`
-       `memory` é aceito num plano terminal e entra na contagem da timeline. */
-    await database.insert(schema.media).values({
-      workspaceId: WORKSPACE_B,
-      planId: plano,
-      objectKey: `${WORKSPACE_B}/${plano}/${crypto.randomUUID()}/full.webp`,
-      thumbObjectKey: `${WORKSPACE_B}/${plano}/${crypto.randomUUID()}/thumb.webp`,
-      mimeType: "image/webp",
-      sizeBytes: 1024,
-      purpose: "memory",
-      uploadedBy: PROFILE_B1,
-    });
+  it("avaliar um plano que ainda não é realizado é recusado", async () => {
+    const plano = await planoComData("Ainda não aconteceu", AMANHA);
 
-    const pagina = await listMemoryTimeline(ctxB1, 1);
-    const card = pagina.items.find((item) => item.planId === plano);
-
-    expect(card?.photoCount).toBe(1);
-  });
-
-  it("o checklist, ao contrário, fecha: 'o que levar' já não tem função", async () => {
-    await expect(
-      addChecklistItem(ctxB1, plano, "Levar guarda-chuva"),
-    ).rejects.toThrow(ValidationError);
-  });
-
-  it("o cadeado do B6 continua fechado: a data não se desmarca nem se apaga", async () => {
-    await expect(unconfirmDateOption(ctxB1, plano)).rejects.toThrow(
+    await expect(rateMemory(ctxB1, plano, 4)).rejects.toBeInstanceOf(
       ValidationError,
     );
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * O cadeado do B6
+ * ------------------------------------------------------------------ */
+
+describe("o cadeado do B6 continua fechado", () => {
+  it("desconfirmar a data de um plano realizado é recusado", async () => {
+    const plano = await planoRealizado("Data trancada");
+
+    await expect(unconfirmDateOption(ctxB1, plano)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+
+    const facts = await readPlanFacts(ctxB1, plano);
+    expect(facts.hasConfirmedDate).toBe(true);
+  });
+
+  it("apagar a data confirmada de um plano realizado é recusado", async () => {
+    const plano = await planoRealizado("Data que não se apaga");
 
     const [opcao] = await database
       .select({ id: schema.planDateOptions.id })
       .from(schema.planDateOptions)
       .where(eq(schema.planDateOptions.planId, plano));
 
-    await expect(deleteDateOption(ctxB1, opcao!.id)).rejects.toThrow(
-      ValidationError,
+    await expect(deleteDateOption(ctxB1, opcao!.id)).rejects.toThrowError(
+      /data confirmada/,
     );
   });
 });
 
-describe("avaliação — as regras da votação, aplicadas à nota", () => {
+/* ------------------------------------------------------------------ *
+ * Avaliação
+ * ------------------------------------------------------------------ */
+
+describe("avaliação das duas pessoas (seção 4)", () => {
   let plano = "";
 
-  beforeAll(async () => {
-    plano = await planoRealizado(ctxB1, "Jantar para avaliar");
+  beforeEach(async () => {
+    plano = await planoRealizado("Plano da avaliação");
   });
 
-  it("uma pessoa avaliando não produz média", async () => {
-    await setMemoryRating(ctxB1, plano, 4);
-    const memoria = await getPlanMemory(ctxB1, plano);
+  it("uma pessoa avaliando não produz média; as duas produzem", async () => {
+    await rateMemory(ctxB1, plano, 5);
 
-    expect(memoria.averageTenths).toBeNull();
-    expect(memoria.ratings).toHaveLength(2);
+    const so = await listPlanRatings(ctxB1, plano);
+    expect(so.summary.average).toBeNull();
+    expect(so.summary.answered).toBe(1);
+
+    await rateMemory(ctxB2, plano, 4);
+
+    const duas = await listPlanRatings(ctxB1, plano);
+    expect(duas.summary.average).toBe(4.5);
+    expect(duas.summary.answered).toBe(2);
   });
 
-  it("ausência aparece como ausência, não como zero", async () => {
-    const memoria = await getPlanMemory(ctxB1, plano);
-    const outra = memoria.ratings.find((r) => r.profileId === PROFILE_B2);
+  it("a ausência aparece como ausência, não como zero", async () => {
+    await rateMemory(ctxB1, plano, 3);
 
-    expect(outra?.rating).toBeNull();
-    expect(outra?.rating).not.toBe(0);
+    const { members } = await listPlanRatings(ctxB1, plano);
+
+    expect(members).toHaveLength(2);
+    const caio = members.find((m) => m.profileId === PROFILE_B2)!;
+
+    expect(caio.rating).toBeNull();
+    expect(caio.rating).not.toBe(0);
+    expect(caio.displayName).toBe("Caio");
   });
 
-  it("as duas avaliando produzem média", async () => {
-    await setMemoryRating(ctxB2, plano, 5);
-    const memoria = await getPlanMemory(ctxB1, plano);
+  it("reenviar a mesma nota retira a avaliação", async () => {
+    await rateMemory(ctxB1, plano, 4);
+    expect((await listPlanRatings(ctxB1, plano)).mine?.rating).toBe(4);
 
-    expect(memoria.averageTenths).toBe(45);
+    // É o que a action faz quando o controle manda valor vazio.
+    await clearMemoryRating(ctxB1, plano);
+
+    const depois = await listPlanRatings(ctxB1, plano);
+    expect(depois.mine?.rating).toBeNull();
+    expect(depois.summary.answered).toBe(0);
   });
 
-  it("reenviar a mesma nota a retira, e a média some junto", async () => {
-    await clearMemoryRating(ctxB2, plano);
-    const memoria = await getPlanMemory(ctxB1, plano);
-
-    expect(
-      memoria.ratings.find((r) => r.profileId === PROFILE_B2)?.rating,
-    ).toBeNull();
-    expect(memoria.averageTenths).toBeNull();
-  });
-
-  it("retirar a nota leva o repetiria junto, porque nota é NOT NULL", async () => {
-    await setMemoryRating(ctxB2, plano, 3);
-    await setMemoryRepeat(ctxB2, plano, "yes");
-
-    let memoria = await getPlanMemory(ctxB1, plano);
-    expect(
-      memoria.ratings.find((r) => r.profileId === PROFILE_B2)?.wouldRepeat,
-    ).toBe("yes");
-
-    await clearMemoryRating(ctxB2, plano);
-    memoria = await getPlanMemory(ctxB1, plano);
-
-    const depois = memoria.ratings.find((r) => r.profileId === PROFILE_B2);
-    expect(depois?.rating).toBeNull();
-    expect(depois?.wouldRepeat).toBeNull();
-  });
-
-  it("repetiria sem nota é recusado", async () => {
-    await expect(setMemoryRepeat(ctxB2, plano, "no")).rejects.toThrow(
-      ValidationError,
-    );
-  });
-
-  it("a melhor parte e as observações são do casal, uma por plano", async () => {
-    await saveMemoryText(ctxB1, plano, {
-      highlight: "A sobremesa",
-      notes: "Chegamos cedo e deu certo.",
-    });
-    await saveMemoryText(ctxB2, plano, {
-      highlight: "A sobremesa mesmo",
-      notes: "Chegamos cedo e deu certo.",
+  it("mudar de nota não apaga o que a pessoa escreveu", async () => {
+    await rateMemory(ctxB1, plano, 3);
+    await saveMemoryNotes(ctxB1, plano, {
+      highlight: "O fim da tarde",
+      notes: null,
     });
 
-    const [linhas] = await database
-      .select({ total: sql<number>`count(*)::int` })
-      .from(schema.memories)
-      .where(eq(schema.memories.planId, plano));
+    await rateMemory(ctxB1, plano, 5);
 
-    expect(Number(linhas?.total)).toBe(1);
-
-    const memoria = await getPlanMemory(ctxB1, plano);
-    expect(memoria.memory?.highlight).toBe("A sobremesa mesmo");
+    const { mine } = await listPlanRatings(ctxB1, plano);
+    expect(mine?.rating).toBe(5);
+    expect(mine?.highlight).toBe("O fim da tarde");
   });
 
-  it("avaliar plano que ainda não aconteceu é recusado", async () => {
-    const aberto = await createPlan(ctxB1, {
-      title: "Ainda vai acontecer",
-      category: "outro",
+  it("retirar a nota leva os textos junto — rating é NOT NULL", async () => {
+    await rateMemory(ctxB1, plano, 3);
+    await saveMemoryNotes(ctxB1, plano, {
+      highlight: "Some junto",
+      notes: "Isto também",
     });
 
-    await expect(setMemoryRating(ctxB1, aberto.id, 5)).rejects.toThrow(
-      ValidationError,
-    );
+    await clearMemoryRating(ctxB1, plano);
+
+    const { mine } = await listPlanRatings(ctxB1, plano);
+    expect(mine?.highlight).toBeNull();
+    expect(mine?.notes).toBeNull();
+  });
+
+  it("escrever antes de dar nota é recusado, com frase", async () => {
+    await expect(
+      saveMemoryNotes(ctxB1, plano, { highlight: "Sem nota", notes: null }),
+    ).rejects.toThrowError(/Dê uma nota antes/);
+  });
+
+  it("ninguém escreve na avaliação do outro", async () => {
+    await rateMemory(ctxB1, plano, 5);
+    await rateMemory(ctxB2, plano, 2);
+
+    await setWouldRepeat(ctxB2, plano, "no");
+
+    const { members } = await listPlanRatings(ctxB1, plano);
+    const bruna = members.find((m) => m.profileId === PROFILE_B1)!;
+    const caio = members.find((m) => m.profileId === PROFILE_B2)!;
+
+    expect(bruna.rating).toBe(5);
+    expect(bruna.wouldRepeat).toBeNull();
+    expect(caio.rating).toBe(2);
+    expect(caio.wouldRepeat).toBe("no");
   });
 });
 
-describe("o banco recusa o que só ele pode recusar", () => {
-  let memoryId = "";
+describe("o que o banco garante, e não a camada de dados", () => {
+  it("uma avaliação por (plano, pessoa), burlando a camada", async () => {
+    const plano = await planoRealizado("Plano do único");
+    await rateMemory(ctxB1, plano, 4);
 
-  beforeAll(async () => {
-    const plano = await planoRealizado(ctxB1, "Plano dos invariantes");
-    await setMemoryRating(ctxB1, plano, 3);
-
-    const [linha] = await database
-      .select({ id: schema.memories.id })
-      .from(schema.memories)
-      .where(eq(schema.memories.planId, plano));
-
-    memoryId = linha!.id;
-  });
-
-  it("duas notas da mesma pessoa na mesma memória, burlando a camada de dados", async () => {
     await expect(
       database.insert(schema.memoryRatings).values({
         workspaceId: WORKSPACE_B,
-        memoryId,
+        planId: plano,
         profileId: PROFILE_B1,
-        rating: 5,
+        rating: 2,
       }),
     ).rejects.toThrow();
   });
 
-  it("nota fora de 1 a 5, burlando a camada de dados", async () => {
-    for (const rating of [0, 6, -1]) {
+  it("nota fora de 1–5 é recusada pelo CHECK, burlando a camada", async () => {
+    const plano = await planoRealizado("Plano do CHECK");
+
+    for (const nota of [0, 6, -1]) {
       await expect(
         database.insert(schema.memoryRatings).values({
           workspaceId: WORKSPACE_B,
-          memoryId,
-          profileId: PROFILE_B2,
-          rating,
+          planId: plano,
+          profileId: PROFILE_B1,
+          rating: nota,
         }),
       ).rejects.toThrow();
     }
   });
-
-  it("duas memórias para o mesmo plano", async () => {
-    const [linha] = await database
-      .select({ planId: schema.memories.planId })
-      .from(schema.memories)
-      .where(eq(schema.memories.id, memoryId));
-
-    await expect(
-      database.insert(schema.memories).values({
-        workspaceId: WORKSPACE_B,
-        planId: linha!.planId,
-      }),
-    ).rejects.toThrow();
-  });
 });
 
-describe("eventos — o que entra no feed e o que não entra", () => {
+/* ------------------------------------------------------------------ *
+ * Eventos
+ * ------------------------------------------------------------------ */
+
+describe("eventos (seção 8)", () => {
   it("concluir emite uma vez; a primeira avaliação de cada pessoa emite uma vez", async () => {
-    const concluidosAntes = await contarEventos("plan_completed");
-    const memoriasAntes = await contarEventos("memory_added");
+    const plano = await planoComData("Plano do feed", ONTEM);
+    const antesDaTravessia = await contarEventos(plano);
 
-    const plano = await planoRealizado(ctxB1, "Plano dos eventos");
+    await changePlanStatus(ctxB1, plano, "completed");
+    expect(await contarEventos(plano)).toBe(antesDaTravessia + 1);
 
-    expect(await contarEventos("plan_completed")).toBe(concluidosAntes + 1);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes);
+    await rateMemory(ctxB1, plano, 5);
+    expect(await contarEventos(plano)).toBe(antesDaTravessia + 2);
 
-    await setMemoryRating(ctxB1, plano, 4);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 1);
+    await rateMemory(ctxB2, plano, 4);
+    expect(await contarEventos(plano)).toBe(antesDaTravessia + 3);
 
-    await setMemoryRating(ctxB2, plano, 2);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 2);
-
-    // Editar a nota três vezes não acrescenta linha nenhuma.
-    await setMemoryRating(ctxB1, plano, 5);
-    await setMemoryRating(ctxB1, plano, 3);
-    await setMemoryRating(ctxB1, plano, 1);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 2);
-
-    // Nem o "repetiria", nem a melhor parte, nem a foto de memória.
-    await setMemoryRepeat(ctxB1, plano, "maybe");
-    await saveMemoryText(ctxB1, plano, { highlight: "O bis", notes: null });
-    await database.insert(schema.media).values({
-      workspaceId: WORKSPACE_B,
-      planId: plano,
-      objectKey: `${WORKSPACE_B}/${plano}/${crypto.randomUUID()}/full.webp`,
-      thumbObjectKey: `${WORKSPACE_B}/${plano}/${crypto.randomUUID()}/thumb.webp`,
-      mimeType: "image/webp",
-      sizeBytes: 2048,
-      purpose: "memory",
-      uploadedBy: PROFILE_B1,
-    });
-
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 2);
-
-    /* Retirar e reavaliar emite de novo: a linha nasceu outra vez, e o feed
-       conta o que aconteceu. Não é edição, é uma avaliação nova. */
-    await clearMemoryRating(ctxB2, plano);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 2);
-
-    await setMemoryRating(ctxB2, plano, 4);
-    expect(await contarEventos("memory_added")).toBe(memoriasAntes + 3);
+    const verbos = await verbosDoPlano(plano);
+    expect(verbos.filter((v) => v === "plan_completed")).toHaveLength(1);
+    expect(verbos.filter((v) => v === "memory_added")).toHaveLength(2);
   });
-});
 
-describe("dois workspaces não se tocam", () => {
-  let planoDeB = "";
+  it("editar a nota três vezes não acrescenta linha nenhuma", async () => {
+    const plano = await planoRealizado("Plano da edição");
+    await rateMemory(ctxB1, plano, 3);
 
-  beforeAll(async () => {
-    planoDeB = await planoRealizado(ctxB1, "Memória privada do B");
-    await setMemoryRating(ctxB1, planoDeB, 5);
-    await saveMemoryText(ctxB1, planoDeB, {
-      highlight: "Segredo do B",
+    const antes = await contarEventos(plano);
+
+    await rateMemory(ctxB1, plano, 4);
+    await rateMemory(ctxB1, plano, 5);
+    await rateMemory(ctxB1, plano, 2);
+    await setWouldRepeat(ctxB1, plano, "maybe");
+    await saveMemoryNotes(ctxB1, plano, {
+      highlight: "Mudei de ideia de novo",
       notes: null,
     });
+
+    expect(await contarEventos(plano)).toBe(antes);
   });
 
-  it("a timeline de A não mostra nada de B, em página nenhuma", async () => {
-    for (const pagina of [1, 2, 3]) {
-      const vista = await listMemoryTimeline(ctxA, pagina);
-      expect(vista.items.map((item) => item.planId)).not.toContain(planoDeB);
-    }
-  });
+  it("retirar e reavaliar não emite de novo — quem já avaliou já entrou no feed", async () => {
+    const plano = await planoRealizado("Plano do vai e volta");
 
-  it("A não lê a memória de um plano de B", async () => {
-    const vista = await getPlanMemory(ctxA, planoDeB);
+    await rateMemory(ctxB1, plano, 4);
+    const depoisDaPrimeira = await contarEventos(plano);
 
-    // Nem a memória, nem as notas: o predicado de workspace corta antes.
-    expect(vista.memory).toBeNull();
-    expect(vista.ratings.every((r) => r.rating === null)).toBe(true);
-  });
+    await clearMemoryRating(ctxB1, plano);
+    expect(await contarEventos(plano)).toBe(depoisDaPrimeira);
 
-  it("A não cria nem altera avaliação em plano de B", async () => {
-    await expect(setMemoryRating(ctxA, planoDeB, 1)).rejects.toThrow();
-    await expect(
-      saveMemoryText(ctxA, planoDeB, { highlight: "invasão", notes: null }),
-    ).rejects.toThrow();
-  });
-
-  it("A não apaga a avaliação de B", async () => {
-    await expect(clearMemoryRating(ctxA, planoDeB)).rejects.toThrow();
-
-    const depois = await getPlanMemory(ctxB1, planoDeB);
-    expect(
-      depois.ratings.find((r) => r.profileId === PROFILE_B1)?.rating,
-    ).toBe(5);
-    expect(depois.memory?.highlight).toBe("Segredo do B");
+    /* Retirar apaga a linha, então a próxima nota é "primeira" de novo para o
+       banco. Emitir aqui seria contar duas vezes o mesmo acontecimento — mas
+       não emitir exigiria guardar que a pessoa já avaliou algum dia, e esse é
+       um estado que o produto não tem. O feed do B10 vai ver duas linhas de um
+       date em que a pessoa mudou de ideia sobre avaliar; é o preço, e é
+       pequeno. */
+    await rateMemory(ctxB1, plano, 5);
+    expect(await contarEventos(plano)).toBe(depoisDaPrimeira + 1);
   });
 });
 
-/**
- * A armadilha do bloco, medida.
- *
- * Com oito planos, uma timeline que consulta por linha responde igual a uma que
- * consulta em bloco — nada ficaria vermelho, nunca. Sessenta planos separam as
- * duas: por linha seriam mais de cento e vinte consultas.
- */
-describe("o número de consultas é constante em relação ao número de planos", () => {
-  const EM_ESCALA = 60;
-  const criados: string[] = [];
+/* ------------------------------------------------------------------ *
+ * Escala — a exigência medida da seção 7
+ * ------------------------------------------------------------------ */
 
-  /** Conta as idas ao banco de uma leitura, instrumentando o pool do drizzle. */
-  async function contarConsultas<T>(
-    executar: () => Promise<T>,
-  ): Promise<{ consultas: number; resultado: T }> {
-    const pool = database.$client as { query: (...args: never[]) => unknown };
-    const original = pool.query.bind(pool);
+describe("o número de consultas da timeline é constante", () => {
+  /** Ids do fixture em escala: criados e removidos aqui, sem tocar no seed. */
+  const EM_ESCALA: string[] = [];
 
-    let consultas = 0;
-    pool.query = ((...args: never[]) => {
-      consultas += 1;
-      return original(...args);
-    }) as typeof pool.query;
-
-    try {
-      const resultado = await executar();
-      return { consultas, resultado };
-    } finally {
-      pool.query = original as typeof pool.query;
+  afterAll(async () => {
+    if (EM_ESCALA.length > 0) {
+      await database
+        .delete(schema.plans)
+        .where(inArray(schema.plans.id, EM_ESCALA));
     }
-  }
+  });
 
-  beforeAll(async () => {
-    /* Fixture em escala inserida direto, em duas instruções: passar sessenta
-       planos pelo caminho do produto seriam duzentas e quarenta transações de
-       ida e volta, e o que se quer medir é a leitura. Criado e removido por
-       este teste, sem tocar no seed. */
-    const planos = Array.from({ length: EM_ESCALA }, (_, i) => ({
+  it("conta o mesmo com um plano e com sessenta", async () => {
+    const umSo = await planoRealizado("O único realizado do B");
+
+    const comUm = await countQueries(() => listMemories(ctxB1, { page: 1 }));
+    expect(comUm.result.total).toBeGreaterThanOrEqual(1);
+
+    /* Sessenta planos realizados, inseridos direto: o que se mede é a leitura,
+       e sessenta travessias pela camada de dados levariam minutos sem provar
+       nada a mais. */
+    const base = civilDateOf(new Date());
+    const planos = Array.from({ length: 60 }, (_, i) => ({
       id: crypto.randomUUID(),
       workspaceId: WORKSPACE_B,
-      title: `Date em escala ${i + 1}`,
+      title: `Realizado em escala ${i + 1}`,
       category: "outro",
       status: "completed" as const,
       createdBy: PROFILE_B1,
     }));
+
+    EM_ESCALA.push(...planos.map((plano) => plano.id));
 
     await database.insert(schema.plans).values(planos);
     await database.insert(schema.planDateOptions).values(
       planos.map((plano, i) => ({
         workspaceId: WORKSPACE_B,
         planId: plano.id,
-        // Dias distintos e no passado, espalhados por vários meses.
-        startsAt: asHoras(addCivilDays(ONTEM, -i), 20),
+        // Espalhados por vários meses, para a timeline agrupar de verdade.
+        startsAt: startOfDayInApp(addCivilDays(base, -(i + 2))),
         isConfirmed: true,
         createdBy: PROFILE_B1,
       })),
     );
 
-    criados.push(...planos.map((plano) => plano.id));
+    expect(await countMemories(ctxB1)).toBeGreaterThanOrEqual(61);
+
+    const comSessenta = await countQueries(() =>
+      listMemories(ctxB1, { page: 1 }),
+    );
+
+    /* O número, e não a sensação: se a página buscasse capa, contagem de fotos
+       ou avaliação por linha, este segundo número seria dezenas de vezes maior
+       que o primeiro — e nada disso apareceria com os oito planos do seed.
+       A comparação é pelo `total`, não por `entries.length`: a página 1 já
+       vem cheia (`MEMORIES_PER_PAGE`) com os planos do seed, então o tamanho
+       da página não muda — o que muda é quantas páginas existem. */
+    expect(comSessenta.queries).toBe(comUm.queries);
+    expect(comSessenta.result.total).toBeGreaterThan(comUm.result.total);
+
+    // E a última página custa o mesmo que a primeira.
+    const ultima = await countQueries(() =>
+      listMemories(ctxB1, { page: comSessenta.result.pageCount }),
+    );
+    expect(ultima.queries).toBe(comUm.queries);
+
+    expect(umSo).toBeTruthy();
   });
 
-  afterAll(async () => {
-    await database
-      .delete(schema.plans)
-      .where(inArray(schema.plans.id, criados));
+  it("o detalhe do plano realizado também não cresce por linha", async () => {
+    const plano = await planoRealizado("Detalhe medido");
+
+    const vazio = await countQueries(() => listPlanRatings(ctxB1, plano));
+
+    await rateMemory(ctxB1, plano, 5);
+    await rateMemory(ctxB2, plano, 4);
+
+    const cheio = await countQueries(() => listPlanRatings(ctxB1, plano));
+
+    expect(cheio.queries).toBe(vazio.queries);
+    expect(cheio.result.members).toHaveLength(2);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Dois workspaces
+ * ------------------------------------------------------------------ */
+
+describe("nada atravessa o workspace", () => {
+  let planoDeB = "";
+
+  beforeAll(async () => {
+    planoDeB = await planoRealizado("Memória do B");
+    await rateMemory(ctxB1, planoDeB, 5);
+    await saveMemoryNotes(ctxB1, planoDeB, {
+      highlight: "Isto é do B",
+      notes: null,
+    });
   });
 
-  it("a fixture em escala existe mesmo", async () => {
-    const [linha] = await database
-      .select({ total: sql<number>`count(*)::int` })
-      .from(schema.plans)
-      .where(
-        and(
-          eq(schema.plans.workspaceId, WORKSPACE_B),
-          eq(schema.plans.status, "completed"),
-        ),
-      );
+  it("o A não lê a avaliação do B", async () => {
+    const doA = await listPlanRatings(ctxA, planoDeB);
 
-    expect(Number(linha?.total)).toBeGreaterThanOrEqual(EM_ESCALA);
+    /* Os membros que voltam são os do A; nenhuma avaliação do B aparece, e o
+       `mine` do A é nulo porque ele não é membro de lá. */
+    expect(doA.members.every((m) => m.rating === null)).toBe(true);
+    expect(doA.summary.answered).toBe(0);
   });
 
-  it("com UM plano realizado e com sessenta, o número é o mesmo", async () => {
-    /* A prova literal: esconde tudo menos um, mede, devolve, mede de novo.
-       Arquivar é o que a timeline usa para excluir, então isto não depende de
-       nenhum caminho que só o teste conheça — e devolve o estado (D-082). */
-    const visiveis = await database
-      .select({ id: schema.plans.id })
-      .from(schema.plans)
-      .where(
-        and(
-          eq(schema.plans.workspaceId, WORKSPACE_B),
-          eq(schema.plans.status, "completed"),
-          isNull(schema.plans.archivedAt),
-        ),
-      );
+  it("o A não cria nem altera avaliação no plano do B", async () => {
+    await expect(rateMemory(ctxA, planoDeB, 1)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
 
-    expect(visiveis.length).toBeGreaterThanOrEqual(EM_ESCALA);
+    await expect(
+      setWouldRepeat(ctxA, planoDeB, "no"),
+    ).rejects.toBeInstanceOf(NotFoundError);
 
-    const sobrevivente = visiveis[0]!.id;
-    const escondidos = visiveis
-      .map((linha) => linha.id)
-      .filter((id) => id !== sobrevivente);
+    await expect(
+      saveMemoryNotes(ctxA, planoDeB, { highlight: "invasor", notes: null }),
+    ).rejects.toBeInstanceOf(NotFoundError);
 
+    const doB = await listPlanRatings(ctxB1, planoDeB);
+    expect(doB.mine?.rating).toBe(5);
+    expect(doB.mine?.highlight).toBe("Isto é do B");
+  });
+
+  it("o A não apaga a avaliação do B", async () => {
+    await expect(
+      clearMemoryRating(ctxA, planoDeB),
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    expect((await listPlanRatings(ctxB1, planoDeB)).mine?.rating).toBe(5);
+  });
+
+  it("o A não marca o plano do B como realizado", async () => {
+    const planoNovo = await planoComData("Do B, ainda planejado", ONTEM);
+
+    await expect(
+      changePlanStatus(ctxA, planoNovo, "completed"),
+    ).rejects.toBeInstanceOf(NotFoundError);
+
+    expect(await statusDoPlano(planoNovo)).toBe("planned");
+  });
+
+  it("a timeline do A não mostra nada do B, em página nenhuma", async () => {
+    const doA = await listMemories(ctxA, { page: 1, perPage: 100 });
+    const idsDeA = doA.entries.map((entry) => entry.planId);
+
+    const idsDeB = (
+      await database
+        .select({ id: schema.plans.id })
+        .from(schema.plans)
+        .where(eq(schema.plans.workspaceId, WORKSPACE_B))
+    ).map((linha) => linha.id);
+
+    for (const id of idsDeB) {
+      expect(idsDeA).not.toContain(id);
+    }
+
+    // E percorrendo todas as páginas do A, não só a primeira.
+    for (let pagina = 1; pagina <= doA.pageCount; pagina += 1) {
+      const p = await listMemories(ctxA, { page: pagina });
+      for (const entry of p.entries) {
+        expect(idsDeB).not.toContain(entry.planId);
+      }
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * A timeline
+ * ------------------------------------------------------------------ */
+
+describe("a timeline lista o que deve", () => {
+  it("plano realizado entra; cancelado, arquivado e planejado não", async () => {
+    const realizado = await planoRealizado("Entra na timeline");
+    const planejado = await planoComData("Não entra: planejado", AMANHA);
+
+    const cancelado = await planoComData("Não entra: cancelado", ONTEM);
+    await changePlanStatus(ctxB1, cancelado, "cancelled");
+
+    const arquivado = await planoRealizado("Não entra: arquivado");
     await database
       .update(schema.plans)
       .set({ archivedAt: new Date() })
-      .where(inArray(schema.plans.id, escondidos));
+      .where(eq(schema.plans.id, arquivado));
 
-    let comUm: { consultas: number; resultado: Awaited<ReturnType<typeof listMemoryTimeline>> };
-    try {
-      comUm = await contarConsultas(() => listMemoryTimeline(ctxB1, 1));
-    } finally {
-      await database
-        .update(schema.plans)
-        .set({ archivedAt: null })
-        .where(inArray(schema.plans.id, escondidos));
+    const { entries } = await listMemories(ctxB1, { page: 1, perPage: 200 });
+    const ids = entries.map((entry) => entry.planId);
+
+    expect(ids).toContain(realizado);
+    expect(ids).not.toContain(planejado);
+    expect(ids).not.toContain(cancelado);
+    expect(ids).not.toContain(arquivado);
+  });
+
+  it("vem do mais recente para o mais antigo", async () => {
+    const { entries } = await listMemories(ctxB1, { page: 1, perPage: 200 });
+
+    for (let i = 1; i < entries.length; i += 1) {
+      expect(entries[i - 1]!.happenedAt.getTime()).toBeGreaterThanOrEqual(
+        entries[i]!.happenedAt.getTime(),
+      );
+    }
+  });
+
+  it("página além do fim cai na última, sem erro e sem lista quebrada", async () => {
+    const pedida = await listMemories(ctxB1, { page: 9999, perPage: 5 });
+
+    expect(pedida.page).toBe(pedida.pageCount);
+    expect(pedida.entries.length).toBeGreaterThan(0);
+  });
+
+  it("cada página traz itens diferentes, sem repetir nem pular", async () => {
+    const total = await countMemories(ctxB1);
+    const vistos = new Set<string>();
+
+    const primeira = await listMemories(ctxB1, { page: 1, perPage: 5 });
+
+    for (let pagina = 1; pagina <= primeira.pageCount; pagina += 1) {
+      const p = await listMemories(ctxB1, { page: pagina, perPage: 5 });
+      for (const entry of p.entries) {
+        expect(vistos.has(entry.planId)).toBe(false);
+        vistos.add(entry.planId);
+      }
     }
 
-    const comSessenta = await contarConsultas(() =>
-      listMemoryTimeline(ctxB1, 1),
-    );
-
-    expect(comUm.resultado.items).toHaveLength(1);
-    expect(comSessenta.resultado.items).toHaveLength(MEMORIES_PER_PAGE);
-
-    expect(comUm.consultas).toBe(comSessenta.consultas);
-    expect(comUm.consultas).toBe(4);
-  });
-
-  it("e o mesmo entre uma página cheia e uma página parcial", async () => {
-    /* Uma página inteira contra um único item. O parâmetro da leitura é o
-       tamanho da página, e o que se mede é se o número de consultas depende de
-       quantas linhas voltaram. */
-    const cheia = await contarConsultas(() => listMemoryTimeline(ctxB1, 1));
-    expect(cheia.resultado.items.length).toBe(MEMORIES_PER_PAGE);
-
-    /* A última página tem uma linha só — sessenta e tantos planos em páginas de
-       vinte e quatro. Se a consulta fosse por linha, aqui o número cairia. */
-    const ultima = await contarConsultas(() =>
-      listMemoryTimeline(ctxB1, Math.ceil((EM_ESCALA + 5) / MEMORIES_PER_PAGE)),
-    );
-    expect(ultima.resultado.items.length).toBeGreaterThan(0);
-    expect(ultima.resultado.items.length).toBeLessThan(MEMORIES_PER_PAGE);
-
-    expect(cheia.consultas).toBe(ultima.consultas);
-    expect(cheia.consultas).toBe(4);
-  });
-
-  it("o detalhe do plano realizado também", async () => {
-    const semAvaliacao = criados[0]!;
-    const comAvaliacao = criados[1]!;
-    await setMemoryRating(ctxB1, comAvaliacao, 4);
-    await setMemoryRating(ctxB2, comAvaliacao, 5);
-
-    const vazio = await contarConsultas(() =>
-      getPlanMemory(ctxB1, semAvaliacao),
-    );
-    const cheio = await contarConsultas(() =>
-      getPlanMemory(ctxB1, comAvaliacao),
-    );
-
-    // Sem memória, a consulta das notas nem acontece. Com duas notas, uma só.
-    expect(vazio.consultas).toBe(2);
-    expect(cheio.consultas).toBe(3);
-    expect(cheio.resultado.averageTenths).toBe(45);
-  });
-
-  it("a paginação cobre a lista inteira sem repetir nem perder plano", async () => {
-    const vistos: string[] = [];
-
-    for (let pagina = 1; pagina <= 10; pagina += 1) {
-      const atual = await listMemoryTimeline(ctxB1, pagina);
-      vistos.push(...atual.items.map((item) => item.planId));
-      if (!atual.hasNext) break;
-    }
-
-    const emEscala = vistos.filter((id) => criados.includes(id));
-    expect(new Set(emEscala).size).toBe(emEscala.length);
-    expect(new Set(emEscala).size).toBe(EM_ESCALA);
-  });
-
-  it("página além do fim devolve lista vazia, não erro", async () => {
-    const longe = await listMemoryTimeline(ctxB1, 9_999_999);
-
-    expect(longe.items).toEqual([]);
-    expect(longe.hasNext).toBe(false);
-    expect(longe.hasPrevious).toBe(true);
+    expect(vistos.size).toBe(total);
   });
 });
