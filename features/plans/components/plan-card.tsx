@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, MapPin, Wallet } from "lucide-react";
+import { ArrowUpRight, Bookmark, Heart, MapPin, Wallet } from "lucide-react";
 import { CategoryArt } from "@/components/brand/category-art";
 import { StatusPill } from "@/components/ui/status-pill";
 import { MediaImage } from "@/features/media/components/media-image";
@@ -47,6 +47,30 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
           >
             {plan.title}
           </p>
+        ) : null}
+        {plan.isFavorite || plan.wantALotBy.length > 0 ? (
+          <div className="type-meta flex flex-wrap gap-2">
+            {plan.isFavorite ? (
+              <span className="bg-sage-soft inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
+                <Bookmark
+                  aria-hidden="true"
+                  className="size-3.5"
+                  fill="currentColor"
+                />
+                Seu favorito
+              </span>
+            ) : null}
+            {plan.wantALotBy.length > 0 ? (
+              <span className="bg-blush-soft inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
+                <Heart
+                  aria-hidden="true"
+                  className="size-3.5"
+                  fill="currentColor"
+                />
+                {plan.wantALotBy.join(" e ")} {plan.wantALotBy.length > 1 ? "querem" : "quer"} muito
+              </span>
+            ) : null}
+          </div>
         ) : null}
         <div className="type-meta text-text-muted flex flex-col gap-2">
           {plan.city ? (

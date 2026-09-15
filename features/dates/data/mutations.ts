@@ -156,6 +156,7 @@ export async function createDateOption(
     await emit(tx, ctx, "date_suggested", opcao.id, {
       planId,
       optionId: opcao.id,
+      startsAt: opcao.startsAt.toISOString(),
       allDay: opcao.allDay,
     });
 
@@ -220,7 +221,11 @@ export async function castVote(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [opcao] = await tx
-      .select({ id: planDateOptions.id, planId: planDateOptions.planId })
+      .select({
+        id: planDateOptions.id,
+        planId: planDateOptions.planId,
+        startsAt: planDateOptions.startsAt,
+      })
       .from(planDateOptions)
       .where(
         and(
@@ -252,6 +257,7 @@ export async function castVote(
       planId: opcao.planId,
       optionId,
       vote,
+      startsAt: opcao.startsAt.toISOString(),
     });
   });
 }
@@ -347,6 +353,7 @@ export async function confirmDateOption(
     await emit(tx, ctx, "date_confirmed", optionId, {
       planId: opcao.planId,
       optionId,
+      startsAt: opcao.startsAt.toISOString(),
     });
 
     return { planId: opcao.planId };

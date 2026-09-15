@@ -1,9 +1,22 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  isNull,
+  lte,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { plans } from "@/db/schema/index.ts";
+import { plans, reactions } from "@/db/schema/index.ts";
+import { listPlanReactionSummaries } from "@/features/reactions/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
 import { OPEN_STATUSES } from "@/lib/plan-status";
@@ -28,6 +41,11 @@ export type PlanSummary = {
   estimatedBudgetCents: number | null;
   archivedAt: Date | null;
   createdAt: Date;
+  /** Favorito é sempre o da pessoa atual; nunca a união do workspace. */
+  isFavorite: boolean;
+  isWantedByMe: boolean;
+  /** "Quero muito" é visível para as duas pessoas. */
+  wantALotBy: readonly string[];
 };
 
 export type Plan = typeof plans.$inferSelect;
@@ -40,6 +58,9 @@ export type ListPlansOptions = {
   sort?: PlanSort;
   includeArchived?: boolean;
   limit?: number;
+  city?: string;
+  maxBudgetCents?: number;
+  favoritesOnly?: boolean;
 };
 
 function orderFor(sort: PlanSort) {
@@ -67,6 +88,9 @@ export async function listPlans(
     category,
     sort = "recent",
     includeArchived = false,
+    city,
+    maxBudgetCents,
+    favoritesOnly = false,
   } = options;
 
   const conditions = [eq(plans.workspaceId, ctx.workspaceId)];
@@ -85,7 +109,33 @@ export async function listPlans(
     conditions.push(isNull(plans.archivedAt));
   }
 
-  return db
+  if (city) {
+    conditions.push(ilike(plans.city, `%${city}%`));
+  }
+
+  if (maxBudgetCents !== undefined) {
+    conditions.push(lte(plans.estimatedBudgetCents, maxBudgetCents));
+  }
+
+  if (favoritesOnly) {
+    conditions.push(
+      exists(
+        db
+          .select({ id: reactions.id })
+          .from(reactions)
+          .where(
+            and(
+              eq(reactions.workspaceId, ctx.workspaceId),
+              eq(reactions.planId, plans.id),
+              eq(reactions.profileId, ctx.profileId),
+              eq(reactions.type, "favorite"),
+            ),
+          ),
+      ),
+    );
+  }
+
+  const rows = await db
     .select({
       id: plans.id,
       title: plans.title,
@@ -102,6 +152,20 @@ export async function listPlans(
     .where(and(...conditions))
     .orderBy(...orderFor(sort))
     .limit(options.limit ?? 200);
+
+  const reactionSummaries = await listPlanReactionSummaries(
+    ctx,
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => ({
+    ...row,
+    ...(reactionSummaries.get(row.id) ?? {
+      isFavorite: false,
+      isWantedByMe: false,
+      wantALotBy: [],
+    }),
+  }));
 }
 
 /** Lança NotFoundError se o plano não existir ou for de outro workspace. */

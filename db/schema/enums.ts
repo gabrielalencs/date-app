@@ -58,4 +58,5 @@ export const activityVerb = pgEnum("activity_verb", [
   "booking_updated",
   "plan_completed",
   "memory_added",
+  "want_a_lot",
 ]);

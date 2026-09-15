@@ -36,6 +36,13 @@
       "when": 1789389741104,
       "tag": "0004_sudden_tombstone",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789482978951,
+      "tag": "0005_stiff_nextwave",
+      "breakpoints": true
     }
   ]
 }

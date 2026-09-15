@@ -5,21 +5,13 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PlanCard } from "@/features/plans/components/plan-card";
 import { PlanFilters } from "@/features/plans/components/plan-filters";
-import { listPlans, type PlanSort } from "@/features/plans/data/queries";
+import { listPlans } from "@/features/plans/data/queries";
+import { PlanRandomizer } from "@/features/discovery/components/plan-randomizer";
+import {
+  isRandomizableStatus,
+  parseDiscoveryFilters,
+} from "@/features/discovery/filters";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
-import { isCategory } from "@/lib/categories";
-import { PLAN_STATUSES, type PlanStatus } from "@/lib/status";
-
-function parseStatus(value: string | undefined): PlanStatus | "open" {
-  if (value && (PLAN_STATUSES as readonly string[]).includes(value)) {
-    return value as PlanStatus;
-  }
-  return "open";
-}
-
-function parseSort(value: string | undefined): PlanSort {
-  return value === "priority" || value === "budget" ? value : "recent";
-}
 
 export default async function Page({ searchParams }: PageProps<"/ideias">) {
   const ctx = await requireAuthorizedContext();
@@ -30,15 +22,17 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
     return Array.isArray(value) ? value[0] : value;
   };
 
-  const status = parseStatus(first("status"));
-  const categoria = first("categoria");
-  const sort = parseSort(first("ordem"));
-
-  const plans = await listPlans(ctx, {
-    status,
-    category: isCategory(categoria) ? categoria : undefined,
-    sort,
+  const maxBudgetInput = first("teto") ?? "";
+  const filters = parseDiscoveryFilters({
+    status: first("status"),
+    category: first("categoria"),
+    sort: first("ordem"),
+    city: first("cidade"),
+    maxBudget: maxBudgetInput,
+    favorites: first("favoritos"),
   });
+
+  const plans = await listPlans(ctx, filters);
 
   return (
     <div className="page-stack">
@@ -55,16 +49,34 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
       />
 
       <PlanFilters
-        status={status}
-        category={isCategory(categoria) ? categoria : undefined}
-        sort={sort}
+        status={filters.status}
+        category={filters.category}
+        sort={filters.sort}
+        city={filters.city}
+        maxBudgetInput={maxBudgetInput}
+        favoritesOnly={filters.favoritesOnly}
       />
+
+      {isRandomizableStatus(filters.status) ? (
+        <PlanRandomizer
+          filters={filters}
+          maxBudgetInput={maxBudgetInput}
+        />
+      ) : null}
 
       {plans.length === 0 ? (
         <EmptyState
           icon={Lightbulb}
-          title="Nenhuma ideia por aqui ainda"
-          description="Salve um lugar, um link ou uma vontade solta. Dá para decidir a data depois."
+          title={
+            filters.favoritesOnly
+              ? "Nenhuma ideia nos seus favoritos"
+              : "Nenhuma ideia combina com esses filtros"
+          }
+          description={
+            filters.favoritesOnly
+              ? "Favorite uma ideia para encontrá-la aqui depois."
+              : "Afrouxe um filtro ou guarde uma vontade nova para vocês."
+          }
           action={
             <ButtonLink href="/novo" variant="primary">
               Criar a primeira

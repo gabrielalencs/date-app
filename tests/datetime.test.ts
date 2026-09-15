@@ -8,6 +8,7 @@ import {
   formatDateTime,
   formatDay,
   formatRelativeDay,
+  formatRelativeHours,
   formatShortDate,
   formatTime,
   formatWeekday,
@@ -224,6 +225,28 @@ describe("formatRelativeDay", () => {
     expect(formatRelativeDay(new Date("2026-06-20T15:00:00Z"), hoje)).toBe(
       "em 7 dias",
     );
+  });
+});
+
+describe("formatRelativeHours", () => {
+  const agora = new Date("2026-06-14T12:30:00Z");
+
+  it("distingue menos de uma hora, singular e plural", () => {
+    expect(
+      formatRelativeHours(new Date("2026-06-14T12:00:01Z"), agora),
+    ).toBe("há menos de 1 hora");
+    expect(
+      formatRelativeHours(new Date("2026-06-14T11:15:00Z"), agora),
+    ).toBe("há 1 hora");
+    expect(
+      formatRelativeHours(new Date("2026-06-14T09:30:00Z"), agora),
+    ).toBe("há 3 horas");
+  });
+
+  it("não anuncia futuro quando os relógios diferem", () => {
+    expect(
+      formatRelativeHours(new Date("2026-06-14T12:31:00Z"), agora),
+    ).toBe("há menos de 1 hora");
   });
 });
 

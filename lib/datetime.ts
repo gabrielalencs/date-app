@@ -212,6 +212,24 @@ export function formatRelativeDay(
   return `há ${Math.abs(dias)} dias`;
 }
 
+/**
+ * Distância de um evento passado em horas, calculada no servidor.
+ *
+ * O feed recebe `now` da página para todas as linhas compartilharem o mesmo
+ * relógio e para a hidratação nunca depender da hora do aparelho.
+ */
+export function formatRelativeHours(
+  instant: Date,
+  now: Date = new Date(),
+): string {
+  const elapsedMs = Math.max(0, now.getTime() - instant.getTime());
+  const hours = Math.floor(elapsedMs / 3_600_000);
+
+  if (hours === 0) return "há menos de 1 hora";
+  if (hours === 1) return "há 1 hora";
+  return `há ${hours} horas`;
+}
+
 /** `yyyy-MM-dd` de uma tripla civil já convertida. */
 export function civilDayKey(civil: CivilDate): string {
   const mes = String(civil.month).padStart(2, "0");

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronDown, MapPin, Pencil, Wallet } from "lucide-react";
+import { ActivityFeed } from "@/features/activity/components/activity-feed";
+import { listPlanActivity } from "@/features/activity/data/queries";
+import { parseActivityPage } from "@/features/activity/url";
 import { EditorialNote } from "@/components/brand/editorial";
 import { CategoryArt } from "@/components/brand/category-art";
 import { PlanDates } from "@/features/dates/components/plan-dates";
@@ -28,15 +31,22 @@ import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
 import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
 import { PlanStatusControl } from "@/features/plans/components/plan-status-control";
 import { getPlan } from "@/features/plans/data/queries";
+import { PlanReactions } from "@/features/reactions/components/plan-reactions";
+import { listPlanReactions } from "@/features/reactions/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { categoryLabel } from "@/lib/categories";
 import { NotFoundError } from "@/lib/errors";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
-export default async function Page({ params }: PageProps<"/planos/[id]">) {
+export default async function Page({
+  params,
+  searchParams,
+}: PageProps<"/planos/[id]">) {
   const ctx = await requireAuthorizedContext();
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const rawPage = Array.isArray(query.pagina) ? query.pagina[0] : query.pagina;
+  const activityPage = parseActivityPage(rawPage);
   const plan = await getPlan(ctx, id).catch((error: unknown) => {
     if (error instanceof NotFoundError) notFound();
     throw error;
@@ -52,6 +62,8 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
     members,
     facts,
     ratings,
+    reactions,
+    activity,
   ] = await Promise.all([
     listPlanMedia(ctx, plan.id),
     listPlanDateOptions(ctx, plan.id),
@@ -64,6 +76,8 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
        linha (seção 7 do docs/MEMORIES.md). As fotos já vêm inteiras de
        `listPlanMedia`, e a separação por `purpose` acontece em memória. */
     realizado ? listPlanRatings(ctx, plan.id) : null,
+    listPlanReactions(ctx, plan.id),
+    listPlanActivity(ctx, plan.id, activityPage),
   ]);
 
   /* `gallery` é antes, `memory` é depois. Duas grades, conjuntos disjuntos —
@@ -166,6 +180,7 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
               />
             </div>
           </div>
+          <PlanReactions planId={plan.id} members={reactions} />
           {plan.requiresBooking ? (
             <PlanReservation
               planId={plan.id}
@@ -245,6 +260,12 @@ export default async function Page({ params }: PageProps<"/planos/[id]">) {
             </summary>
             <EditPlanForm plan={plan} />
           </details>
+          <ActivityFeed
+            planId={plan.id}
+            activity={activity}
+            currentProfileId={ctx.profileId}
+            now={now}
+          />
         </div>
       </div>
     </div>
