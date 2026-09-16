@@ -11,6 +11,8 @@ import {
   reservations,
   workspaceMembers,
 } from "@/db/schema/index.ts";
+import { enqueuePartnerIntent } from "@/features/notifications/data/outbox";
+import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import {
   MAX_CHECKLIST_ITEMS,
   MAX_EXPENSES_PER_PLAN,
@@ -216,7 +218,7 @@ export async function setReservationStatus(
   planId: string,
   status: ReservationStatus,
 ): Promise<void> {
-  await db.transaction(async (tx) => {
+  const intents = await db.transaction(async (tx) => {
     const plano = await lockPlan(tx, ctx, planId);
     await assertReservationAllowed(tx, ctx, plano);
 
@@ -239,7 +241,8 @@ export async function setReservationStatus(
         status,
       });
     } else {
-      if (atual.status === status) return;
+      /* Mesmo estado não é mudança: não grava evento e não notifica. */
+      if (atual.status === status) return [] as string[];
 
       await tx
         .update(reservations)
@@ -270,7 +273,19 @@ export async function setReservationStatus(
       subjectId: planId,
       metadata: { status },
     });
+
+    /* `expected` guarda o estado afirmado. Confirmar a reserva e desfazer
+       dentro da hora faz a revalidação encontrar `pending` onde a intent
+       esperava `confirmed`, e o push de confirmação não sai. */
+    return enqueuePartnerIntent(tx, ctx, {
+      kind: "booking_updated",
+      planId,
+      now: new Date(),
+      expected: { reservationStatus: status },
+    });
   });
+
+  await startNotificationWorkflows(intents);
 }
 
 /* ------------------------------------------------------------------ *

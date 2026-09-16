@@ -60,3 +60,33 @@ export const activityVerb = pgEnum("activity_verb", [
   "memory_added",
   "want_a_lot",
 ]);
+
+/**
+ * Estados da intenção de notificação (B11.5, seção 5 do docs/NOTIFICATIONS.md).
+ *
+ * `suppressed` não é falha: é o bloco funcionando. Quer dizer que a hora chegou,
+ * o servidor releu o estado e a afirmação que a intent carregava deixou de ser
+ * verdade — plano arquivado, reação retirada, data trocada.
+ */
+export const notificationIntentStatus = pgEnum("notification_intent_status", [
+  "pending",
+  "processing",
+  "sent",
+  "suppressed",
+  "cancelled",
+  "failed",
+]);
+
+export const notificationDeliveryStatus = pgEnum(
+  "notification_delivery_status",
+  ["pending", "sent", "stale", "failed"],
+);
+
+/**
+ * O lock screen é público para quem estiver perto da pessoa. `private` é o
+ * default e não mostra título do date nem data; `full` é opt-in consciente.
+ */
+export const notificationPreviewMode = pgEnum("notification_preview_mode", [
+  "private",
+  "full",
+]);

@@ -9,9 +9,16 @@ import {
   planDateVotes,
   plans,
 } from "@/db/schema/index.ts";
+import {
+  cancelDateReminders,
+  enqueueDateReminders,
+  enqueuePartnerIntent,
+} from "@/features/notifications/data/outbox";
+import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import { MAX_OPTIONS_PER_PLAN } from "@/features/dates/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import type { VoteValue } from "@/lib/consensus";
+import { dayKey } from "@/lib/datetime";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { RESERVATION_HOLDS_PLAN } from "@/lib/plan-preconditions";
 import { assertTransition } from "@/lib/plan-status";
@@ -106,7 +113,7 @@ export async function createDateOption(
     throw new ValidationError("O fim precisa ser depois do começo.");
   }
 
-  return db.transaction(async (tx) => {
+  const { opcao, intents } = await db.transaction(async (tx) => {
     const plano = await lockPlan(tx, ctx, planId);
 
     const existentes = await tx
@@ -166,8 +173,22 @@ export async function createDateOption(
       await moveStatus(tx, ctx, planId, "idea", "deciding");
     }
 
-    return opcao;
+    /* Debounce de 20 minutos por plano+ator: quatro datas sugeridas em sequência
+       caem na mesma chave, atualizam a mesma intent e viram **uma** notificação
+       agregada. A contagem sai da revalidação, não daqui — se a pessoa apagar
+       três das quatro antes do prazo, a copy diz "uma data". */
+    const intents = await enqueuePartnerIntent(tx, ctx, {
+      kind: "date_suggested",
+      planId,
+      now: new Date(),
+    });
+
+    return { opcao, intents };
   });
+
+  await startNotificationWorkflows(intents);
+
+  return opcao;
 }
 
 /**
@@ -219,7 +240,7 @@ export async function castVote(
   optionId: string,
   vote: VoteValue,
 ): Promise<void> {
-  await db.transaction(async (tx) => {
+  const intents = await db.transaction(async (tx) => {
     const [opcao] = await tx
       .select({
         id: planDateOptions.id,
@@ -259,7 +280,19 @@ export async function castVote(
       vote,
       startsAt: opcao.startsAt.toISOString(),
     });
+
+    /* `expected` guarda o voto **final**: sim → talvez → sim dentro dos 15
+       minutos atualiza a mesma intent três vezes, e o que a revalidação compara
+       é o último. O feed continua guardando os três; o push, não. */
+    return enqueuePartnerIntent(tx, ctx, {
+      kind: "vote_cast",
+      planId: opcao.planId,
+      now: new Date(),
+      expected: { optionId, vote },
+    });
   });
+
+  await startNotificationWorkflows(intents);
 }
 
 /** Tira o voto: volta a "ainda não respondeu", que não é votar `no`. */
@@ -289,7 +322,7 @@ export async function confirmDateOption(
   ctx: AuthorizedContext,
   optionId: string,
 ): Promise<{ planId: string }> {
-  return db.transaction(async (tx) => {
+  const { planId, intents } = await db.transaction(async (tx) => {
     const [opcao] = await tx
       .select({
         id: planDateOptions.id,
@@ -356,8 +389,42 @@ export async function confirmDateOption(
       startsAt: opcao.startsAt.toISOString(),
     });
 
-    return { planId: opcao.planId };
+    /* 5. Notificação e lembretes.
+
+       Trocar a data confirmada cancela os lembretes da anterior antes de criar
+       os novos: sem isso, o plano teria dois conjuntos de intents abertas e a
+       chave de dedupe por offset colidiria. A revalidação por
+       `confirmedOptionId` + `dayKey` é a segunda barreira, para o caso de um
+       workflow antigo acordar mesmo assim.
+
+       O aviso de "agora tem data" não sai agora: vai para as 09:00 do próximo
+       dia civil, porque é o estado que se notifica, não o clique. */
+    const now = new Date();
+    await cancelDateReminders(tx, ctx, opcao.planId);
+
+    const confirmacao = await enqueuePartnerIntent(tx, ctx, {
+      kind: "date_confirmed",
+      planId: opcao.planId,
+      now,
+      expected: {
+        confirmedOptionId: optionId,
+        dayKey: dayKey(opcao.startsAt),
+      },
+    });
+
+    const lembretes = await enqueueDateReminders(tx, ctx, {
+      planId: opcao.planId,
+      optionId,
+      startsAt: opcao.startsAt,
+      now,
+    });
+
+    return { planId: opcao.planId, intents: [...confirmacao, ...lembretes] };
   });
+
+  await startNotificationWorkflows(intents);
+
+  return { planId };
 }
 
 /**
@@ -399,6 +466,12 @@ export async function unconfirmDateOption(
     }
 
     await moveStatus(tx, ctx, planId, "planned", "deciding");
+
+    /* Sem data confirmada não há o que lembrar. Desconfirmar também não vira
+       notificação: é meio da negociação, não estado estável — e o aviso de
+       "agora tem data", se ainda estiver pendente, cai sozinho na revalidação,
+       que vai encontrar `confirmedOptionId` nulo. */
+    await cancelDateReminders(tx, ctx, planId);
   });
 }
 

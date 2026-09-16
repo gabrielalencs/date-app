@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { activityEvents, plans, reactions } from "@/db/schema/index.ts";
+import { enqueuePartnerIntent } from "@/features/notifications/data/outbox";
+import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import type { ReactionType } from "@/features/reactions/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
@@ -17,7 +19,7 @@ export async function toggleReaction(
   planId: string,
   type: ReactionType,
 ): Promise<{ active: boolean }> {
-  return db.transaction(async (tx) => {
+  const { active, intents } = await db.transaction(async (tx) => {
     const [plan] = await tx
       .select({ id: plans.id })
       .from(plans)
@@ -44,7 +46,10 @@ export async function toggleReaction(
 
     if (existing) {
       await tx.delete(reactions).where(predicate);
-      return { active: false };
+      /* Retirar não notifica e não cancela a intent: a revalidação é que decide.
+         Se a retirada acontecer antes dos 5 minutos, `shouldSend` encontra a
+         reação ausente e suprime — a prova está no teste de stale state. */
+      return { active: false, intents: [] as string[] };
     }
 
     await tx.insert(reactions).values({
@@ -66,6 +71,21 @@ export async function toggleReaction(
       });
     }
 
-    return { active: true };
+    const intents =
+      type === "want_a_lot"
+        ? await enqueuePartnerIntent(tx, ctx, {
+            kind: "want_a_lot",
+            planId,
+            now: new Date(),
+          })
+        : /* Favorito é organização pessoal: silencioso no feed desde o B10 e
+             silencioso no push agora, pela mesma razão. */
+          [];
+
+    return { active: true, intents };
   });
+
+  await startNotificationWorkflows(intents);
+
+  return { active };
 }

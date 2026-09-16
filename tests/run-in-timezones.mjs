@@ -37,6 +37,10 @@ const SUITES = [
   "tests/datetime.test.ts",
   "tests/calendar.test.ts",
   "tests/memories.test.ts",
+  /* O B11.5 entra aqui porque "09:00" é a regra inteira do bloco: o aviso de
+     data confirmada e os quatro lembretes são horários civis de São Paulo, e um
+     erro de fuso os move para 06:00 ou para o dia errado sem falhar em nada. */
+  "tests/notifications-schedule.test.ts",
 ];
 
 const alvo = process.argv.slice(2);

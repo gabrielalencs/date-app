@@ -4,6 +4,11 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { activityEvents, plans } from "@/db/schema/index.ts";
+import {
+  cancelDateReminders,
+  enqueuePartnerIntent,
+} from "@/features/notifications/data/outbox";
+import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
 import {
@@ -53,7 +58,7 @@ export async function createPlan(
   ctx: AuthorizedContext,
   input: CreatePlanInput,
 ): Promise<Plan> {
-  return db.transaction(async (tx) => {
+  const { plan, intents } = await db.transaction(async (tx) => {
     const [plan] = await tx
       .insert(plans)
       .values({
@@ -79,8 +84,23 @@ export async function createPlan(
       metadata: { title: plan.title },
     });
 
-    return plan;
+    /* Outbox: a intenção nasce na mesma transação do plano. Se ela falhar, o
+       plano reverte junto — nunca existe promessa de notificação sobre um fato
+       que não foi gravado (seção 19 do docs/NOTIFICATIONS.md). */
+    const intents = await enqueuePartnerIntent(tx, ctx, {
+      kind: "plan_created",
+      planId: plan.id,
+      now: new Date(),
+    });
+
+    return { plan, intents };
   });
+
+  /* Fora da transação, sempre. Se o Workflow estiver fora do ar, o plano
+     continua criado e o recovery encontra a intent pelo índice de vencidas. */
+  await startNotificationWorkflows(intents);
+
+  return plan;
 }
 
 export async function updatePlan(
@@ -131,7 +151,7 @@ export async function changePlanStatus(
   planId: string,
   nextStatus: PlanStatus,
 ): Promise<Plan> {
-  return db.transaction(async (tx) => {
+  const { plan, intents } = await db.transaction(async (tx) => {
     /* Trava a linha antes de validar: sem isso, duas mudanças simultâneas
        poderiam passar as duas pela máquina e gravar um estado impossível. */
     const [current] = await tx
@@ -179,30 +199,75 @@ export async function changePlanStatus(
       });
     }
 
-    return plan;
+    /* `completed` e `cancelled` notificam; os outros movimentos, não. Passar
+       por `deciding` ou `planned` é parte da negociação e já aparece no feed —
+       avisar cada degrau seria o log de edição que a seção 9 proíbe.
+
+       Os dois também encerram o date, então os lembretes pendentes são
+       cancelados aqui. A revalidação sozinha já os impediria de sair; cancelar
+       deixa a tabela dizendo a verdade sobre o que ainda vai acontecer. */
+    const encerra = nextStatus === "completed" || nextStatus === "cancelled";
+    if (!encerra) {
+      return { plan, intents: [] as string[] };
+    }
+
+    await cancelDateReminders(tx, ctx, plan.id);
+
+    const intents = await enqueuePartnerIntent(tx, ctx, {
+      kind: nextStatus === "completed" ? "plan_completed" : "plan_cancelled",
+      planId: plan.id,
+      now: new Date(),
+    });
+
+    return { plan, intents };
   });
+
+  await startNotificationWorkflows(intents);
+
+  return plan;
 }
 
-/** Arquivar esconde da lista. É ortogonal a status: não é cancelar. */
+/**
+ * Arquivar esconde da lista. É ortogonal a status: não é cancelar.
+ *
+ * Virou transação no B11.5. Antes era um UPDATE solto, e continuaria correto
+ * assim — mas a intenção de notificar precisa nascer junto com o fato, e "junto"
+ * só existe dentro de uma transação. O UPDATE continua carregando o predicado
+ * de workspace e o `isNull`, então a idempotência não mudou.
+ */
 export async function archivePlan(
   ctx: AuthorizedContext,
   planId: string,
 ): Promise<Plan> {
-  const [plan] = await db
-    .update(plans)
-    .set({ archivedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        eq(plans.workspaceId, ctx.workspaceId),
-        eq(plans.id, planId),
-        isNull(plans.archivedAt),
-      ),
-    )
-    .returning();
+  const { plan, intents } = await db.transaction(async (tx) => {
+    const [linha] = await tx
+      .update(plans)
+      .set({ archivedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(plans.workspaceId, ctx.workspaceId),
+          eq(plans.id, planId),
+          isNull(plans.archivedAt),
+        ),
+      )
+      .returning();
 
-  if (!plan) {
-    throw new NotFoundError("Plano");
-  }
+    if (!linha) {
+      throw new NotFoundError("Plano");
+    }
+
+    await cancelDateReminders(tx, ctx, linha.id);
+
+    const intents = await enqueuePartnerIntent(tx, ctx, {
+      kind: "plan_archived",
+      planId: linha.id,
+      now: new Date(),
+    });
+
+    return { plan: linha, intents };
+  });
+
+  await startNotificationWorkflows(intents);
 
   return plan;
 }

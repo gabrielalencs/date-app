@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { activityEvents, memoryRatings, plans } from "@/db/schema/index.ts";
+import { enqueuePartnerIntent } from "@/features/notifications/data/outbox";
+import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import {
   MAX_HIGHLIGHT_LENGTH,
   MAX_NOTES_LENGTH,
@@ -119,7 +121,7 @@ export async function rateMemory(
   planId: string,
   rating: RatingValue,
 ): Promise<{ firstTime: boolean }> {
-  return db.transaction(async (tx) => {
+  const { firstTime, intents } = await db.transaction(async (tx) => {
     await lockCompletedPlan(tx, ctx, planId);
 
     /* Ler antes de escrever é o padrão proibido — exceto com a linha travada,
@@ -157,8 +159,22 @@ export async function rateMemory(
       });
     }
 
-    return { firstTime: !existente };
+    /* Só a primeira avaliação, mantendo o contrato do B9 (D-109): corrigir a
+       nota depois não é acontecimento novo e não vira segundo push. */
+    const intents = existente
+      ? []
+      : await enqueuePartnerIntent(tx, ctx, {
+          kind: "memory_added",
+          planId,
+          now: new Date(),
+        });
+
+    return { firstTime: !existente, intents };
   });
+
+  await startNotificationWorkflows(intents);
+
+  return { firstTime };
 }
 
 /**

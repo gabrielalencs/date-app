@@ -27,6 +27,12 @@ const PUBLIC_PREFIXES = [
   "/sw.js",
   "/offline.html",
   "/apple-touch-icon.png",
+  /* Recovery do outbox de notificações (B11.5). Não tem sessão porque quem
+     chama é o Cron, server-to-server; ela se autentica por `CRON_SECRET` em
+     tempo constante e responde 404 quando o segredo não está configurado.
+     Deixar o proxy redirecioná-la para /login transformaria o reparo num GET de
+     HTML silencioso. */
+  "/api/notifications/recovery",
 ] as const;
 
 /**
@@ -225,5 +231,21 @@ function isRedirect(response: NextResponse): boolean {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  /**
+   * `.well-known/workflow/` fica fora do matcher desde o B11.5.
+   *
+   * São as rotas internas que o runtime do Vercel Workflow chama para executar
+   * step e retomar run. Interceptá-las quebra a execução com
+   * `Cannot perform ArrayBuffer.prototype.slice on a detached ArrayBuffer` — o
+   * corpo da requisição é consumido pelo proxy antes de chegar ao handler. A
+   * própria documentação do SDK marca isto como fácil de errar justamente no
+   * Next 16, onde o `proxy.ts` substituiu o `middleware.ts`.
+   *
+   * Não é exceção de autorização: essas rotas não servem dado de produto e não
+   * recebem `workspaceId` de quem chama. A única delas com superfície pública é
+   * a de webhook, e o DATE não cria nenhum — não usa hooks.
+   */
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/).*)",
+  ],
 };

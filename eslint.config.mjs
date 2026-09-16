@@ -258,6 +258,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    /* Rotas geradas pelo Workflow SDK a cada build (B11.5). O próprio pacote
+       grava um `.gitignore` com `*` dentro dessa pasta, então elas não entram
+       no repositório — e lintar código gerado só produz aviso sobre uma
+       diretiva que o gerador escreveu de propósito. */
+    "app/.well-known/workflow/**",
   ]),
 ]);
 

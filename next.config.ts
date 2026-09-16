@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withWorkflow } from "workflow/next";
 
 // reactCompiler fica desligado por decisão D-002: depende de Babel e encareceria o build antes de existir UI real para medir.
 
@@ -55,4 +56,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * `withWorkflow` compila as funções marcadas com "use workflow"/"use step" nas
+ * rotas duráveis que o Vercel Workflow executa (B11.5). Sem o wrapper, as
+ * diretivas viram comentário e o agendamento nunca acontece.
+ */
+export default withWorkflow(nextConfig);

@@ -7,12 +7,15 @@ import {
 } from "@/components/brand/editorial";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { NotificationSettings } from "@/features/notifications/components/notification-settings";
+import { getPreferences } from "@/features/notifications/data/subscriptions";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 
 export const metadata: Metadata = { title: "Perfil" };
 
 export default async function Page() {
   const context = await requireAuthorizedContext();
+  const preferencias = await getPreferences(context);
   return (
     <div className="page-stack">
       <PageIntro
@@ -54,6 +57,16 @@ export default async function Page() {
             </p>
             <ThemeToggle />
           </section>
+          {/* A chave pública do VAPID é pública por definição — ela vai dentro
+              da própria subscription que o navegador monta. É a exceção
+              sancionada ao alerta sobre NEXT_PUBLIC_ (seção 17 do
+              docs/NOTIFICATIONS.md); a privada é server-only e nunca sai daqui. */}
+          <NotificationSettings
+            initialPreferences={preferencias}
+            vapidPublicKey={
+              process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY ?? ""
+            }
+          />
           {/* Texto estático no lugar de um banner de instalação. O
               `beforeinstallprompt` não existe no iOS, então um banner próprio
               resolveria metade do problema e acrescentaria estado à tela
@@ -64,9 +77,10 @@ export default async function Page() {
               Na tela de início
             </h2>
             <p className="type-body-s text-text-muted">
-              Dá para instalar o DATE como aplicativo. No Android, abra o menu do
-              navegador e toque em <strong className="text-text">Instalar
-              aplicativo</strong>. No iPhone, toque em{" "}
+              Dá para instalar o DATE como aplicativo. No Android, abra o menu
+              do navegador e toque em{" "}
+              <strong className="text-text">Instalar aplicativo</strong>. No
+              iPhone, toque em{" "}
               <strong className="text-text">Compartilhar</strong> e depois em{" "}
               <strong className="text-text">Adicionar à Tela de Início</strong>.
               No iPhone, o aplicativo instalado pede login uma vez, separado do
