@@ -45,12 +45,16 @@ function enumsFromDoc(): Map<string, string[]> {
 describe("enums do schema batem com docs/DATABASE.md", () => {
   const documented = enumsFromDoc();
 
-  it("o documento declara os nove tipos", () => {
+  it("o documento declara os doze tipos", () => {
+    /* Os três últimos entraram no B11.5. */
     expect([...documented.keys()].sort()).toEqual([
       "activity_verb",
       "link_type",
       "media_purpose",
       "member_role",
+      "notification_delivery_status",
+      "notification_intent_status",
+      "notification_preview_mode",
       "plan_status",
       "reaction_type",
       "repeat_answer",
@@ -77,12 +81,12 @@ describe("enums do schema batem com docs/DATABASE.md", () => {
 });
 
 describe("escopo de workspace", () => {
-  it("declara as catorze tabelas da seção 4", () => {
+  it("declara as dezoito tabelas da seção 4", () => {
     /* Eram quinze até o B9 dropar `memories` (D-099): com "melhor parte" e
        observações passando a ser campos da avaliação de cada pessoa, aquela
        tabela ficava sem conteúdo próprio, como junção pura entre `plans` e
-       `memory_ratings`. */
-    expect(tables.length).toBe(14);
+       `memory_ratings`. O B11.5 acrescentou as quatro de notificação. */
+    expect(tables.length).toBe(18);
   });
 
   it.each(
