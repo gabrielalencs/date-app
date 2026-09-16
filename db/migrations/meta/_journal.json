@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789073229355,
+      "tag": "0000_wonderful_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789127312079,
+      "tag": "0001_smiling_corsair",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789179504328,
+      "tag": "0002_brown_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789389706542,
+      "tag": "0003_long_lake",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789389741104,
+      "tag": "0004_sudden_tombstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789482978951,
+      "tag": "0005_stiff_nextwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789576516379,
+      "tag": "0006_familiar_jack_murdock",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."activity_verb" ADD VALUE 'want_a_lot';

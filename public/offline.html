@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf7f2" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e171d" />
+    <title>Sem conexão · DATE</title>
+    <!--
+      Página servida pelo service worker quando uma navegação falha por rede.
+      Tudo é inline de propósito: o CSS do app tem hash no nome e não está no
+      cache, e as fontes também não. Nenhum dado, nenhuma marca de pessoa —
+      é o único arquivo que o service worker guarda.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbf7f2;
+        --text: #282b2b;
+        --muted: #5b6360;
+        --accent: #e76f51;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e171d;
+          --text: #f6ede4;
+          --muted: #9aa8a4;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom))
+          calc(24px + env(safe-area-inset-left));
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: 26rem;
+        text-align: left;
+      }
+      .mark {
+        display: block;
+        width: 2.5rem;
+        height: 0.25rem;
+        border-radius: 999px;
+        background: var(--accent);
+        margin-bottom: 1.75rem;
+      }
+      h1 {
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        font-weight: 600;
+        font-size: clamp(1.75rem, 6vw, 2.25rem);
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="mark" aria-hidden="true"></span>
+      <h1>Vocês estão sem conexão.</h1>
+      <p>
+        O DATE precisa de internet para mostrar os planos de vocês. Assim que o
+        sinal voltar, é só puxar a tela para baixo ou tentar de novo.
+      </p>
+    </main>
+  </body>
+</html>
