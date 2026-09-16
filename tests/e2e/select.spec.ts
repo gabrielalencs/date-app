@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./harness.ts";
 
 test("Select DATE: teclado, Escape, foco, serialização, reset e disabled", async ({
   page,

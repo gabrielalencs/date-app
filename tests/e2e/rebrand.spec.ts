@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
+import { signInForFeature } from "./feature-session.ts";
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
 
@@ -89,10 +90,11 @@ for (const width of [320, 390, 1280])
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto("/login");
       await capture(page, "login", width, theme);
-      await page.getByLabel("E-mail", { exact: true }).fill(account.email);
-      await page.getByLabel("Senha", { exact: true }).fill(account.password);
-      await page.getByRole("button", { name: "Entrar", exact: true }).click();
-      await page.waitForURL((url) => url.pathname === "/", { timeout: 30000 });
+      /* Sessao reaproveitada: este spec captura telas, nao testa login. Com o
+         login proprio, a matriz completa acumulava logins novos no Neon Auth e
+         um deles estourava os 30 s (B11). A captura de /login acima continua
+         acontecendo antes, com o contexto ainda sem sessao. */
+      await signInForFeature(page, account);
       for (const [name, url] of routes) {
         await page.goto(url);
         await capture(page, name, width, theme);

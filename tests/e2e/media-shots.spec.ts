@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
+import { signInForFeature } from "./feature-session.ts";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";
@@ -35,14 +36,16 @@ const THEMES: readonly ResolvedTheme[] = ["light", "dark"];
 const PLANO_COM_FOTO = crypto.randomUUID();
 const PLANO_SEM_FOTO = crypto.randomUUID();
 
+/**
+ * Sessao reaproveitada, nao refeita (secao 8 do docs/PWA_AND_HARDENING.md).
+ *
+ * Quem precisa de contexto limpo e o spec de entrar e sair; aqui a sessao e
+ * meio, nao fim. Medido no B11: com cada spec fazendo o proprio login, a matriz
+ * completa acumulava logins novos no Neon Auth e um deles estourava os 30 s da
+ * navegacao — falha diferente a cada execucao, com a aplicacao integra.
+ */
 async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
-  });
+  await signInForFeature(page, account);
 }
 
 async function enviarFoto(page: Page): Promise<void> {

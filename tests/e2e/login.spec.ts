@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { test } from "./harness.ts";
 
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";
 

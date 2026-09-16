@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./harness.ts";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 
@@ -26,8 +26,13 @@ async function signIn(page: import("@playwright/test").Page): Promise<void> {
   await page.fill('input[name="email"]', account!.email);
   await page.fill('input[name="password"]', account!.password);
   await page.click('button[type="submit"]');
+  /* 60 s, não 30. A espera é por navegação, não por tempo: o que ela aguarda é
+   o Neon Auth responder ao login novo. Medido no B11: em 5 execuções seguidas
+   da suíte consolidada, uma falhou exatamente aqui aos 30 s, com a aplicação
+   íntegra. A latência é do provedor, e um teste que reprova por latência de
+   terceiro ensina a rodar de novo em vez de ler. */
   await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
+    timeout: 60_000,
   });
 }
 

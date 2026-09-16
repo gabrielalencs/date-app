@@ -17,7 +17,12 @@ export async function signInForFeature(
     await page.getByLabel("E-mail", { exact: true }).fill(account.email);
     await page.getByLabel("Senha", { exact: true }).fill(account.password);
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
-    await page.waitForURL((url) => url.pathname === "/", { timeout: 30000 });
+    /* 60 s, não 30. A espera é por navegação, não por tempo: o que ela aguarda é
+   o Neon Auth responder ao login novo. Medido no B11: em 5 execuções seguidas
+   da suíte consolidada, uma falhou exatamente aqui aos 30 s, com a aplicação
+   íntegra. A latência é do provedor, e um teste que reprova por latência de
+   terceiro ensina a rodar de novo em vez de ler. */
+    await page.waitForURL((url) => url.pathname === "/", { timeout: 60_000 });
     sessions.set(account.email, await page.context().cookies());
   }
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(

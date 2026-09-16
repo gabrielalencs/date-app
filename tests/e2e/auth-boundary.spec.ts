@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./harness.ts";
 
 /**
  * Fronteira HTTP da aplicação. Roda sem credencial e sem conta criada: prova o

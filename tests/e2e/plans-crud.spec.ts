@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
+import { signInForFeature } from "./feature-session.ts";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { closeFixtureDb, removeOwnedPlans } from "./db-fixture.ts";
@@ -17,14 +18,16 @@ const account =
   credentials.find((credential) => credential.email === chosen) ??
   credentials[0]!;
 
+/**
+ * Sessao reaproveitada, nao refeita (secao 8 do docs/PWA_AND_HARDENING.md).
+ *
+ * Quem precisa de contexto limpo e o spec de entrar e sair; aqui a sessao e
+ * meio, nao fim. Medido no B11: com cada spec fazendo o proprio login, a matriz
+ * completa acumulava logins novos no Neon Auth e um deles estourava os 30 s da
+ * navegacao — falha diferente a cada execucao, com a aplicacao integra.
+ */
 async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
-  });
+  await signInForFeature(page, account);
 }
 
 /** Ids criados por esta suíte, apagados no final. */
@@ -123,7 +126,14 @@ test("a máquina de status não oferece transição proibida", async ({ page }) 
   expect(id).toBeTruthy();
 });
 
-test("plano de id inexistente responde 404", async ({ page }) => {
+test("plano de id inexistente responde 404", async ({ page, audit }) => {
+  /* O 404 é o objeto do teste, não um acidente: sem declarar a exceção, o
+     arnês do B11 reprovaria o próprio comportamento que se quer provar. */
+  audit.allow(
+    "/planos/ffffffff-ffff-4fff-8fff-ffffffffffff",
+    "o teste existe justamente para afirmar que este id responde 404",
+  );
+
   await signIn(page);
 
   const response = await page.goto(

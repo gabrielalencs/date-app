@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import {
@@ -68,7 +68,11 @@ test.describe.serial("descoberta, reações e atividade", () => {
       .set({
         title: "Plano novo sem história",
         category: "em_casa",
-        city: `Fora ${UNIQUE_CITY}`,
+        /* Não pode conter UNIQUE_CITY: o filtro de cidade é
+           `ilike(city, '%valor%')`, então "Fora B10 abc" casava com a busca por
+           "B10 abc" e o sorteio passava a ter dois candidatos — o teste virava
+           cara ou coroa e só se revelava na matriz completa (B11). */
+        city: `Outro lugar ${EMPTY_PLAN.slice(0, 8)}`,
         estimatedBudgetCents: 90_000,
       })
       .where(eq(schema.plans.id, EMPTY_PLAN));

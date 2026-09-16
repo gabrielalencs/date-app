@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
 
 import { buildObjectKeys } from "@/features/media/r2/object-key";
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
@@ -12,6 +12,7 @@ import {
   schema,
 } from "./db-fixture.ts";
 import { EXIF_MARCADOR, pngComExif } from "./exif-fixture.ts";
+import { signInForFeature } from "./feature-session.ts";
 
 /**
  * Verificação em navegador de verdade: a foto passa pelo pipeline do cliente,
@@ -48,14 +49,16 @@ const PROFILE_FORA = "e2e_profile_" + crypto.randomUUID();
 const PLANO_FORA = crypto.randomUUID();
 let midiaDeFora = "";
 
+/**
+ * Sessão reaproveitada, não refeita (seção 8 do docs/PWA_AND_HARDENING.md).
+ *
+ * Este spec fazia seis logins novos contra o Neon Auth, e o provedor passa a
+ * demorar quando eles se acumulam: na suíte consolidada do B11, o login de um
+ * dos testes de mídia estourava os 30 s enquanto o resto passava. Quem precisa
+ * de contexto limpo é o spec de entrar e sair; aqui a sessão é meio, não fim.
+ */
 async function signIn(page: Page): Promise<void> {
-  await page.goto("/login");
-  await page.fill('input[name="email"]', account.email);
-  await page.fill('input[name="password"]', account.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
-  await page.waitForURL((url) => new URL(url).pathname === "/", {
-    timeout: 30_000,
-  });
+  await signInForFeature(page, account);
 }
 
 /** Envia a foto pelo input escondido e devolve o id que a rota passa a servir. */

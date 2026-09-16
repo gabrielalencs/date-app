@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./harness.ts";
 
 import { parseDevCredentials } from "@/lib/auth/dev-provisioning";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "@/lib/theme";

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./harness.ts";
 
 /**
  * A Server Action nunca pode devolver 500 nem texto do provedor para quem só
