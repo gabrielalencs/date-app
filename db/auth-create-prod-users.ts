@@ -159,7 +159,7 @@ async function main(): Promise<void> {
   }
 
   if (created.length > 0) {
-    console.log("\nCole no .env.production.local:\n");
+    console.log("\nCole no .env.deploy:\n");
     console.log(
       `DATE_PROD_AUTH_USERS=${created
         .map(({ id, email }) => `${id}:${email}`)

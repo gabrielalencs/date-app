@@ -17,7 +17,7 @@ Três lugares diferentes recebem variáveis. Confundi-los é o erro mais comum.
 | Lugar | O que é | Quem lê |
 |---|---|---|
 | `.env.local` | sua máquina, development | `pnpm dev`, testes |
-| `.env.production.local` | sua máquina, **só** os 4 comandos de produção | `db:migrate:prod` e companhia |
+| `.env.deploy` | sua máquina, **só** os 4 comandos de produção | `db:migrate:prod` e companhia |
 | Vercel → Environment Variables → **Production** | o app rodando | o DATE em produção |
 
 Nenhum arquivo dos dois primeiros vai para o Git. Nenhum valor do primeiro vai
@@ -207,10 +207,10 @@ vírgula** — a vírgula é o separador do formato.
 
 ---
 
-## Parte 5 — Montar o `.env.production.local`
+## Parte 5 — Montar o `.env.deploy`
 
 ```bash
-cp .env.production.example .env.production.local
+cp .env.deploy.example .env.deploy
 ```
 
 Preencha:
@@ -301,7 +301,7 @@ NEON_BRANCH=production
 DATABASE_URL=<2.1, a COM -pooler>
 
 NEON_AUTH_BASE_URL=<2.2>
-NEON_AUTH_COOKIE_SECRET=<4.1, o MESMO do .env.production.local>
+NEON_AUTH_COOKIE_SECRET=<4.1, o MESMO do .env.deploy>
 ALLOWED_EMAILS=email-um@exemplo.com,email-dois@exemplo.com
 DATE_OWNER_EMAIL=email-um@exemplo.com
 
@@ -320,7 +320,7 @@ CRON_SECRET=<4.2>
 
 São 15. Duas armadilhas:
 
-- `ALLOWED_EMAILS` aqui e no `.env.production.local` têm que ser **idênticas**.
+- `ALLOWED_EMAILS` aqui e no `.env.deploy` têm que ser **idênticas**.
   Se divergirem, o webhook recusa a conta real na Parte 11 e o script reporta
   `BLOQUEADA`;
 - `NEON_AUTH_COOKIE_SECRET` também tem que ser o mesmo nos dois lugares.
@@ -398,7 +398,7 @@ No fim ele imprime:
 DATE_PROD_AUTH_USERS=<id1>:<email1>,<id2>:<email2>
 ```
 
-Cole essa linha no `.env.production.local`.
+Cole essa linha no `.env.deploy`.
 
 Se aparecer `BLOQUEADA`, a `ALLOWED_EMAILS` da Vercel está diferente da sua.
 Corrija na Vercel, faça novo deploy, rode de novo.
@@ -484,7 +484,7 @@ Três exceções:
 [ ] 2  domínio em Auth → Configuration → Domains
 [ ] 3  token R2 limitado a date-media-prod + CORS sem "*"
 [ ] 4  cookie secret, CRON_SECRET e par VAPID gerados novos
-[ ] 5  .env.production.local preenchido
+[ ] 5  .env.deploy preenchido
 [ ] 6  pnpm db:migrate:prod --eu-confirmo
 [ ] 7  main sem .env.local, com o código todo
 [ ] 8  projeto criado na Vercel

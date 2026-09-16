@@ -62,7 +62,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
   - Data API não deve ser habilitada sem necessidade arquitetural explícita
 
 - B12, parte de código, concluída: endpoint `/api/webhooks/neon-auth` com verificação Ed25519 do JWS destacado contra o JWKS do provedor (D-142), recusa em 200 (D-143), guarda de branch `production` com três travas independentes (D-144), guarda simétrica do R2 (D-145) e os quatro comandos de produção. Ver `docs/PRODUCTION.md`.
-- Nenhuma migration no B12: o bloco não toca o schema. Variáveis novas só no `.env.production.example`, que nunca é carregado pelo `next dev`.
+- Nenhuma migration no B12: o bloco não toca o schema. Variáveis novas só no `.env.deploy.example`, que nunca é carregado pelo `next dev`.
 
 ## Atenção imediata — segredos vazados (D-146)
 
@@ -117,7 +117,7 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm test:measure` | idem; cria e remove 30 planos com foto, e imprime bytes e contagem de miniatura |
 | `pnpm shots:pwa` | capturas em standalone emulado e a troca de tema com CSP |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
-| `pnpm db:migrate:prod --eu-confirmo` | `.env.production.local` + Neon `production` |
+| `pnpm db:migrate:prod --eu-confirmo` | `.env.deploy` + Neon `production` |
 | `pnpm auth:probe-prod --eu-confirmo` | idem + webhook já cadastrado no console |
 | `pnpm auth:create-prod-users --eu-confirmo` | idem + a sonda acima tendo passado |
 | `pnpm db:bootstrap:prod --eu-confirmo` | idem + os ids impressos pelo comando anterior |

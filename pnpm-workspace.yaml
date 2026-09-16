@@ -1,6 +1,12 @@
 allowBuilds:
-  '@swc/core': set this to true or false
-  cbor-extract: set this to true or false
+  # Transitivos do SDK `workflow`, os dois por `@swc/cli` e `cbor-x`. Ambos
+  # distribuem binário pronto por plataforma e degradam para JS sem o
+  # postinstall — o `next build` local e o do B11.5 rodaram com os dois
+  # ignorados. Ficam negados explicitamente: sem decisão gravada aqui, o pnpm 12
+  # aborta a instalação com ERR_PNPM_IGNORED_BUILDS, que foi o que derrubou o
+  # primeiro build na Vercel.
+  '@swc/core': false
+  cbor-extract: false
   # Postinstall transitivo de compatibilidade; o pacote já distribui artefatos prontos.
   core-js: false
   # O drizzle-kit roda em cima do esbuild e precisa do binário de plataforma.

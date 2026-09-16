@@ -83,7 +83,7 @@ resposta — então não há estado a guardar.
 
 Cada um aborta a menos que as três travas estejam satisfeitas:
 
-1. **`NEON_BRANCH=production`**, que só existe no `.env.production.local` —
+1. **`NEON_BRANCH=production`**, que só existe no `.env.deploy` —
    arquivo separado, nunca commitado, carregado por `--env-file` explícito. O
    `next dev` não o enxerga;
 2. **`--eu-confirmo`** digitado à mão na linha de comando;
@@ -125,7 +125,7 @@ produção:
 ### 3.2 Preparar o arquivo local
 
 ```bash
-cp .env.production.example .env.production.local
+cp .env.deploy.example .env.deploy
 ```
 
 Preencha com os valores da branch `production`. A `DATABASE_URL_UNPOOLED` é a
@@ -136,7 +136,7 @@ Este arquivo nunca vai para a Vercel e nunca é commitado.
 
 ### 3.3 Variáveis na Vercel, ambiente Production
 
-A lista está no `.env.production.example` mais as do runtime. A pooled
+A lista está no `.env.deploy.example` mais as do runtime. A pooled
 (`DATABASE_URL`) vai para a Vercel; a direta fica só na sua máquina.
 
 Nunca coloque na Vercel: `DATABASE_URL_UNPOOLED`, `DATE_ENABLE_KITCHEN_SINK`,
@@ -208,7 +208,7 @@ pnpm auth:create-prod-users --eu-confirmo
 ```
 
 Imprime, no fim, a linha `DATE_PROD_AUTH_USERS=<id>:<email>,<id>:<email>`. Cole
-no `.env.production.local`.
+no `.env.deploy`.
 
 Se ele reportar `BLOQUEADA`, o webhook recusou um e-mail que está na sua
 `ALLOWED_EMAILS` local — quase sempre porque a variável da Vercel está

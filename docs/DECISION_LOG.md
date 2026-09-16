@@ -4,6 +4,9 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-147 — O arquivo de produção é `.env.deploy`; `.env.production.local` é nome reservado do Next
+**16/09/2026.** Corrige o nome escolhido na D-144. `.env.production.local` está na lista que o `@next/env` carrega sozinho em todo build com `NODE_ENV=production`, e com precedência **acima** do `.env.local` — o próprio `next build` imprimiu `Environments: .env.production.local, .env.local`. Efeito medido: um `pnpm build` ou `pnpm start` na máquina do proprietário passaria a resolver `NEON_BRANCH`, `DATABASE_URL_UNPOOLED`, `NEON_AUTH_BASE_URL`, `NEON_AUTH_COOKIE_SECRET`, `ALLOWED_EMAILS` e `DATE_OWNER_EMAIL` com valor de **produção**, sem ninguém pedir e sem nenhum aviso — exatamente o acidente que as três travas da D-144 existem para impedir, entrando pela porta que a D-144 abriu. O arquivo passa a se chamar `.env.deploy`, que não casa com `.env.${NODE_ENV}` para nenhum dos três valores que o Next reconhece (`development`, `production`, `test`) e continua coberto pelo `.env*` do `.gitignore`.
+
 ### D-146 — O `.env.local` esteve versionado; todo segredo de development é considerado vazado
 **16/09/2026.** Os commits `a46ca9b`/`fc5f425` levaram para `main` 320 arquivos que o `.gitignore` já barrava, entre eles `.env.local` e a chave privada TLS `certificates/localhost-key.pem`. O `.gitignore` estava correto — os arquivos foram forçados ou já eram rastreados antes da regra. Os arquivos saem do índice agora; o histórico **não** é reescrito, porque CLAUDE.md proíbe e porque reescrever não desfaz o que já foi enviado ao remoto. A consequência prática é a que vale: connection string, cookie secret, senhas das duas contas de development, VAPID privada e `CRON_SECRET` são tratados como vazados e precisam ser rotacionados, e nenhum deles pode ser reaproveitado em produção.
 

@@ -8,7 +8,7 @@
  *
  * Três travas independentes, e o comando só roda com as três:
  *
- *   1. `NEON_BRANCH=production`, que só existe no `.env.production.local` —
+ *   1. `NEON_BRANCH=production`, que só existe no `.env.deploy` —
  *      arquivo separado, nunca commitado, carregado por `--env-file` explícito;
  *   2. o argumento `--eu-confirmo` digitado à mão na linha de comando;
  *   3. a leitura do host impresso antes da escrita, que é humana.
@@ -41,7 +41,7 @@ function unpooledUrl(): string {
   if (!url) {
     throw new Error(
       "DATABASE_URL_UNPOOLED não está definida.\n" +
-        "Copie .env.production.example para .env.production.local e preencha " +
+        "Copie .env.deploy.example para .env.deploy e preencha " +
         "com a connection string DIRETA (sem -pooler) da branch production.",
     );
   }
@@ -78,7 +78,7 @@ export function requireProductionBranch(
   if (branch !== REQUIRED_BRANCH) {
     throw new Error(
       `\nABORTADO: NEON_BRANCH é "${branch ?? "(não definida)"}", e ${comando} só roda em "${REQUIRED_BRANCH}".\n\n` +
-        "Este comando é carregado com --env-file=.env.production.local.\n" +
+        "Este comando é carregado com --env-file=.env.deploy.\n" +
         "Se a branch veio diferente, o arquivo carregado não é o de produção —\n" +
         "pare e confira antes de qualquer outra coisa.",
     );
