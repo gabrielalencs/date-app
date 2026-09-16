@@ -1,6 +1,6 @@
 # DATE — Handoff status
 
-Data do handoff: **15/09/2026**
+Data do handoff: **16/09/2026**
 
 Este arquivo registra o estado factual atual para a continuidade da implementação.
 
@@ -31,6 +31,12 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Migration `0005` aplicada somente em `development`, acrescentando `want_a_lot` ao enum `activity_verb`. A tabela `reactions`, seu enum e o único por plano/pessoa/tipo já existiam desde o B2.
 - B10 fechado contra o banco e o navegador reais: `pnpm test` (395), `pnpm test:db` (144), `pnpm test:tz` (116 em cada um dos três fusos), `pnpm test:media` (8) e Playwright completo com um worker (172) passando, mais a prova visual de escala de cinza acrescentada e executada isoladamente. O feed manteve 2 consultas com 10 e 200 eventos. As 24 capturas da matriz cobrem quatro estados, três larguras e dois temas; uma 25ª captura prova “quero muito” sem cor.
 - A limpeza das fixtures agora remove eventos cujo plano aparece em `metadata.planId`, além dos eventos que apontam direto para o plano. Dezessete eventos órfãos criados pelas próprias execuções de teste foram removidos de `development`; nenhuma linha de produto foi tocada.
+- B11 concluído: aplicativo instalável (manifest em rota, cinco ícones auditados, área segura, `apple-touch-icon` sem alfa), CSP com nonce em modo de aplicação, headers de segurança, auditoria de caminho público provada sem cookie, suíte crítica consolidada em `pnpm test:e2e` com arnês que reprova em erro de console, `pageerror`, violação de CSP e resposta inesperada, e axe zerado nas oito rotas nos dois temas. Ver `docs/PWA_AND_HARDENING.md`.
+- Sem migration no B11: o bloco não toca o banco. Nenhuma variável de ambiente nova.
+- Quatro defeitos reais de acessibilidade foram encontrados pelo axe e corrigidos: contraste do botão coral (o D-017 supunha semibold, e a WCAG conta negrito a partir de 700 — D-136), contraste do dia de hoje no calendário e do mês vizinho, `<dl>` com `<dt>`/`<dd>` aninhados demais em `/planos/[id]`, e o input de arquivo sem rótulo.
+- `@axe-core/playwright` é a única dependência acrescentada, em `devDependencies`.
+- `playwright.config.ts` passou a `workers: 1` e `timeout: 90_000`: existe um workspace de development e uma conta no Neon Auth, então paralelismo aqui produz teste instável, não velocidade (D-138).
+- Service worker escrito à mão, cacheando **apenas** `/offline.html`. `public/sw-kill.js` é o caminho de reversão e está testado. Nada de `next-pwa`, nada de Workbox (D-128, D-129).
 - `lib/money.ts` é o dono do dinheiro; `formatBRL` não existe mais. Zona no ESLint barra `parseFloat`, `Number.parseFloat` e `toFixed` fora dele.
 - Migration `0002` (`reservations` mais o CHECK de valor não negativo em `expenses`) aplicada somente em `development`
 - Migration `0001` (`media.thumb_object_key`) aplicada somente em `development`
@@ -62,7 +68,7 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Próximo bloco funcional: **B11 — PWA e endurecimento**.
+- Próximo bloco funcional: **B12 — deploy e produção**.
 
 ## Regra de ambientes
 
@@ -97,10 +103,16 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm test:planning` · `shots:planning` | Neon `development` + sessão de development |
 | `pnpm test:memories` · `shots:memories` | Neon `development` + sessão de development |
 | `pnpm test:discovery` · `shots:discovery` | Neon `development` + sessão de development |
+| `pnpm test:e2e` | Neon `development` + R2 `date-media-dev` + sessão — os seis fluxos críticos, PWA e axe |
+| `pnpm test:pwa` · `test:a11y` · `test:teclado` | os mesmos pré-requisitos, recortados |
+| `pnpm test:measure` | idem; cria e remove 30 planos com foto, e imprime bytes e contagem de miniatura |
+| `pnpm shots:pwa` | capturas em standalone emulado e a troca de tema com CSP |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
 
 ## Próxima ação
 
 A continuidade visual segue obrigatoriamente os tokens, primitives e padrões do R1 em `docs/DESIGN_SYSTEM.md`. O relatório de implementação, capturas e verificações está em `docs/R1_VISUAL_REBRAND.md`. `/kitchen-sink` demonstra o sistema novo; os mockups fornecidos são referência de direção, sem autorização para inventar features ou dados.
 
-B11 — PWA e endurecimento. Nenhum bloqueio humano conhecido para preparar manifest, assets, headers e a bateria de auditorias em desenvolvimento. Deploy e qualquer configuração de produção continuam reservados ao B12 e dependem de confirmação humana.
+B12 — deploy e produção. O B11 deixou o produto instalável, fechado e medido; o que falta é configuração e confirmação humana.
+
+Três verificações do B11 **não são possíveis fora de um aparelho** e ficam para o proprietário: a área segura real num telefone com recorte ou barra de gestos, a cor da barra de status no app instalado, e o fato de que no iPhone o app instalado tem cookie jar separado do Safari — o login dentro dele é pedido de novo, e isso é comportamento do sistema, não defeito. A lista escrita está no relatório do B11.

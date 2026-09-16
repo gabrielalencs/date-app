@@ -107,9 +107,23 @@ A lógica vive em `lib/auth/authorization-core.ts`, pura e com repositório inje
 
 Ele **não** consulta `workspace_members` e **não** é autoridade. Os docs do Next pedem que o proxy não dependa de módulos compartilhados, então ele monta a própria instância a partir do env.
 
-Públicos: `/login`, `/api/auth/*`, `/_next`, `/favicon.ico`, qualquer caminho com extensão de arquivo (assets de `public/`) e `/kitchen-sink`.
+Públicos: `/login`, `/api/auth/*`, `/_next`, `/favicon.ico`, `/manifest.webmanifest`, `/sw.js`, `/offline.html`, `/apple-touch-icon.png`, qualquer caminho com extensão de arquivo (assets de `public/`) e — somente sob `DATE_ENABLE_KITCHEN_SINK` — `/kitchen-sink`.
 
-> `/kitchen-sink` é exceção deliberada: é a vitrine do design system, não lê dado nenhum e precisa abrir sem sessão para a captura de tela funcionar antes de existirem contas. Reavaliar no B11.
+> Os quatro caminhos da PWA já passariam pela regra de extensão. Estão nomeados porque o navegador os busca **sem credenciais**: um redirect para `/login` aqui tira a instalação do ar sem nenhum erro visível (seção 6 do `docs/PWA_AND_HARDENING.md`).
+
+> `/kitchen-sink` era exceção permanente para uma rota que só existe em desenvolvimento. Reavaliada no B11 (D-135): a exceção passou a ser condicionada à mesma `DATE_ENABLE_KITCHEN_SINK` que cria a rota. Sem a variável, a página responde 404 e o proxy não conhece o caminho.
+
+Desde o B11 o proxy também é o dono único da Content-Security-Policy, porque o nonce é por requisição e porque dois headers de CSP são somados pelo navegador, não substituídos (D-132). Documentos recebem a política com nonce; `/api/*` recebe `default-src 'none'`. Os headers estáticos ficam no `next.config.ts` e não tocam CSP.
+
+**A regra da extensão, auditada no B11.** `proxy.ts` libera qualquer caminho que contenha um ponto — regra por forma, não por rota. Existem exatamente três rotas cujo caminho pode conter um ponto, e cada uma resolve o contexto por conta própria:
+
+| Rota | Quem resolve o contexto |
+|---|---|
+| `/planos/[id]` | `app/(private)/layout.tsx` chama `requireAuthorizedContext()` |
+| `/api/media/[id]` | a própria rota chama `requireAuthorizedContext()` |
+| `/api/auth/[...path]` | já é público; protegido pela allowlist positiva da seção 3 |
+
+Provado sem cookie: `/planos/{uuid}.png` responde 307 para `/login` (o proxy deixa passar, a autoridade barra) e `/api/media/{id}.png` responde 404.
 
 Se a configuração de auth estiver inválida, o proxy **nega por redirecionamento** em vez de estourar 500 — falha fechada.
 

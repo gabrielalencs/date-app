@@ -4,6 +4,48 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-141 — A barra de status segue o tema do DATE, não o do sistema
+**16/09/2026.** O `<meta name="theme-color" media="...">` do `viewport` acompanha `prefers-color-scheme`, e o tema do produto é light/dark/system escolhido pela pessoa: sistema claro com DATE escuro daria barra de status clara sobre interface escura. O `ThemeScript` passa a inserir, antes da primeira pintura, um `meta[name=theme-color]` **sem** `media` no começo do `head` — o navegador usa o primeiro cujo `media` casa, e um meta sem `media` casa sempre. Os dois com `media` continuam no HTML como base para quem está sem JavaScript, e o `ThemeProvider` atualiza o `content` na troca. Fecha o ponto aberto da seção 3 do `docs/PWA_AND_HARDENING.md` em vez de reportá-lo.
+
+### D-140 — `upgrade-insecure-requests` não é emitido em origem local
+**16/09/2026.** Com a diretiva ligada em `http://localhost`, o Chrome tenta `https` no mesmo host e devolve `ERR_SSL_PROTOCOL_ERROR`; medido no B11, onde o teste de logout falhou com quatro erros de console e a aplicação íntegra. Numa origem local a diretiva não protege de nada, porque localhost já é origem confiável. Ela entra em toda origem, menos nas locais, e a decisão fica no `proxy.ts` ao lado da lista de hosts.
+
+### D-139 — O que só um aparelho verifica vira lista do proprietário
+**16/09/2026.** Área segura real num aparelho com recorte, cor da barra de status no app instalado e o cookie jar separado do iOS não são verificáveis em navegador de desktop, em emulação do DevTools nem em Playwright. O agente não afirma que funcionam: as três viram lista de verificação escrita para uma pessoa executar, e a emulação de `display-mode: standalone` é declarada como o que é — enquadramento sem barra de navegador, e não prova de área segura.
+
+### D-138 — Suíte crítica consolidada em `pnpm test:e2e`, com um worker
+**16/09/2026.** Os seis fluxos da seção 8 do `docs/PWA_AND_HARDENING.md` já existiam espalhados pelas suítes por bloco; o B11 consolida a execução em vez de reescrevê-los, porque duas versões do mesmo teste divergem e a que falhar primeiro é a que ninguém roda. As suítes por bloco continuam existindo para desenvolvimento. O `workers: 1` é obrigatório e não é preferência: existe um workspace de development e uma conta no Neon Auth, então dois workers significam duas execuções mexendo nas mesmas fixtures e logins novos simultâneos — medido, o segundo worker produzia falha de login aos 30 s com a aplicação íntegra.
+
+### D-137 — `@axe-core/playwright` é a única dependência acrescentada no B11
+**16/09/2026.** Motor de referência, roda dentro do Playwright que já existe e não vai para o pacote do produto. O limite fica registrado junto: axe encontra algo em torno de um terço dos problemas reais de acessibilidade — não sabe se o nome acessível faz sentido, se a ordem de leitura é a ordem visual, nem se a tela é usável. Ele acrescenta à seção 2 da Definition of Done; não substitui nada dela, e por isso a passada por teclado continua existindo.
+
+### D-136 — Branco sobre coral exige peso 700, e texto pequeno sobre coral usa navy
+**16/09/2026.** Corrige o D-017 com medida. O par `#ffffff` sobre `#e76f51` rende 3.09:1, que só é suficiente como **texto grande** — e a WCAG conta como negrito o peso 700, não o 600 do semibold que o D-017 assumiu. O axe reprovava o botão coral em toda rota. Duas consequências: o botão `accent` passa a 19px em 700, e texto pequeno sobre coral (o dia de hoje no calendário) passa a usar `--accent-fg-strong`, navy, que rende 4.53:1. O coral da identidade não muda. Um teste passou a garantir que o botão emite um único peso de fonte, porque o defeito real era `font-medium` do tamanho e `font-bold` da variante no mesmo elemento, com a cascata decidindo a favor do medium.
+
+### D-135 — A exceção pública do `/kitchen-sink` fica condicionada à variável
+**16/09/2026.** Resolve a pendência "reavaliar no B11" da seção 7 do `docs/AUTH_AND_SECURITY.md`. A rota já existia apenas sob `DATE_ENABLE_KITCHEN_SINK` (D-034), mas a exceção no `proxy.ts` era permanente. Agora as duas nascem e morrem juntas: sem a variável, a página responde 404 e o proxy não conhece o caminho. Exceção pública permanente para rota que só existe em desenvolvimento é a exceção que alguém esquece.
+
+### D-134 — HSTS sem `preload` na V1
+**16/09/2026.** `max-age=63072000; includeSubDomains`, sem `preload`. Entrar na lista de pré-carregamento do navegador é fácil e sair leva meses, e o domínio do DATE ainda não existe. Compromisso irreversível não se assume antes do primeiro deploy.
+
+### D-133 — As três diretivas que quebram funcionalidade real
+**16/09/2026.** `connect-src` inclui a origem do R2 porque o upload é um PUT assinado que sai do browser direto para o bucket; o valor vem de `R2_ENDPOINT` no servidor, na montagem do header, sem variável nova e sem `NEXT_PUBLIC_`. `img-src` aceita `blob:` e `data:`. `style-src 'unsafe-inline'` é compromisso declarado: o Next e o `next/font` injetam estilo inline e resolver isso por hash a cada build é caro e frágil — em `script-src`, onde importaria, `'unsafe-inline'` não está. Divergência registrada: o documento justifica `blob:` pela prévia de `URL.createObjectURL`, e essa prévia não existe no código — o `PhotoPicker` usa `createImageBitmap` e não mostra prévia local. A diretiva fica porque o custo é nulo e a prévia é um pedido provável, mas a justificativa escrita no documento não corresponde ao código de hoje.
+
+### D-132 — A CSP mora em um lugar só, o `proxy.ts`
+**16/09/2026.** O nonce é por requisição, então a política precisa ser montada onde a requisição está. E dois headers de CSP são **somados** pelo navegador, não substituídos: uma política no `next.config.ts` e outra no `proxy.ts` produziriam a interseção das duas, com um sintoma que não corresponde a nada escrito em nenhum dos dois arquivos. Os headers estáticos ficam no `next.config.ts` e nenhum dos dois toca o território do outro. As rotas de `/api/` recebem, também do proxy, a política mínima `default-src 'none'`, em vez de escrevê-la na própria rota — escrever lá somaria com a do proxy e reintroduziria exatamente o problema. Verificado contando os headers `content-security-policy` numa resposta real: um.
+
+### D-131 — Maskable é arquivo próprio, mesmo quando a medida aprova o desenho atual
+**16/09/2026.** O documento previa que o ícone de 512 reprovaria no círculo de 80% e exigiria um desenho novo. A medida real desmentiu a previsão: o traço do `icon-512.png` fica a 174,6 px do centro e o raio seguro é 204,8 px — passa com folga. O maskable continua sendo um **arquivo separado**, `icon-maskable-512.png`, com o mesmo desenho auditado, porque `purpose: "any maskable"` num arquivo só afirma duas coisas sobre um desenho e uma delas não teria sido medida; arquivos separados permitem que o maskable divirja no futuro sem tocar no `any`. Junto: `id: "/"` fixo desde o primeiro deploy, orientação não travada, e `background_color` cream porque a splash do Android ignora o tema do sistema.
+
+### D-130 — Ícones auditados, não regerados; `apple-touch-icon` sem canal alfa
+**16/09/2026.** O `icon-512.png` do pacote inicial foi medido e aprovado: 512×512 exato, opaco, paleta da marca. Dele saíram, por redução, o 192, o maskable, o `apple-touch-icon` de 180 e o `favicon.ico` com 32 e 16. O apple-touch é gravado **sem canal alfa** (PNG colorType 2, não 6): o iOS compõe preto atrás de transparência e o símbolo navy sumiria. A geração usou um codec PNG escrito para a ocasião e descartado — nenhuma dependência de imagem entrou no repositório para produzir cinco arquivos estáticos.
+
+### D-129 — `public/sw-kill.js` é o caminho de reversão, escrito antes de ser necessário
+**16/09/2026.** Service worker não se desfaz com deploy comum: `git revert` não alcança o navegador de quem já instalou. O arquivo de emergência existe desde já e é **testado** — o spec registra o worker normal, confirma o cache, troca pelo kill e prova que desregistrou e limpou. Isso só funciona porque `/sw.js` responde `Cache-Control: no-cache` explícito, e não por confiança no padrão do navegador. O teste roda em `/offline.html`, que não tem JavaScript de aplicação: numa rota do app, o kill recarrega a aba e o componente de registro volta a registrar na hora, e o teste mediria a corrida em vez do kill.
+
+### D-128 — O service worker nunca cacheia resposta autenticada
+**16/09/2026.** Ele cacheia um arquivo, `/offline.html`, e passa todo o resto direto. Sem `next-pwa`, sem Workbox, sem `runtimeCaching`. A razão não é minimalismo: as fotos do casal chegam por `/api/media/[id]`, uma rota GET autenticada, e o Cache Storage não conhece sessão, não é despejado pelo navegador e sobrevive ao logout — cacheadas, elas ficariam legíveis no dispositivo sem cookie, depois do logout e depois do login de outra pessoa. É a única falha de segurança que este projeto consegue introduzir sem escrever uma query errada. Uma biblioteca cujo comportamento padrão é cachear é a ferramenta errada para uma regra cujo conteúdo é "não cacheie". O teste abre o Cache Storage e afirma que o conteúdo é exatamente `["/offline.html"]`.
+
 ### D-127 — Foto removida e gasto excluído não têm texto no feed
 **15/09/2026.** O exemplo de degradação do documento do B10 cita foto e gasto, mas esses sujeitos nunca emitiram evento: D-097 excluiu gasto e checklist, e D-110 excluiu foto. Inventar verbos agora contrariaria decisões anteriores e transformaria o feed em log de edição. A degradação testável e implementada é a das opções de data, que são os únicos sujeitos removíveis presentes no enum.
 

@@ -36,7 +36,7 @@ A fonte de verdade executável é `app/globals.css`. HEX só vive nos tokens ou 
 
 A paleta da marca continua incluindo Sage #A7B89F, Sand #F6EDE4, Graphite #282B2B, Blush #F3D7CC, Soft Blue #B7C4CF e Warm Taupe #D7C4B8. As superfícies acima são suas versões de baixa intensidade, adaptadas a cada tema. Não usar os tons brutos como texto pequeno. Estados informam seu significado também por texto, check ou outra marca.
 
-Coral é uma fração pequena da tela: logo, traço editorial, ponto de navegação e CTA de marca. Não é o primary estrutural, texto de filtro, fundo da página ou cor de todas as ações. Branco sobre coral exige 19px semibold por contraste (D-017); o componente `accent` garante esse piso. Erros usam o token danger, nunca coral.
+Coral é uma fração pequena da tela: logo, traço editorial, ponto de navegação e CTA de marca. Não é o primary estrutural, texto de filtro, fundo da página ou cor de todas as ações. Branco sobre coral rende 3.09:1 e por isso exige 19px em **negrito 700** — a WCAG conta como negrito o peso 700, e o semibold do D-017 não qualificava (D-136). O componente `accent` garante esse piso e emite um único peso de fonte. Texto pequeno sobre coral não usa branco: usa `--accent-fg-strong`, navy, que rende 4.53:1. Erros usam o token danger, nunca coral.
 
 Dark tem camadas navy distintas, superfícies de apoio escuras, texto creme e controles claros sobre navy. Fotografias preservam sua cor; nenhum filtro global ou inversão automática. O tema `system` continua sendo resolvido pelo ThemeProvider, com script inicial que evita flash.
 
@@ -71,7 +71,7 @@ Bordas quentes sutis no claro, creme translúcido no escuro. Sombra raised curta
 
 | Variant | Papel |
 | --- | --- |
-| accent | Coral, CTA de marca como Novo DATE e Salvar ideia; 19px semibold |
+| accent | Coral, CTA de marca como Novo DATE e Salvar ideia; 19px em negrito 700 (D-136) |
 | primary | Navy no claro e névoa no escuro; ação importante, 16px |
 | secondary | Superfície quente e rótulo contrastante |
 | outline | Superfície, borda navy discreta e texto contrastante |
