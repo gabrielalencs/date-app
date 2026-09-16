@@ -59,10 +59,32 @@ describe("buttonClasses", () => {
     expect(buttonClasses({ variant: "ghost" })).toContain("bg-transparent");
   });
 
-  it("mantém o tamanho de 19px semibold no coral mesmo pedindo sm", () => {
+  it("mantém 19px em negrito no coral mesmo pedindo sm", () => {
     const classes = buttonClasses({ variant: "accent", size: "sm" });
     expect(classes).toContain("text-[1.1875rem]");
-    expect(classes).toContain("font-semibold");
+    /* 700, não 600: branco sobre coral rende 3.09:1 e só passa como texto
+       grande, e a WCAG conta como negrito a partir do peso 700 (D-136). */
+    expect(classes).toContain("font-bold");
+    expect(classes).not.toContain("font-medium");
+  });
+
+  it("nunca emite dois pesos de fonte no mesmo botão", () => {
+    /* O defeito real: `font-medium` do tamanho e `font-bold` da variante no
+       mesmo elemento, com a cascata do Tailwind decidindo a favor do medium. */
+    for (const variant of [
+      "primary",
+      "accent",
+      "secondary",
+      "outline",
+      "ghost",
+      "danger",
+    ] as const) {
+      const classes = buttonClasses({ variant });
+      const pesos = classes
+        .split(" ")
+        .filter((c) => c.startsWith("font-") && c !== "font-feature-settings");
+      expect(pesos, variant).toHaveLength(1);
+    }
   });
 
   it("aplica largura total e estado de carregando quando pedido", () => {

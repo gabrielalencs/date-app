@@ -107,6 +107,11 @@ export function PhotoPicker({
         ref={inputRef}
         type="file"
         accept="image/*"
+        /* O controle acessível é o botão abaixo; este input é o mecanismo. Ele
+           mesmo assim precisa de nome — sem rótulo, o axe reprova em
+           `critical`, e um leitor de tela que chegue aqui por outro caminho
+           anuncia "campo de arquivo" e nada mais. */
+        aria-label={label}
         className="sr-only"
         tabIndex={-1}
         disabled={ocupado}

@@ -48,6 +48,7 @@ const COLOR_TOKENS = [
   "--accent",
   "--accent-hover",
   "--accent-fg",
+  "--accent-fg-strong",
   "--positive",
   "--danger",
   "--ring",

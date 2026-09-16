@@ -25,6 +25,9 @@
   --accent: #e76f51;
   --accent-hover: #d65c3e;
   --accent-fg: #ffffff;
+  /* Branco sobre coral rende 3.09:1 e só serve para texto grande em 700.
+     Texto pequeno sobre coral usa navy, que rende 4.53:1. */
+  --accent-fg-strong: #1e2d3d;
   --positive: #7e9673;
   --danger: #9e3b2e;
   --ring: #637e8e;
@@ -60,6 +63,9 @@
   --accent: #e76f51;
   --accent-hover: #d65c3e;
   --accent-fg: #ffffff;
+  /* Branco sobre coral rende 3.09:1 e só serve para texto grande em 700.
+     Texto pequeno sobre coral usa navy, que rende 4.53:1. */
+  --accent-fg-strong: #1e2d3d;
   --positive: #a7b89f;
   --danger: #ee9f92;
   --ring: #a6bfcd;
@@ -87,6 +93,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-fg-strong: var(--accent-fg-strong);
   --color-positive: var(--positive);
   --color-danger: var(--danger);
   --color-ring: var(--ring);
@@ -498,8 +505,9 @@
     background: var(--surface-soft);
   }
   .calendar-day[data-outside="true"] {
+    /* Sem opacidade: 0.6 sobre --text-muted dava 2.48:1 medido pelo axe. O
+       muted sozinho já distingue o mês vizinho e passa em AA. */
     color: var(--text-muted);
-    opacity: 0.6;
   }
   .calendar-day[data-selected="true"] {
     background: var(--surface-sunken);
@@ -518,7 +526,8 @@
   /* Hoje é o ponto coral da prancha de marca. */
   .calendar-day[data-today="true"] .calendar-daynum {
     background: var(--accent);
-    color: var(--accent-fg);
+    /* 13px é texto pequeno: exige 4.5:1, que o branco sobre coral não alcança. */
+    color: var(--accent-fg-strong);
     font-weight: 600;
   }
 

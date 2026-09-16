@@ -10,8 +10,10 @@ export function isFilledVariant(variant: ButtonVariant): boolean {
 }
 
 /**
- * D-017: rótulo branco sobre coral só a partir de 19px semibold, então botão
- * accent não tem tamanho pequeno. Primary navy permite o tamanho sm.
+ * D-017, corrigido no B11: rótulo branco sobre coral rende 3.09:1, que só é
+ * suficiente como **texto grande** — e a WCAG conta como negrito o peso 700,
+ * não o 600 do semibold. O botão accent é 19px em 700, e por isso continua sem
+ * tamanho pequeno. Primary navy permite o tamanho sm (D-136).
  */
 export function resolveButtonSize(
   variant: ButtonVariant,
@@ -25,9 +27,13 @@ const BASE =
   "transition-[opacity,transform] duration-[var(--duration-micro)] ease-standard " +
   "motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
 
+/* Sem peso aqui: quem define o peso é a linha única abaixo. Emitir
+   `font-medium` no tamanho e `font-bold` na variante deixava os dois no mesmo
+   elemento, e a cascata do Tailwind resolvia a favor do `font-medium` — o botão
+   coral saía em 500 e o axe reprovava por contraste de texto pequeno. */
 const SIZES: Record<ButtonSize, string> = {
-  md: "min-h-12 px-5 text-base font-medium",
-  sm: "px-3 text-sm font-medium",
+  md: "min-h-12 px-5 text-base",
+  sm: "px-3 text-sm",
 };
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -54,7 +60,7 @@ export function buttonClasses(options: {
     BASE,
     SIZES[size],
     VARIANTS[variant],
-    variant === "accent" && "text-[1.1875rem] font-semibold",
+    variant === "accent" ? "text-[1.1875rem] font-bold" : "font-medium",
     options.fullWidth && "w-full",
     options.loading && "pointer-events-none opacity-70",
   );
