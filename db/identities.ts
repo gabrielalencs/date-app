@@ -22,7 +22,19 @@ export function maskEmail(email: string): string {
   return `${head}${"*".repeat(Math.max(user.length - 2, 1))}@${domain}`;
 }
 
-/** Formato: id:email,id:email. O e-mail pode conter dois pontos? Não pode. */
+/**
+ * Formato: id:email,id:email. O e-mail pode conter dois pontos? Não pode.
+ *
+ * O id vai direto para `profiles.id`, que espelha o id do provedor e por isso é
+ * `text`, não `uuid` — não há tipo do banco para reprovar lixo. A validação
+ * precisa acontecer aqui, e ela é específica: o erro real que aconteceu em
+ * produção foi colar a **linha inteira** que o `auth:create-prod-users`
+ * imprime, deixando `DATE_PROD_AUTH_USERS=<uuid>` como id. O comando terminou
+ * com sucesso, e o sintoma só apareceria no primeiro login, como 403 do dono do
+ * workspace — com o banco afirmando dois membros.
+ */
+const ID_SUSPEITO = /[\s=@,]/;
+
 export function parseIdentities(
   raw: string | undefined,
   variavel: string,
@@ -40,8 +52,27 @@ export function parseIdentities(
           `${variavel} espera pares id:email separados por vírgula.`,
         );
       }
+
+      const id = entry.slice(0, separator).trim();
+
+      if (id.startsWith(`${variavel}=`)) {
+        throw new Error(
+          `ABORTADO: o valor de ${variavel} começa com "${variavel}=".\n\n` +
+            "A linha inteira foi colada dentro do valor. Deixe só o que vem\n" +
+            "depois do primeiro sinal de igual.",
+        );
+      }
+
+      if (id.length === 0 || ID_SUSPEITO.test(id)) {
+        throw new Error(
+          `ABORTADO: "${id}" não parece um id de usuário do Neon Auth.\n\n` +
+            `Cada entrada de ${variavel} é <id>:<email>, e o id é o que o\n` +
+            "provedor devolveu — sem espaço, sem '=' e sem arroba.",
+        );
+      }
+
       return {
-        id: entry.slice(0, separator).trim(),
+        id,
         email: entry
           .slice(separator + 1)
           .trim()
