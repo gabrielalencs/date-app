@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronDown, MapPin, Pencil, Wallet } from "lucide-react";
@@ -38,6 +39,26 @@ import { categoryLabel } from "@/lib/categories";
 import { NotFoundError } from "@/lib/errors";
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/cn";
+
+/**
+ * Título da janela com o nome do plano. `getPlan` é memoizado por requisição
+ * com cache() do React, então isto não acrescenta consulta: é a mesma leitura
+ * escopada por workspace que a página faz logo abaixo. Plano inexistente ou de
+ * outro workspace cai no título genérico e a página responde 404 — o título
+ * nunca é o lugar que confirma a existência de alguma coisa.
+ */
+export async function generateMetadata({
+  params,
+}: PageProps<"/planos/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const ctx = await requireAuthorizedContext();
+    const plan = await getPlan(ctx, id);
+    return { title: plan.title };
+  } catch {
+    return { title: "Plano" };
+  }
+}
 
 export default async function Page({
   params,
@@ -136,33 +157,35 @@ export default async function Page({
             ) : null}
           </header>
           <dl className="border-border-subtle grid grid-cols-1 gap-5 border-y py-5 sm:grid-cols-2">
-            <div className="flex gap-3">
-              <MapPin aria-hidden="true" className="mt-1 size-5 shrink-0" />
-              <div>
-                <dt className="type-meta text-text-muted">Onde</dt>
-                <dd className="type-body-s mt-1">
-                  {plan.placeName ?? plan.city ?? "Um lugar para escolher"}
-                  {plan.placeName && plan.city ? (
-                    <span className="type-meta text-text-muted mt-1 block">
-                      {plan.city}
-                      {plan.state ? `, ${plan.state}` : ""}
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
+            {/* O ícone mora dentro do <dt>. A estrutura anterior era
+                dl > div > div > dt, e a <dl> só aceita dt/dd como filhos
+                diretos ou dentro de um único <div> de agrupamento — o axe
+                reprovava com `definition-list` e `dlitem`. */}
+            <div>
+              <dt className="type-meta text-text-muted flex items-center gap-2">
+                <MapPin aria-hidden="true" className="size-5 shrink-0" />
+                Onde
+              </dt>
+              <dd className="type-body-s mt-1">
+                {plan.placeName ?? plan.city ?? "Um lugar para escolher"}
+                {plan.placeName && plan.city ? (
+                  <span className="type-meta text-text-muted mt-1 block">
+                    {plan.city}
+                    {plan.state ? `, ${plan.state}` : ""}
+                  </span>
+                ) : null}
+              </dd>
             </div>
-            <div className="flex gap-3">
-              <Wallet aria-hidden="true" className="mt-1 size-5 shrink-0" />
-              <div>
-                <dt className="type-meta text-text-muted">
-                  Orçamento estimado
-                </dt>
-                <dd className="type-body-s tnum mt-1">
-                  {plan.estimatedBudgetCents === null
-                    ? "Para combinar"
-                    : formatCents(plan.estimatedBudgetCents)}
-                </dd>
-              </div>
+            <div>
+              <dt className="type-meta text-text-muted flex items-center gap-2">
+                <Wallet aria-hidden="true" className="size-5 shrink-0" />
+                Orçamento estimado
+              </dt>
+              <dd className="type-body-s tnum mt-1">
+                {plan.estimatedBudgetCents === null
+                  ? "Para combinar"
+                  : formatCents(plan.estimatedBudgetCents)}
+              </dd>
             </div>
           </dl>
         </article>

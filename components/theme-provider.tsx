@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from "@/lib/brand";
 import {
   parseStoredPreference,
   resolveTheme,
@@ -100,7 +101,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Efeito legítimo: sincroniza estado do React com o DOM externo.
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", resolved === "dark");
+    const dark = resolved === "dark";
+    document.documentElement.classList.toggle("dark", dark);
+
+    /* A barra de status do app instalado acompanha a troca de tema. O meta é
+       criado pelo ThemeScript antes da primeira pintura; aqui só o conteúdo
+       muda. Se ele não existir (JS do head bloqueado), os metas com `media` do
+       viewport continuam valendo e não há nada a fazer. */
+    const meta = document.getElementById("date-theme-color");
+    if (meta instanceof HTMLMetaElement) {
+      meta.content = dark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT;
+    }
   }, [resolved]);
 
   return children;

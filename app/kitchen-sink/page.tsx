@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { KitchenSinkShowcase } from "@/app/kitchen-sink/showcase";
@@ -7,6 +8,8 @@ import { KitchenSinkShowcase } from "@/app/kitchen-sink/showcase";
  * sem a variável a rota não existe — 404 de verdade, não rota pública
  * protegida. A variável fica no .env.local e nunca vai para a Vercel.
  */
+export const metadata: Metadata = { title: "Kitchen sink" };
+
 export default function Page() {
   if (process.env.DATE_ENABLE_KITCHEN_SINK !== "true") {
     notFound();

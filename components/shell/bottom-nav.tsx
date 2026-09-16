@@ -15,7 +15,10 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="border-border-subtle bg-surface shadow-raised fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 rounded-lg border px-1 md:hidden"
+      /* Somado, não substituído: com max() a barra encosta no indicador de
+         gestos do aparelho, porque o inset (34px no iPhone) simplesmente vence
+         o respiro de 0.5rem em vez de se somar a ele. */
+      className="border-border-subtle bg-surface shadow-raised fixed inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-30 rounded-lg border px-1 md:hidden"
     >
       <ul className="mx-auto grid max-w-lg grid-cols-[1fr_1fr_3.5rem_1fr_1fr] items-end">
         {left.map((item) => (

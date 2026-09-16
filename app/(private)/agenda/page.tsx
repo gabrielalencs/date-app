@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { z } from "zod";
 
 import { PageIntro } from "@/components/brand/editorial";
@@ -46,6 +47,8 @@ const AgendaSearchParams = z.object({
 });
 
 const PADRAO = { mes: null, dia: null, categoria: null };
+
+export const metadata: Metadata = { title: "Agenda" };
 
 export default async function Page({ searchParams }: PageProps<"/agenda">) {
   const ctx = await requireAuthorizedContext();

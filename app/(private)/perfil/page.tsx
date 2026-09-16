@@ -1,4 +1,5 @@
-import { ShieldCheck, UserRound, Palette } from "lucide-react";
+import type { Metadata } from "next";
+import { Palette, ShieldCheck, Smartphone, UserRound } from "lucide-react";
 import {
   PageIntro,
   PhotoStory,
@@ -7,6 +8,8 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
+
+export const metadata: Metadata = { title: "Perfil" };
 
 export default async function Page() {
   const context = await requireAuthorizedContext();
@@ -50,6 +53,25 @@ export default async function Page() {
               Escolha o tema ou acompanhe a aparência do seu aparelho.
             </p>
             <ThemeToggle />
+          </section>
+          {/* Texto estático no lugar de um banner de instalação. O
+              `beforeinstallprompt` não existe no iOS, então um banner próprio
+              resolveria metade do problema e acrescentaria estado à tela
+              (seção 11 do docs/PWA_AND_HARDENING.md). */}
+          <section className="flex flex-col gap-4">
+            <h2 className="section-heading flex items-center gap-3">
+              <Smartphone aria-hidden="true" className="size-5" />
+              Na tela de início
+            </h2>
+            <p className="type-body-s text-text-muted">
+              Dá para instalar o DATE como aplicativo. No Android, abra o menu do
+              navegador e toque em <strong className="text-text">Instalar
+              aplicativo</strong>. No iPhone, toque em{" "}
+              <strong className="text-text">Compartilhar</strong> e depois em{" "}
+              <strong className="text-text">Adicionar à Tela de Início</strong>.
+              No iPhone, o aplicativo instalado pede login uma vez, separado do
+              Safari — é assim que o sistema funciona.
+            </p>
           </section>
           <div className="border-border-subtle border-t pt-5">
             <SignOutButton />

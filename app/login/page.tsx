@@ -6,7 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { InsecureOriginNotice } from "@/features/auth/components/insecure-origin-notice";
 import { LoginForm } from "@/features/auth/components/login-form";
 
-export const metadata: Metadata = { title: "Entrar · date" };
+export const metadata: Metadata = { title: "Entrar" };
 
 export default async function LoginPage() {
   return (

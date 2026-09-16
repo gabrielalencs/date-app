@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Lightbulb, Plus } from "lucide-react";
 
 import { PageIntro } from "@/components/brand/editorial";
@@ -12,6 +13,8 @@ import {
   parseDiscoveryFilters,
 } from "@/features/discovery/filters";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
+
+export const metadata: Metadata = { title: "Ideias" };
 
 export default async function Page({ searchParams }: PageProps<"/ideias">) {
   const ctx = await requireAuthorizedContext();

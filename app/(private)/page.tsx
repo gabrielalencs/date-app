@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Lightbulb, Plus } from "lucide-react";
 import {
@@ -13,6 +14,8 @@ import { PlanCard } from "@/features/plans/components/plan-card";
 import { countPlansByStatus, listPlans } from "@/features/plans/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { PLAN_STATUSES, statusLabel } from "@/lib/status";
+
+export const metadata: Metadata = { title: "Hoje" };
 
 export default async function Page() {
   const ctx = await requireAuthorizedContext();

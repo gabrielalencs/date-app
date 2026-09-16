@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Images } from "lucide-react";
 
 import { PageIntro } from "@/components/brand/editorial";
@@ -25,6 +26,8 @@ import { requireAuthorizedContext } from "@/lib/auth/authorization";
  * `listMemories` faz duas consultas, e faria as mesmas duas com seiscentos
  * planos: a página não busca capa, contagem de fotos nem avaliação por linha.
  */
+export const metadata: Metadata = { title: "Memórias" };
+
 export default async function Page({ searchParams }: PageProps<"/memorias">) {
   const ctx = await requireAuthorizedContext();
   const params = await searchParams;

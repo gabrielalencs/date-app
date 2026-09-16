@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Check, Lightbulb } from "lucide-react";
 import {
@@ -7,6 +8,8 @@ import {
 } from "@/components/brand/editorial";
 import { NewPlanForm } from "@/features/plans/components/new-plan-form";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
+
+export const metadata: Metadata = { title: "Novo DATE" };
 
 export default async function Page() {
   await requireAuthorizedContext();
