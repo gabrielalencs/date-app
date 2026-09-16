@@ -49,7 +49,8 @@
     "shots:pwa": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/pwa-shots.spec.ts",
     "test:teclado": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/keyboard.spec.ts",
     "test:notifications": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/notifications.spec.ts",
-    "shots:notifications": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/notifications-shots.spec.ts"
+    "shots:notifications": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/notifications-shots.spec.ts",
+    "notifications:backfill": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./db/alias-register.mjs db/notifications-backfill.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1129.0",
