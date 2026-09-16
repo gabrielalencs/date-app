@@ -1,4 +1,8 @@
-import { isMediaVariant, type MediaVariant } from "@/features/media/constants";
+import {
+  isAllowedUploadMime,
+  isMediaVariant,
+  type MediaVariant,
+} from "@/features/media/constants";
 import { getMediaObject } from "@/features/media/data/queries";
 import { getObject } from "@/features/media/r2/client";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
@@ -50,11 +54,23 @@ export async function GET(
       return notFound();
     }
 
+    /* Revalidação na leitura, não só na gravação (seção 7 do
+       docs/PWA_AND_HARDENING.md). Custa uma comparação de string e fecha o caso
+       do valor que entrou no bucket antes de a allowlist existir — ou por fora
+       dela. Tipo fora da lista não vira 500 nem vaza: some, igual a id que não
+       existe. */
+    if (!isAllowedUploadMime(objeto.contentType)) {
+      return notFound();
+    }
+
     const headers = new Headers({
       "Content-Type": objeto.contentType,
       "Cache-Control": CACHE,
       // A URL não carrega o nome do arquivo; o browser não deve adivinhar tipo.
       "X-Content-Type-Options": "nosniff",
+      /* Explícito: a foto é para ser vista na página, não baixada. Sem isto o
+         comportamento fica a cargo do palpite do navegador. */
+      "Content-Disposition": "inline",
     });
 
     if (objeto.sizeBytes !== undefined) {
