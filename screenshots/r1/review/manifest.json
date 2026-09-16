@@ -1,0 +1,444 @@
+[
+  {
+    "output": "login-mobile-1.png",
+    "sources": [
+      "login-320-light.png",
+      "login-320-dark.png",
+      "login-390-light.png",
+      "login-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "login-desktop-1.png",
+    "sources": [
+      "login-1280-light.png",
+      "login-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "home-mobile-1.png",
+    "sources": [
+      "home-320-light.png",
+      "home-320-dark.png",
+      "home-390-light.png",
+      "home-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "home-mobile-2.png",
+    "sources": [
+      "home-320-light.png",
+      "home-320-dark.png",
+      "home-390-light.png",
+      "home-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "home-mobile-3.png",
+    "sources": [
+      "home-320-light.png",
+      "home-320-dark.png",
+      "home-390-light.png",
+      "home-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "home-mobile-4.png",
+    "sources": [
+      "home-320-light.png",
+      "home-320-dark.png",
+      "home-390-light.png",
+      "home-390-dark.png"
+    ],
+    "top": 3000
+  },
+  {
+    "output": "home-desktop-1.png",
+    "sources": [
+      "home-1280-light.png",
+      "home-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "ideias-mobile-1.png",
+    "sources": [
+      "ideias-320-light.png",
+      "ideias-320-dark.png",
+      "ideias-390-light.png",
+      "ideias-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "ideias-mobile-2.png",
+    "sources": [
+      "ideias-320-light.png",
+      "ideias-320-dark.png",
+      "ideias-390-light.png",
+      "ideias-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "ideias-mobile-3.png",
+    "sources": [
+      "ideias-320-light.png",
+      "ideias-320-dark.png",
+      "ideias-390-light.png",
+      "ideias-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "ideias-desktop-1.png",
+    "sources": [
+      "ideias-1280-light.png",
+      "ideias-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "nova-ideia-mobile-1.png",
+    "sources": [
+      "nova-ideia-320-light.png",
+      "nova-ideia-320-dark.png",
+      "nova-ideia-390-light.png",
+      "nova-ideia-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "nova-ideia-mobile-2.png",
+    "sources": [
+      "nova-ideia-320-light.png",
+      "nova-ideia-320-dark.png",
+      "nova-ideia-390-light.png",
+      "nova-ideia-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "nova-ideia-mobile-3.png",
+    "sources": [
+      "nova-ideia-320-light.png",
+      "nova-ideia-320-dark.png",
+      "nova-ideia-390-light.png",
+      "nova-ideia-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "nova-ideia-desktop-1.png",
+    "sources": [
+      "nova-ideia-1280-light.png",
+      "nova-ideia-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "detalhe-mobile-1.png",
+    "sources": [
+      "detalhe-320-light.png",
+      "detalhe-320-dark.png",
+      "detalhe-390-light.png",
+      "detalhe-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "detalhe-mobile-2.png",
+    "sources": [
+      "detalhe-320-light.png",
+      "detalhe-320-dark.png",
+      "detalhe-390-light.png",
+      "detalhe-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "detalhe-mobile-3.png",
+    "sources": [
+      "detalhe-320-light.png",
+      "detalhe-320-dark.png",
+      "detalhe-390-light.png",
+      "detalhe-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "detalhe-desktop-1.png",
+    "sources": [
+      "detalhe-1280-light.png",
+      "detalhe-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "detalhe-edicao-mobile-1.png",
+    "sources": [
+      "detalhe-edicao-320-light.png",
+      "detalhe-edicao-320-dark.png",
+      "detalhe-edicao-390-light.png",
+      "detalhe-edicao-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "detalhe-edicao-mobile-2.png",
+    "sources": [
+      "detalhe-edicao-320-light.png",
+      "detalhe-edicao-320-dark.png",
+      "detalhe-edicao-390-light.png",
+      "detalhe-edicao-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "detalhe-edicao-mobile-3.png",
+    "sources": [
+      "detalhe-edicao-320-light.png",
+      "detalhe-edicao-320-dark.png",
+      "detalhe-edicao-390-light.png",
+      "detalhe-edicao-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "detalhe-edicao-mobile-4.png",
+    "sources": [
+      "detalhe-edicao-320-light.png",
+      "detalhe-edicao-320-dark.png",
+      "detalhe-edicao-390-light.png",
+      "detalhe-edicao-390-dark.png"
+    ],
+    "top": 3000
+  },
+  {
+    "output": "detalhe-edicao-desktop-1.png",
+    "sources": [
+      "detalhe-edicao-1280-light.png",
+      "detalhe-edicao-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "detalhe-edicao-desktop-2.png",
+    "sources": [
+      "detalhe-edicao-1280-light.png",
+      "detalhe-edicao-1280-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "perfil-mobile-1.png",
+    "sources": [
+      "perfil-320-light.png",
+      "perfil-320-dark.png",
+      "perfil-390-light.png",
+      "perfil-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "perfil-mobile-2.png",
+    "sources": [
+      "perfil-320-light.png",
+      "perfil-320-dark.png",
+      "perfil-390-light.png",
+      "perfil-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "perfil-desktop-1.png",
+    "sources": [
+      "perfil-1280-light.png",
+      "perfil-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "agenda-mobile-1.png",
+    "sources": [
+      "agenda-320-light.png",
+      "agenda-320-dark.png",
+      "agenda-390-light.png",
+      "agenda-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "agenda-mobile-2.png",
+    "sources": [
+      "agenda-320-light.png",
+      "agenda-320-dark.png",
+      "agenda-390-light.png",
+      "agenda-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "agenda-desktop-1.png",
+    "sources": [
+      "agenda-1280-light.png",
+      "agenda-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "memorias-mobile-1.png",
+    "sources": [
+      "memorias-320-light.png",
+      "memorias-320-dark.png",
+      "memorias-390-light.png",
+      "memorias-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "memorias-mobile-2.png",
+    "sources": [
+      "memorias-320-light.png",
+      "memorias-320-dark.png",
+      "memorias-390-light.png",
+      "memorias-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "memorias-desktop-1.png",
+    "sources": [
+      "memorias-1280-light.png",
+      "memorias-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "kitchen-sink-mobile-1.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "kitchen-sink-mobile-2.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "kitchen-sink-mobile-3.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "kitchen-sink-mobile-4.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 3000
+  },
+  {
+    "output": "kitchen-sink-mobile-5.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 4000
+  },
+  {
+    "output": "kitchen-sink-mobile-6.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 5000
+  },
+  {
+    "output": "kitchen-sink-mobile-7.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 6000
+  },
+  {
+    "output": "kitchen-sink-mobile-8.png",
+    "sources": [
+      "kitchen-sink-320-light.png",
+      "kitchen-sink-320-dark.png",
+      "kitchen-sink-390-light.png",
+      "kitchen-sink-390-dark.png"
+    ],
+    "top": 7000
+  },
+  {
+    "output": "kitchen-sink-desktop-1.png",
+    "sources": [
+      "kitchen-sink-1280-light.png",
+      "kitchen-sink-1280-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "kitchen-sink-desktop-2.png",
+    "sources": [
+      "kitchen-sink-1280-light.png",
+      "kitchen-sink-1280-dark.png"
+    ],
+    "top": 1000
+  },
+  {
+    "output": "kitchen-sink-desktop-3.png",
+    "sources": [
+      "kitchen-sink-1280-light.png",
+      "kitchen-sink-1280-dark.png"
+    ],
+    "top": 2000
+  },
+  {
+    "output": "select-aberto-mobile-1.png",
+    "sources": [
+      "select-aberto-320-light.png",
+      "select-aberto-320-dark.png",
+      "select-aberto-390-light.png",
+      "select-aberto-390-dark.png"
+    ],
+    "top": 0
+  },
+  {
+    "output": "select-aberto-desktop-1.png",
+    "sources": [
+      "select-aberto-1280-light.png",
+      "select-aberto-1280-dark.png"
+    ],
+    "top": 0
+  }
+]
