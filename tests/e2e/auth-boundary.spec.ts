@@ -120,3 +120,61 @@ test("assets estáticos continuam públicos, sem passar por redirect", async ({
     expect(response.headers()["content-type"], asset).toContain("svg");
   }
 });
+
+/**
+ * Webhook `user.before_create` (B12, D-043).
+ *
+ * O que estes testes provam é o acoplamento, não a criptografia — essa está em
+ * `tests/auth/webhook.test.ts`, contra assinatura de verdade. Aqui a pergunta é
+ * outra: o proxy deixa a entrega chegar à rota, e a rota nega quando não
+ * consegue verificar?
+ *
+ * O primeiro ponto é o que falha silencioso em produção. Se o proxy tratasse a
+ * rota como privada, ela responderia um redirect para /login; o provedor leria
+ * resposta inválida e, porque falha fechado, recusaria TODO cadastro — inclusive
+ * o das duas contas reais, no dia do deploy.
+ */
+const WEBHOOK = "/api/webhooks/neon-auth";
+
+test("o webhook do Neon Auth é alcançável sem cookie", async ({ request }) => {
+  const response = await request.post(WEBHOOK, {
+    data: { event_type: "user.before_create" },
+    failOnStatusCode: false,
+    maxRedirects: 0,
+  });
+
+  // Não pode ser redirect: quem chama é o provedor, e ele nunca terá sessão.
+  expect([302, 303, 307, 308]).not.toContain(response.status());
+  expect(response.status()).toBe(200);
+});
+
+test("entrega sem assinatura é recusada, e a recusa é 200", async ({
+  request,
+}) => {
+  const response = await request.post(WEBHOOK, {
+    data: {
+      event_id: "evt",
+      event_type: "user.before_create",
+      user: { id: "x", email: "intruso@example.invalid" },
+    },
+    failOnStatusCode: false,
+  });
+
+  /* 200 é obrigatório: o provedor só LÊ a decisão em resposta 2xx. Um 401 aqui
+     também barraria o cadastro, mas por falha de entrega, com retry — e a
+     pessoa veria erro genérico em vez da recusa. */
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({ allowed: false });
+});
+
+test("o webhook não expõe leitura nem escrita além do POST", async ({
+  request,
+}) => {
+  for (const method of ["GET", "PUT", "PATCH", "DELETE"] as const) {
+    const response = await request.fetch(WEBHOOK, {
+      method,
+      failOnStatusCode: false,
+    });
+    expect(response.status(), method).toBe(405);
+  }
+});

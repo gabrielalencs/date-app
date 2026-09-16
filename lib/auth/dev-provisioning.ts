@@ -22,13 +22,20 @@ export function signUpUrl(baseUrl: string): string {
   return new URL(SIGN_UP_PATH, base).toString();
 }
 
-/** Formato: email:senha,email:senha. A senha não pode conter vírgula. */
+/**
+ * Formato: email:senha,email:senha. A senha não pode conter vírgula.
+ *
+ * O nome da variável entra por parâmetro porque o provisionamento de produção
+ * (B12) usa a mesma gramática numa variável própria, e mensagem de erro que
+ * cita a variável errada manda a pessoa editar o arquivo errado.
+ */
 export function parseDevCredentials(
   raw: string | undefined,
+  variavel = "DATE_DEV_USER_CREDENTIALS",
 ): readonly DevCredential[] {
   if (!raw?.trim()) {
     throw new Error(
-      "DATE_DEV_USER_CREDENTIALS não está definida. Formato: email1:senha1,email2:senha2",
+      `${variavel} não está definida. Formato: email1:senha1,email2:senha2`,
     );
   }
 

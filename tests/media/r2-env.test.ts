@@ -78,6 +78,38 @@ describe("assertBucketMatchesBranch", () => {
     ).toThrow(/date-media-dev/);
   });
 
+  it("aceita production apontada para o bucket de produção", () => {
+    const alvo = assertBucketMatchesBranch(
+      readR2Config(env({ NEON_BRANCH: "production", R2_BUCKET: PROD_BUCKET })),
+      "production",
+    );
+
+    expect(alvo.bucket).toBe(PROD_BUCKET);
+  });
+
+  /* O erro mais provável do deploy: copiar as variáveis de development para a
+     Vercel e esquecer o R2_BUCKET. Sem esta guarda, foto real iria para o
+     bucket de teste em silêncio. */
+  it("aborta quando production aponta para o bucket de development", () => {
+    expect(() =>
+      assertBucketMatchesBranch(
+        readR2Config(env({ NEON_BRANCH: "production" })),
+        "production",
+      ),
+    ).toThrow(/ABORTADO/);
+  });
+
+  it("aborta com qualquer outro bucket em production", () => {
+    expect(() =>
+      assertBucketMatchesBranch(
+        readR2Config(
+          env({ NEON_BRANCH: "production", R2_BUCKET: "date-media-teste" }),
+        ),
+        "production",
+      ),
+    ).toThrow(/date-media-prod/);
+  });
+
   it("aborta quando o endpoint é de outra conta", () => {
     expect(() =>
       assertBucketMatchesBranch(

@@ -136,6 +136,10 @@ Webhook `user.before_create` com verificação de assinatura, migration em `prod
 
 **Nenhuma etapa do B12 acontece sem confirmação explícita do proprietário, uma por uma.**
 
+Parte de código concluída: endpoint do webhook com verificação Ed25519, guarda de branch `production`, e os quatro comandos (`db:migrate:prod`, `auth:probe-prod`, `auth:create-prod-users`, `db:bootstrap:prod`), cada um com confirmação digitada. Runbook, ordem de execução e o que continua sendo ato humano em `docs/PRODUCTION.md`.
+
+Pendente, tudo do proprietário: rotacionar os segredos de development (D-146), criar o projeto na Vercel, gerar o token R2 de produção, configurar as variáveis, fazer o primeiro deploy, cadastrar o webhook no console do Neon e executar os quatro comandos na ordem.
+
 ---
 
 ## Fora de escopo na V1

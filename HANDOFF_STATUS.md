@@ -61,14 +61,23 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
   - 2FA da conta Neon habilitado
   - Data API não deve ser habilitada sem necessidade arquitetural explícita
 
+- B12, parte de código, concluída: endpoint `/api/webhooks/neon-auth` com verificação Ed25519 do JWS destacado contra o JWKS do provedor (D-142), recusa em 200 (D-143), guarda de branch `production` com três travas independentes (D-144), guarda simétrica do R2 (D-145) e os quatro comandos de produção. Ver `docs/PRODUCTION.md`.
+- Nenhuma migration no B12: o bloco não toca o schema. Variáveis novas só no `.env.production.example`, que nunca é carregado pelo `next dev`.
+
+## Atenção imediata — segredos vazados (D-146)
+
+O `.env.local` e a chave privada `certificates/localhost-key.pem` estiveram **versionados e enviados ao `origin/main`**. Saíram do índice; o histórico não foi reescrito.
+
+Antes de usar o app com dado real, rotacionar: senha da conexão Neon `development`, token R2 de development, `NEON_AUTH_COOKIE_SECRET`, par VAPID, `CRON_SECRET` e as senhas das duas contas de development. Nenhum desses valores pode ser reaproveitado em produção.
+
 ## Ainda NÃO concluído
 
 - Vercel ainda precisa ser conectada/deployada.
-- Token R2 de **produção** não existe; é do B12. O de development está limitado a `date-media-dev`.
-- Webhook `user.before_create` **pendente e obrigatório antes do primeiro deploy**: o serviço aceita cadastro de qualquer origem que conheça a base URL, e a allowlist da aplicação não protege o provedor (D-043).
+- Token R2 de **produção** não existe. O de development está limitado a `date-media-dev`.
+- O webhook `user.before_create` existe em código, mas **ainda não está cadastrado** no console do Neon. Enquanto não estiver, o serviço aceita cadastro de qualquer origem que conheça a base URL (D-043). `pnpm auth:probe-prod` é a prova de que ele está barrando; ela não foi executada.
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Próximo bloco funcional: **B12 — deploy e produção**.
+- Dois testes de `tests/schema.test.ts` falham desde antes do B12: o schema tem 18 tabelas e 12 enums, e `docs/DATABASE.md` documenta 14 e 9. É a dívida do B11.5 (notificações), não do B12 — nem `db/schema` nem `docs/DATABASE.md` foram tocados aqui.
 
 ## Regra de ambientes
 
@@ -108,11 +117,17 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm test:measure` | idem; cria e remove 30 planos com foto, e imprime bytes e contagem de miniatura |
 | `pnpm shots:pwa` | capturas em standalone emulado e a troca de tema com CSP |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
+| `pnpm db:migrate:prod --eu-confirmo` | `.env.production.local` + Neon `production` |
+| `pnpm auth:probe-prod --eu-confirmo` | idem + webhook já cadastrado no console |
+| `pnpm auth:create-prod-users --eu-confirmo` | idem + a sonda acima tendo passado |
+| `pnpm db:bootstrap:prod --eu-confirmo` | idem + os ids impressos pelo comando anterior |
+
+Os quatro últimos abortam sem `NEON_BRANCH=production` e sem a flag digitada. A ordem entre eles não é preferência — ver `docs/PRODUCTION.md`.
 
 ## Próxima ação
 
 A continuidade visual segue obrigatoriamente os tokens, primitives e padrões do R1 em `docs/DESIGN_SYSTEM.md`. O relatório de implementação, capturas e verificações está em `docs/R1_VISUAL_REBRAND.md`. `/kitchen-sink` demonstra o sistema novo; os mockups fornecidos são referência de direção, sem autorização para inventar features ou dados.
 
-B12 — deploy e produção. O B11 deixou o produto instalável, fechado e medido; o que falta é configuração e confirmação humana.
+B12 — o código está pronto e verificado; o que falta é configuração e confirmação humana, na ordem da seção 3 de `docs/PRODUCTION.md`. Comece pela rotação dos segredos (D-146), que independe de tudo o mais.
 
 Três verificações do B11 **não são possíveis fora de um aparelho** e ficam para o proprietário: a área segura real num telefone com recorte ou barra de gestos, a cor da barra de status no app instalado, e o fato de que no iPhone o app instalado tem cookie jar separado do Safari — o login dentro dele é pedido de novo, e isso é comportamento do sistema, não defeito. A lista escrita está no relatório do B11.

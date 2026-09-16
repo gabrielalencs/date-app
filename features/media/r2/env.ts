@@ -2,8 +2,13 @@
  * Guarda de ambiente do R2, espelhando a do banco em `db/env.ts`
  * (seção 8 do docs/MEDIA_R2.md).
  *
- * Regra: se a branch do Neon é `development`, o bucket tem que ser
- * `date-media-dev`. Qualquer outro valor aborta antes de o primeiro byte sair.
+ * Regra, nos dois sentidos desde o B12: branch `development` exige bucket
+ * `date-media-dev`, e branch `production` exige `date-media-prod`. Qualquer
+ * outro par aborta antes de o primeiro byte sair.
+ *
+ * O sentido novo protege contra o erro mais provável do deploy: copiar as
+ * variáveis de development para a Vercel e deixar o `R2_BUCKET` para trás. Sem
+ * ele, o app de produção escreveria fotos reais no bucket de teste em silêncio.
  *
  * Imprime bucket e endpoint. Nunca imprime credencial, nem mascarada — chave
  * mascarada em log é chave em log com passos a mais.
@@ -15,6 +20,7 @@
 export const DEV_BUCKET = "date-media-dev";
 export const PROD_BUCKET = "date-media-prod";
 export const DEV_BRANCH = "development";
+export const PROD_BRANCH = "production";
 
 export type R2Config = {
   readonly accountId: string;
@@ -101,6 +107,21 @@ export function assertBucketMatchesBranch(
       `ABORTADO: R2_ENDPOINT (${host}) não pertence à conta de R2_ACCOUNT_ID.\n` +
         "Uma das duas variáveis está de outra conta. Confira as duas no " +
         "painel do Cloudflare antes de continuar.",
+    );
+  }
+
+  if (branch === PROD_BRANCH && config.bucket !== PROD_BUCKET) {
+    throw new R2ConfigError(
+      `\nABORTADO: NEON_BRANCH é "${branch}" e R2_BUCKET é "${config.bucket}".\n\n` +
+        `Em produção o único bucket permitido é "${PROD_BUCKET}".\n` +
+        (config.bucket === DEV_BUCKET
+          ? "As fotos reais do casal iriam para o bucket de teste, e o token " +
+            "de development nem tem permissão nele.\n"
+          : "") +
+        `\nO que fazer:\n` +
+        `  1. Abra as variáveis de ambiente do projeto na Vercel\n` +
+        `  2. Deixe R2_BUCKET=${PROD_BUCKET} no ambiente Production\n` +
+        `  3. Confirme que o token de acesso é o limitado a esse bucket\n`,
     );
   }
 

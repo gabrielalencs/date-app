@@ -53,7 +53,9 @@ Qualquer outra coisa recebe 404 e não chega ao Neon. `PUT`, `DELETE` e `PATCH` 
 
 A allowlist é positiva de propósito: operação nova do provedor nasce bloqueada, não liberada.
 
-O webhook `user.before_create` continua **obrigatório antes de production** (B12). A allowlist protege a nossa fronteira; o webhook protege o provedor.
+O webhook `user.before_create` continua **obrigatório antes de production**. A allowlist protege a nossa fronteira; o webhook protege o provedor.
+
+Desde o B12 ele existe em código, em `app/api/webhooks/neon-auth/route.ts`: verificação Ed25519 do JWS destacado contra o JWKS do provedor, recusa em 200 e `PUBLIC_PREFIXES` no proxy. O que ainda não aconteceu é o cadastro dele no console do Neon — e enquanto isso não for feito e provado por `pnpm auth:probe-prod`, a porta do D-043 continua aberta. Mecânica, ordem e riscos em `docs/PRODUCTION.md`.
 
 ---
 

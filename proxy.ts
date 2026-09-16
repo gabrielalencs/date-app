@@ -33,6 +33,13 @@ const PUBLIC_PREFIXES = [
      Deixar o proxy redirecioná-la para /login transformaria o reparo num GET de
      HTML silencioso. */
   "/api/notifications/recovery",
+  /* Webhook `user.before_create` do Neon Auth (B12, D-043). Quem chama é o
+     serviço do provedor, server-to-server, e ele nunca terá cookie: um redirect
+     para /login aqui devolveria HTML, o provedor leria resposta inválida e —
+     porque ele falha fechado — TODO cadastro passaria a ser recusado, inclusive
+     o das duas contas reais. A rota se autentica pela assinatura Ed25519 da
+     entrega, verificada contra o JWKS do próprio provedor. */
+  "/api/webhooks/neon-auth",
 ] as const;
 
 /**
@@ -242,8 +249,10 @@ export const config = {
    * Next 16, onde o `proxy.ts` substituiu o `middleware.ts`.
    *
    * Não é exceção de autorização: essas rotas não servem dado de produto e não
-   * recebem `workspaceId` de quem chama. A única delas com superfície pública é
-   * a de webhook, e o DATE não cria nenhum — não usa hooks.
+   * recebem `workspaceId` de quem chama. A única delas com superfície pública
+   * seria a de webhook do Workflow, e o DATE não cria nenhum — não usa hooks.
+   * O webhook do Neon Auth é outro caminho, `/api/webhooks/neon-auth`, que
+   * passa pelo matcher normalmente e está declarado em PUBLIC_PREFIXES.
    */
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/).*)",
