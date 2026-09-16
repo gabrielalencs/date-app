@@ -33,6 +33,12 @@ Este arquivo registra o estado factual atual para a continuidade da implementaç
 - A limpeza das fixtures agora remove eventos cujo plano aparece em `metadata.planId`, além dos eventos que apontam direto para o plano. Dezessete eventos órfãos criados pelas próprias execuções de teste foram removidos de `development`; nenhuma linha de produto foi tocada.
 - B11 concluído: aplicativo instalável (manifest em rota, cinco ícones auditados, área segura, `apple-touch-icon` sem alfa), CSP com nonce em modo de aplicação, headers de segurança, auditoria de caminho público provada sem cookie, suíte crítica consolidada em `pnpm test:e2e` com arnês que reprova em erro de console, `pageerror`, violação de CSP e resposta inesperada, e axe zerado nas oito rotas nos dois temas. Ver `docs/PWA_AND_HARDENING.md`.
 - Sem migration no B11: o bloco não toca o banco. Nenhuma variável de ambiente nova.
+- B11.5 concluído: Web Push privado com intents transacionais, Vercel Workflow como agendador e revalidação antes do envio. A tese do bloco é a do D-148 — notifica-se o **estado estável**, não o clique: a mutation grava uma intenção com os fatos mínimos, e no vencimento o servidor relê o estado e só envia se a afirmação continuar verdadeira. Ver `docs/NOTIFICATIONS.md` e `docs/NOTIFICATION_COPY.md`.
+- Migration `0006` aplicada somente em `development`: quatro tabelas (`push_subscriptions`, `notification_preferences`, `notification_intents`, `notification_deliveries`) e três enums. Puramente aditiva.
+- Duas dependências acrescentadas: `workflow@4.8.8` (SDK do Vercel Workflows, GA) e `web-push@3.6.7`, mais `@types/web-push` em dev. Sem Firebase, sem OneSignal (D-153).
+- `.well-known/workflow/` saiu do matcher do `proxy.ts` (D-155) — interceptar as rotas internas do Workflow quebra a execução com erro de `ArrayBuffer` destacado.
+- Push é best effort e o domínio não depende dele: se o Workflow estiver fora do ar, o plano continua criado e a intent fica `pending` para o recovery diário em `/api/notifications/recovery`, protegido por `CRON_SECRET` em tempo constante e respondendo 404 sem a variável (D-150).
+- O handler de push do Service Worker é provado em `tests/service-worker-push.test.ts`, que carrega o `public/sw.js` do disco: o Chromium headless nega permissão de notificação incondicionalmente e um teste de navegador mediria o ambiente, não o produto (D-157).
 - Quatro defeitos reais de acessibilidade foram encontrados pelo axe e corrigidos: contraste do botão coral (o D-017 supunha semibold, e a WCAG conta negrito a partir de 700 — D-136), contraste do dia de hoje no calendário e do mês vizinho, `<dl>` com `<dt>`/`<dd>` aninhados demais em `/planos/[id]`, e o input de arquivo sem rótulo.
 - `@axe-core/playwright` é a única dependência acrescentada, em `devDependencies`.
 - `playwright.config.ts` passou a `workers: 1` e `timeout: 90_000`: existe um workspace de development e uma conta no Neon Auth, então paralelismo aqui produz teste instável, não velocidade (D-138).
@@ -77,7 +83,7 @@ Antes de usar o app com dado real, rotacionar: senha da conexão Neon `developme
 - O webhook `user.before_create` existe em código, mas **ainda não está cadastrado** no console do Neon. Enquanto não estiver, o serviço aceita cadastro de qualquer origem que conheça a base URL (D-043). `pnpm auth:probe-prod` é a prova de que ele está barrando; ela não foi executada.
 - O domínio de produção precisa ser registrado como origem confiável no Neon Auth antes do deploy (D-046).
 - `production` intocada: nenhuma migration, nenhum dado, nenhuma conta.
-- Dois testes de `tests/schema.test.ts` falham desde antes do B12: o schema tem 18 tabelas e 12 enums, e `docs/DATABASE.md` documenta 14 e 9. É a dívida do B11.5 (notificações), não do B12 — nem `db/schema` nem `docs/DATABASE.md` foram tocados aqui.
+- ~~Dois testes de `tests/schema.test.ts` falham: o schema tem 18 tabelas e 12 enums, e `docs/DATABASE.md` documenta 14 e 9.~~ **Fechado no B11.5**: a seção 4 do `docs/DATABASE.md` passou a descrever as quatro tabelas de notificação, a seção 5 os três enums novos, e o teste voltou a contar dezoito e doze. `pnpm test` verde.
 
 ## Regra de ambientes
 
@@ -116,6 +122,8 @@ O agente **não deve criar** outro projeto Neon, outros buckets R2, outro reposi
 | `pnpm test:pwa` · `test:a11y` · `test:teclado` | os mesmos pré-requisitos, recortados |
 | `pnpm test:measure` | idem; cria e remove 30 planos com foto, e imprime bytes e contagem de miniatura |
 | `pnpm shots:pwa` | capturas em standalone emulado e a troca de tema com CSP |
+| `pnpm test:notifications` · `shots:notifications` | Neon `development` + sessão — seção do Perfil e as duas rotas de notificação |
+| `pnpm notifications:backfill` | Neon `development` — agenda os lembretes futuros dos dates já confirmados; idempotente |
 | `pnpm r2:check` | confere bucket e endpoint sem conectar |
 | `pnpm db:migrate:prod --eu-confirmo` | `.env.deploy` + Neon `production` |
 | `pnpm auth:probe-prod --eu-confirmo` | idem + webhook já cadastrado no console |

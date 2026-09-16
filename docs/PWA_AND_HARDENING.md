@@ -367,8 +367,10 @@ Então, medido pela rede do Playwright:
 
 ## 11. O que este bloco não faz
 
-Notificação push, sincronização offline, fila de escrita offline, Background Sync, Web Share, share target, badge de ícone, banner de instalação próprio via `beforeinstallprompt`, atalhos de manifest (abaixo da linha de corte), screenshots de manifest, telas de splash do iOS, cache de rota, cache de dado, Workbox, `next-pwa`, relatório de violação de CSP para serviço externo, rate limiting, WAF, e qualquer alteração de funcionalidade de produto.
+Sincronização offline, fila de escrita offline, Background Sync, Web Share, share target, badge de ícone, banner de instalação próprio via `beforeinstallprompt`, atalhos de manifest (abaixo da linha de corte), screenshots de manifest, telas de splash do iOS, cache de rota, cache de dado, Workbox, `next-pwa`, relatório de violação de CSP para serviço externo, rate limiting, WAF, e qualquer alteração de funcionalidade de produto.
 
 Sobre o banner de instalação próprio: `beforeinstallprompt` não existe no iOS, então um banner customizado resolveria metade do problema e acrescentaria estado à interface. O que entra no lugar é uma linha estática no perfil, sem JavaScript, dizendo como instalar em cada sistema. Uma frase resolve o que uma feature resolveria pior.
 
-O B11 deixa o produto instalável, fechado e medido. É só isso, e é o suficiente para o B12 ser só configuração e confirmação.
+O B11 deixa o produto instalável, fechado e medido. É só isso.
+
+**Nota do B11.5.** A notificação push estava nesta lista de exclusões e saiu dela: o bloco extraordinário B11.5, entre este e o B12, acrescentou `push`, `notificationclick` e `pushsubscriptionchange` ao mesmo Service Worker. A regra da seção 2 continua inteira — o worker segue cacheando um arquivo só, e nada do que chega por push encosta no Cache Storage. Ver `docs/NOTIFICATIONS.md`.

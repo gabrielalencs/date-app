@@ -36,7 +36,7 @@ Não na V1. A Data API está desligada, o banco só é acessado pelo servidor, e
 
 ## 4. Entidades
 
-Catorze tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo, `reservations` entrou no B8 e `memories` saiu no B9 (D-099).
+Dezoito tabelas. O `ROADMAP.md` dizia doze; `profiles` e `memory_ratings` foram acrescentadas pelos motivos acima e abaixo, `reservations` entrou no B8, `memories` saiu no B9 (D-099) e as quatro de notificação entraram no B11.5.
 
 ### `profiles`
 
@@ -150,9 +150,31 @@ Na V1, append-only é contrato da camada de aplicação: a camada de acesso não
 
 ---
 
+### As quatro tabelas de notificação (B11.5)
+
+Ver `docs/NOTIFICATIONS.md` seção 5 para a forma completa e o porquê de cada regra.
+
+**`push_subscriptions`** — `id` · `workspace_id` · `profile_id` (FK) · `endpoint` (unique global) · `p256dh` · `auth` · `created_at` · `updated_at` · `last_success_at` · `disabled_at`
+
+Uma linha por navegador. `endpoint`, `p256dh` e `auth` são credenciais de entrega e nunca entram em log, nunca voltam para o cliente e nunca aparecem em fixture versionada. 404/410 do push service preenche `disabled_at` em vez de apagar: a linha continua explicando as entregas históricas.
+
+**`notification_preferences`** — `workspace_id` · `profile_id` · `push_enabled` · `activity_enabled` · `date_reminders_enabled` · `preview_mode` (enum) · `created_at` · `updated_at`. PK composta, igual a `workspace_members`, porque a preferência pertence à participação e não à conta.
+
+**`notification_intents`** — `id` · `workspace_id` · `recipient_profile_id` (FK) · `actor_profile_id` (FK nullable) · `plan_id` (FK nullable) · `kind` (text) · `dedupe_key` · `due_at` · `expected` (jsonb) · `status` (enum) · `workflow_run_id` · `created_at` · `updated_at` · `sent_at` · `cancelled_at` · `attempt_count` · `last_error_code`
+
+**Não existe coluna de título nem de corpo**, e essa ausência é a tese do bloco: guardar o texto no momento do clique congelaria uma afirmação que ainda pode deixar de ser verdade. `expected` guarda só os fatos de revalidação. `kind` é `text` pela mesma razão de `plans.category` (D-026).
+
+O único é **parcial** — `(workspace_id, recipient_profile_id, dedupe_key)` vale enquanto `status` for `pending` ou `processing`. É ele que faz o debounce: quatro datas sugeridas na mesma janela colidem e viram uma notificação. Um único total seria defeito silencioso, porque o primeiro "quero muito" de um plano impediria para sempre o segundo. Índice de `(status, due_at)` para o recovery.
+
+**`notification_deliveries`** — `id` · `workspace_id` · `intent_id` (FK) · `subscription_id` (FK) · `status` (enum) · `attempt_count` · `last_status_code` · `last_error_code` · `sent_at` · `created_at` · `updated_at`
+
+Único em `(intent_id, subscription_id)`: é o que torna o envio idempotente quando um step do Workflow repete.
+
+---
+
 ## 5. Enums
 
-São nove enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos distintos porque representam conceitos diferentes e podem divergir no futuro.
+São doze enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos distintos porque representam conceitos diferentes e podem divergir no futuro.
 
 - `plan_status`: `idea` · `deciding` · `planned` · `reserved` · `completed` · `cancelled`
 - `vote_value` e `repeat_answer`: `yes` · `maybe` · `no`
@@ -162,6 +184,9 @@ São nove enums PostgreSQL. `vote_value` e `repeat_answer` permanecem tipos dist
 - `member_role`: `owner` · `member`
 - `reservation_status`: `pending` · `confirmed` · `cancelled`
 - `activity_verb`: `plan_created` · `date_suggested` · `vote_cast` · `date_confirmed` · `booking_updated` · `plan_completed` · `memory_added` · `want_a_lot`
+- `notification_intent_status`: `pending` · `processing` · `sent` · `suppressed` · `cancelled` · `failed`
+- `notification_delivery_status`: `pending` · `sent` · `stale` · `failed`
+- `notification_preview_mode`: `private` · `full`
 
 Enum de Postgres, não `text` com CHECK. Alterar enum exige migration, o que é a intenção.
 

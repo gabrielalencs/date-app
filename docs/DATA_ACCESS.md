@@ -106,6 +106,20 @@ A linha fica travada da leitura até o commit, então não existe janela para ou
 
 Faltando qualquer uma das três, volta a ser o padrão proibido. Ler sem trava, fechar a transação entre as duas, ou confiar no `select` para o escopo e deixar o `update` só com o id — nenhum dos três é aceitável.
 
+
+### A única exceção: a fronteira de sistema do B11.5
+
+`features/notifications/data/system.ts` não recebe `AuthorizedContext`, porque quem o chama é o Vercel Workflow acordando de um sleep de sete dias ou o Cron de reparo de outbox — não existe pessoa autenticada do outro lado.
+
+O que substitui a autorização é uma restrição **mais estreita**, nunca mais larga:
+
+- a única entrada é um `intentId` que já está persistido;
+- o `workspaceId` é lido da linha, nunca aceito de quem chamou;
+- nenhuma função dali aceita `workspaceId`, `profileId` ou filtro vindo de fora — se aceitasse, um POST forjado no endpoint de recovery viraria leitura de dado alheio;
+- nada dali é exportado para Server Action, página ou componente.
+
+O resto de `features/notifications/data/` — subscriptions e preferences — segue a regra normal, com contexto como primeiro parâmetro. Ver D-151.
+
 ---
 
 ## 4. Erros de domínio

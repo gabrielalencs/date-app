@@ -130,6 +130,16 @@ Concluído em `development`: favoritos pessoais e silenciosos, “quero muito”
 
 Manifest, ícones 192/512/maskable/apple-touch/favicon, `display: standalone`, safe-area, headers de segurança, Playwright nos fluxos críticos, auditoria de acessibilidade e performance mobile.
 
+## B11.5 — Notificações push e lembretes
+
+Bloco extraordinário, entre o B11 e o B12. Web Push padrão com VAPID, subscription por dispositivo e permissão nascida de clique explícito.
+
+O que o bloco decide, antes de qualquer código: **notifica-se o estado estável, não o clique**. A mutation grava uma intenção na mesma transação do domínio; o Vercel Workflow dorme até o vencimento; no despertar o servidor relê o estado e só envia se a afirmação continuar verdadeira. Clicar errado e desfazer dentro do prazo não pode produzir push mentiroso.
+
+Matriz de dez verbos com atrasos e debounce, lembretes 7/5/3/1 às 09:00 em `America/Sao_Paulo`, janela silenciosa das 22h às 9h, privacidade de tela bloqueada por padrão e reparo de outbox por Cron. Ver `docs/NOTIFICATIONS.md` e `docs/NOTIFICATION_COPY.md`.
+
+**Fora:** SMS, e-mail, WhatsApp, Firebase/OneSignal, campanhas, notification center e push para cada edição.
+
 ## B12 — Produção
 
 Webhook `user.before_create` com verificação de assinatura, migration em `production`, token R2 prod, variáveis na Vercel, criação dos dois usuários reais, deploy.
