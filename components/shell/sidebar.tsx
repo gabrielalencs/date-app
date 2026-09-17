@@ -8,6 +8,7 @@ import { EditorialNote } from "@/components/brand/editorial";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ButtonLink } from "@/components/ui/button-link";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { LinkPending } from "@/components/shell/link-pending";
 import { cn } from "@/lib/cn";
 import { isActivePath, NAV, NEW_PLAN_HREF, PROFILE_HREF } from "@/lib/nav";
 
@@ -40,12 +41,13 @@ export function Sidebar() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group flex min-h-12 items-center gap-3 rounded-md px-4 text-sm",
+                    "group relative flex min-h-12 items-center gap-3 rounded-md px-4 text-sm",
                     active
                       ? "bg-mist-soft text-text font-semibold"
                       : "text-text-muted hover:bg-surface-soft hover:text-text",
                   )}
                 >
+                  <LinkPending />
                   <Icon
                     aria-hidden="true"
                     className="size-5"

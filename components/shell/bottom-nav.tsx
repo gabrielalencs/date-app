@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { LinkPending } from "@/components/shell/link-pending";
 import { cn } from "@/lib/cn";
 import { isActivePath, NAV, NEW_PLAN_HREF } from "@/lib/nav";
 
@@ -62,6 +63,8 @@ function NavSlot({
         aria-current={active ? "page" : undefined}
         className="relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2"
       >
+        {/* Responde ao toque enquanto o servidor ainda está montando a rota. */}
+        <LinkPending />
         <Icon
           aria-hidden="true"
           className={cn("size-5", active ? "text-text" : "text-text-muted")}
