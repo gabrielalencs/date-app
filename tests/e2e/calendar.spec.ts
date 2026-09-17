@@ -56,6 +56,19 @@ async function signIn(page: Page): Promise<void> {
 }
 
 /**
+ * Espera a grade existir antes de medir.
+ *
+ * Medir logo depois do `goto` devolvia `boundingBox()` nulo assim que a
+ * resposta passava a ser transmitida em pedaços. `/agenda` acabou ficando sem
+ * `loading.tsx` — a grade sem JavaScript é contrato do B7 e transmissão o
+ * quebra —, mas a espera fica: medir sem antes garantir que o alvo existe é
+ * fragilidade em qualquer cenário.
+ */
+async function esperarGrade(page: Page): Promise<void> {
+  await page.locator("table.calendar-table").first().waitFor({ state: "visible" });
+}
+
+/**
  * `yyyy-MM-dd` + hora de parede em São Paulo → instante.
  *
  * Pelo módulo do tempo, não por um `-03:00` escrito à mão: offset fixo é
@@ -188,6 +201,7 @@ test.describe("a grade do mês", () => {
     const alturas: number[] = [];
     for (const mes of ["2027-02", "2027-05", "2027-08"]) {
       await page.goto(`/agenda?mes=${mes}`);
+      await esperarGrade(page);
       const caixa = await page.locator("table.calendar-table").boundingBox();
       alturas.push(Math.round(caixa!.height));
     }
@@ -509,6 +523,7 @@ for (const largura of LARGURAS) {
     await page.setViewportSize({ width: largura, height: 900 });
     await signIn(page);
     await page.goto(`/agenda?mes=${MES}&dia=2027-05-12`);
+    await esperarGrade(page);
 
     const medidas = await page.evaluate(() => {
       const celulas = [
@@ -568,6 +583,7 @@ for (const largura of LARGURAS) {
 test("o foco fica visível ao chegar por Tab", async ({ page }) => {
   await signIn(page);
   await page.goto(`/agenda?mes=${MES}`);
+  await esperarGrade(page);
 
   // Tab de verdade, não .focus(): :focus-visible não casa com foco programático.
   const alvo = page.locator('[data-day="2027-05-12"]');
