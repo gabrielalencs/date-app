@@ -4,6 +4,44 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-169 — O bucket de produção não tem CORS, e o upload quebra por isso
+**17/09/2026.** Achado, não decisão. O proprietário reportou que não consegue enviar foto em produção. O upload é um PUT assinado que sai do navegador direto para o R2, e como ele leva `content-type: image/webp` — que não está na lista segura do CORS — o navegador manda antes um `OPTIONS` de verificação. Medido, fazendo o mesmo `OPTIONS` que o navegador faz:
+
+```
+date-media-dev    http://localhost:3000   → 204, allow-origin presente, métodos PUT, headers content-type
+date-media-dev    http://localhost:3100   → 204, idem
+date-media-prod   qualquer origem         → 403, nenhum header de CORS
+```
+
+`date-media-prod` **não tem regra de CORS nenhuma**. O `OPTIONS` é recusado, o PUT nunca acontece, e o sintoma é uma foto que não sobe sem erro visível — exatamente o que a seção 9 do `docs/PRODUCTION.md` antecipou: "login funciona, a home aparece, tudo parece pronto, e o upload só quebra quando alguém tenta a primeira foto".
+
+A correção é no painel do Cloudflare e é do proprietário; mudar CORS não é ação que o agente toma sozinho. O que entra no repositório é `pnpm r2:cors`, que faz a verificação do jeito que o navegador faz e imprime a política a aplicar. O token de aplicação é limitado a objeto e não lê configuração de bucket — então consultar as regras direto não é possível, e o `OPTIONS` é a única prova que interessa mesmo se fosse.
+
+### D-168 — A navegação não pré-busca
+**17/09/2026.** Medido: abrir a Home disparava **13 requisições RSC de pré-busca**, e `/ideias`, 11. Cada uma é uma renderização completa no servidor — resolução de contexto, consultas ao banco, uma invocação de função em produção — por um destino que a pessoa talvez não visite. `/perfil` aparecia quatro vezes na mesma carga.
+
+No celular era pior: a barra lateral é escondida por CSS (`hidden md:flex`) mas **renderiza**, então seis desses links pré-buscavam navegação invisível.
+
+`prefetch={false}` na barra inferior, na lateral, no cabeçalho, nos cartões de plano e, por padrão, no `ButtonLink` — que continua aceitando `prefetch` explícito para quem tiver um caso. Resultado: Home de 13 para 2 pré-buscas e 30 para 19 requisições; `/ideias` para **zero** e de 28 para 17.
+
+E não custou nada em velocidade percebida: com 150 ms de latência emulada, o sinal no toque ficou em 63–78 ms e o conteúdo em 275–896 ms — os mesmos números de antes, dentro do ruído. A pré-busca era desperdício, e o que faz o toque responder agora é o `useLinkStatus` (D-162), que não gasta servidor.
+
+### D-167 — O Zod não vai mais para o navegador
+**17/09/2026.** `lib/money.ts` importava Zod para dois schemas de boundary, `centsFromText` e `optionalCentsFromText`, usados **só por Server Action**. Mas o mesmo arquivo exporta `formatCents` e `centsToInputValue`, que componentes client importam para desenhar a tela — e o empacotador não separa um módulo pela metade. Resultado medido no build: o Zod inteiro num chunk entregue ao navegador, com 10 ocorrências de `ZodError` e 91 de `invalid_type`, para uma biblioteca que só valida no servidor.
+
+Os dois schemas passam para `lib/money-schema.ts`. O parse de verdade continua em `lib/money.ts` e é importado de lá — a regra de "o dinheiro tem um dono" não muda, porque duas cópias do parse é que divergiriam. O total de JavaScript do build caiu de 1306 kB para 938 kB.
+
+O chunk era carregado sob demanda, então isso não aparece no peso inicial de cada rota — o ganho é de download e de execução quando um Select ou um diálogo abre, e de não mandar ao celular uma biblioteca de servidor.
+
+### D-166 — Motion sai; as duas animações viram CSS
+**17/09/2026.** Autorizado pelo proprietário com o número na frente, como a seção 10 do `docs/PWA_AND_HARDENING.md` exigia. `motion/react` custava **131 kB em toda rota** e servia para exatamente duas coisas: a entrada de um grupo editorial (`Reveal`, fade com 8px de deslocamento) e a do painel do Select (fade com 4px). As duas são `@keyframes`.
+
+Medido: JavaScript por rota de **601,8 kB para 485,1 kB** — menos 117 kB, 19% —, e o mesmo em `/login`. Os doze testes do Select e do R1 passam com a versão em CSS.
+
+Dois efeitos além do tamanho: o `Reveal` deixou de precisar de `"use client"` e virou Server Component, que não manda nada para o navegador; e o `useReducedMotion` saiu, porque a regra global de `prefers-reduced-motion` já desliga animação por inteiro — uma implementação a menos do mesmo conceito.
+
+`motion` sai do `package.json`. É alteração da stack declarada no `CLAUDE.md`, feita com autorização explícita e registrada aqui; reverter é reinstalar o pacote e trocar duas classes por dois componentes.
+
 ### D-165 — O favicon segue o tema; o ícone do app instalado não pode seguir
 **17/09/2026.** São duas coisas com o mesmo desenho e só uma delas é reativa, e a diferença não é de implementação: **o sistema operacional congela o ícone no momento da instalação e não volta a ler o manifest.** Não existe, nem por manifest nem por outro caminho, ícone de tela inicial que acompanhe o tema — o que o iOS 18 oferece de ícone claro/escuro/tingido vale para app nativo, não para PWA. O manifest declara um conjunto só, gerado a partir de `icone_white.png`, que é a arte de bloco creme escolhida pelo proprietário.
 

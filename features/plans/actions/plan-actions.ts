@@ -14,7 +14,7 @@ import {
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { CATEGORIES } from "@/lib/categories";
 import { NotFoundError, ValidationError } from "@/lib/errors";
-import { optionalCentsFromText } from "@/lib/money";
+import { optionalCentsFromText } from "@/lib/money-schema";
 import { InvalidTransitionError } from "@/lib/plan-status";
 import { PLAN_STATUSES } from "@/lib/status";
 

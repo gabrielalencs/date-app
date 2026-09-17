@@ -598,6 +598,40 @@
    Começa em zero e cresce: o crescimento é a informação. Sob reduced-motion a
    regra global desliga a animação e sobra a barra estática — que continua
    dizendo a mesma coisa, sem movimento. */
+/* As duas animações de entrada do produto.
+   Eram `motion/react`, que custava 131 kB de JavaScript em toda rota para um
+   fade com deslocamento — medido: ‑117 kB por rota ao trocar por CSS (D-166).
+   O `prefers-reduced-motion` continua coberto pela regra global, que desliga
+   animação por inteiro em vez de rodar o loop uma vez. */
+@keyframes date-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes date-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@layer components {
+  .reveal {
+    animation: date-reveal 280ms var(--ease-enter) both;
+  }
+  .pop {
+    animation: date-pop 180ms var(--ease-enter) both;
+  }
+}
+
 @keyframes link-pending {
   0% {
     transform: scaleX(0);

@@ -15,7 +15,7 @@ import {
 } from "@/features/planning/data/mutations";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { NotFoundError, ValidationError } from "@/lib/errors";
-import { centsFromText } from "@/lib/money";
+import { centsFromText } from "@/lib/money-schema";
 
 /**
  * Server Actions de reserva, checklist e gastos.

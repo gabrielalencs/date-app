@@ -30,6 +30,7 @@ export function BottomNav() {
           {/* O + é o único elemento coral da barra, meio passo acima dela. */}
           <Link
             href={NEW_PLAN_HREF}
+            prefetch={false}
             aria-label="Novo DATE"
             title="Novo DATE"
             className="bg-brand text-brand-fg ease-standard my-2 grid size-12 place-items-center rounded-full transition-transform duration-[var(--duration-micro)] motion-safe:active:scale-95"
@@ -60,6 +61,16 @@ function NavSlot({
     <li>
       <Link
         href={item.href}
+        /* Sem pré-busca. Abrir a Home disparava 13 requisições RSC — cada
+           uma uma renderização completa no servidor, com resolução de contexto
+           e consultas ao banco — para rotas que a pessoa talvez nem visite. No
+           celular é pior: a sidebar é escondida por CSS, mas renderiza, então
+           seis desses links pré-buscavam navegação invisível.
+
+           A pré-busca existe para o toque parecer instantâneo, e isso agora vem
+           do `useLinkStatus`, que responde em 57 ms sem gastar servidor. A
+           própria documentação do Next aponta os dois juntos. */
+        prefetch={false}
         aria-current={active ? "page" : undefined}
         className="relative flex min-h-16 flex-col items-center justify-center gap-1 px-1 py-2"
       >

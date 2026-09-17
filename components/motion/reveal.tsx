@@ -1,9 +1,15 @@
-"use client";
-
-import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
-/** Entrada apenas de um grupo editorial; a página continua Server Component. */
+import { cn } from "@/lib/cn";
+
+/**
+ * Entrada de um grupo editorial: fade com 8px de deslocamento.
+ *
+ * Era `motion/react`. A troca por CSS tirou 131 kB de JavaScript de **toda**
+ * rota — o pacote inteiro vinha para animar isto e o dropdown do Select — e de
+ * quebra este componente deixou de precisar de `"use client"`: agora é Server
+ * Component e não manda nada para o navegador (D-166).
+ */
 export function Reveal({
   children,
   className,
@@ -11,15 +17,5 @@ export function Reveal({
   children: ReactNode;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: reduced ? 0 : 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduced ? 0.1 : 0.28, ease: [0.16, 1, 0.3, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={cn("reveal", className)}>{children}</div>;
 }

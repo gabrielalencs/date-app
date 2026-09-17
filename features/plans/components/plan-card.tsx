@@ -14,6 +14,10 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
   return (
     <Link
       href={`/planos/${plan.id}`}
+      /* Um cartão por plano, e a página de detalhe é a mais cara do produto —
+         dez consultas. Pré-buscar todas as visíveis é gastar o servidor com o
+         que a pessoa não pediu. */
+      prefetch={false}
       className="border-border-subtle bg-surface group interactive-lift flex h-full min-w-0 flex-col overflow-hidden rounded-lg border"
     >
       {plan.coverMediaId ? (
@@ -67,7 +71,8 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
                   className="size-3.5"
                   fill="currentColor"
                 />
-                {plan.wantALotBy.join(" e ")} {plan.wantALotBy.length > 1 ? "querem" : "quer"} muito
+                {plan.wantALotBy.join(" e ")}{" "}
+                {plan.wantALotBy.length > 1 ? "querem" : "quer"} muito
               </span>
             ) : null}
           </div>

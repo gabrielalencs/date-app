@@ -17,7 +17,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
       <Sidebar />
       <div className="mx-auto flex max-w-[1360px] items-center justify-between gap-4 px-5 py-5 md:px-10 md:py-6">
-        <Link href="/" aria-label="date · Início" className="md:hidden">
+        <Link
+          href="/"
+          prefetch={false}
+          aria-label="date · Início"
+          className="md:hidden"
+        >
           <Wordmark className="origin-left scale-75" />
         </Link>
         <span className="type-label text-text-muted hidden md:block">
@@ -25,6 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </span>
         <Link
           href="/perfil"
+          prefetch={false}
           className="text-text-muted hover:bg-mist-soft flex min-h-11 items-center gap-2 rounded-full px-3 text-xs"
         >
           <UserRound className="size-4" aria-hidden="true" />

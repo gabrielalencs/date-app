@@ -21,12 +21,13 @@ export function Sidebar() {
     >
       <Link
         href="/"
+        prefetch={false}
         aria-label="date · Início"
         className="mx-auto mb-8 rounded-sm"
       >
         <Wordmark tagline />
       </Link>
-      <ButtonLink href={NEW_PLAN_HREF} variant="accent" fullWidth>
+      <ButtonLink href={NEW_PLAN_HREF} variant="accent" fullWidth prefetch={false}>
         <Plus aria-hidden="true" className="size-5" />
         Novo DATE
       </ButtonLink>
@@ -39,6 +40,9 @@ export function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  /* Ver a nota em bottom-nav.tsx: esta barra é escondida por
+                     CSS no celular e mesmo assim pré-buscava seis rotas. */
+                  prefetch={false}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "group relative flex min-h-12 items-center gap-3 rounded-md px-4 text-sm",

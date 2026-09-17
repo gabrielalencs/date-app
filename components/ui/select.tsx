@@ -2,7 +2,6 @@
 
 import * as Select from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -39,7 +38,6 @@ export function DateSelect({
   const initialValue = defaultValue ?? options[0]?.value ?? "";
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
-  const reduce = useReducedMotion();
   useEffect(() => {
     const form = inputRef.current?.form;
     const reset = () => setValue(initialValue);
@@ -96,12 +94,9 @@ export function DateSelect({
           collisionPadding={12}
           className="border-border-strong bg-surface text-text shadow-raised z-50 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-24px)] overflow-hidden rounded-md border"
         >
-          <motion.div
-            data-date-select-motion
-            initial={{ opacity: 0, y: reduce ? 0 : -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reduce ? 0.1 : 0.18 }}
-          >
+          {/* Entrada do painel por CSS. O atributo fica: é por ele que o teste
+              do R1 confere que o painel chega a opacidade 1. */}
+          <div data-date-select-motion className="pop">
             <Select.ScrollUpButton className="grid min-h-11 place-items-center">
               <ChevronUp className="size-4" />
             </Select.ScrollUpButton>
@@ -124,7 +119,7 @@ export function DateSelect({
             <Select.ScrollDownButton className="grid min-h-11 place-items-center">
               <ChevronDown className="size-4" />
             </Select.ScrollDownButton>
-          </motion.div>
+          </div>
         </Select.Content>
       </Select.Portal>
     </Select.Root>

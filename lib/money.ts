@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 /**
  * O único módulo do projeto autorizado a interpretar ou formatar dinheiro
  * (seção 2 do docs/PLANNING.md).
@@ -42,7 +40,9 @@ export class InvalidMoneyError extends Error {
 }
 
 /** Mensagem única de formato, escrita para ensinar em vez de só recusar. */
-const FORMATO =
+/* Exportada para o schema do boundary reusar a mesma frase: duas mensagens
+   de recusa divergem, e a que divergir vai explicar o formato errado. */
+export const FORMATO =
   "Escreva o valor como 80, 80,50 ou 1.234,56 — sem sinal e sem letras.";
 
 /**
@@ -222,40 +222,6 @@ export function centsToInputValue(cents: number | null): string {
 
   return `${sinal}${digitos.slice(0, -2)},${digitos.slice(-2)}`;
 }
-
-/**
- * O boundary de entrada, para o Zod.
- *
- * Vive aqui, e não em cada `actions/`, porque a mensagem de recusa e as regras
- * de parse precisam ser as mesmas no orçamento do plano e no valor do gasto.
- * Duas cópias divergem, e a que divergir vai aceitar o que a outra recusa.
- */
-function transformarEmCentavos(
-  raw: string,
-  ctx: { addIssue: (issue: { code: "custom"; message: string }) => void },
-): number | typeof z.NEVER {
-  try {
-    return parseBRLToCents(raw);
-  } catch (erro) {
-    ctx.addIssue({
-      code: "custom",
-      message: erro instanceof InvalidMoneyError ? erro.message : FORMATO,
-    });
-    return z.NEVER;
-  }
-}
-
-/** Valor obrigatório: vazio é recusado. */
-export const centsFromText = z
-  .string()
-  .transform((raw, ctx) => transformarEmCentavos(raw, ctx));
-
-/** Valor opcional: vazio vira `null`, e só o resto passa pelo parse. */
-export const optionalCentsFromText = z
-  .string()
-  .transform((raw, ctx) =>
-    raw.trim() === "" ? null : transformarEmCentavos(raw, ctx),
-  );
 
 /**
  * Soma exata. Inteiro com inteiro é exato por construção — a função existe para
