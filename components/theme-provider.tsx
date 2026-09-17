@@ -7,7 +7,12 @@ import {
   type ReactNode,
 } from "react";
 
-import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from "@/lib/brand";
+import {
+  FAVICON_DARK,
+  FAVICON_LIGHT,
+  THEME_COLOR_DARK,
+  THEME_COLOR_LIGHT,
+} from "@/lib/brand";
 import {
   parseStoredPreference,
   resolveTheme,
@@ -111,6 +116,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const meta = document.getElementById("date-theme-color");
     if (meta instanceof HTMLMetaElement) {
       meta.content = dark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT;
+    }
+
+    /* O favicon da aba acompanha a troca — diferente do ícone do app instalado,
+       que o sistema congela na instalação e nunca mais relê.
+
+       O link é criado pelo ThemeScript antes da primeira pintura; aqui só o
+       `href` muda. Se ele não existir (JS do head bloqueado), vale o
+       `/favicon.ico` de `public/`, que o navegador busca por convenção. */
+    const favicon = document.getElementById("date-favicon");
+    if (favicon instanceof HTMLLinkElement) {
+      favicon.href = dark ? FAVICON_DARK : FAVICON_LIGHT;
     }
   }, [resolved]);
 

@@ -4,6 +4,17 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-165 — O favicon segue o tema; o ícone do app instalado não pode seguir
+**17/09/2026.** São duas coisas com o mesmo desenho e só uma delas é reativa, e a diferença não é de implementação: **o sistema operacional congela o ícone no momento da instalação e não volta a ler o manifest.** Não existe, nem por manifest nem por outro caminho, ícone de tela inicial que acompanhe o tema — o que o iOS 18 oferece de ícone claro/escuro/tingido vale para app nativo, não para PWA. O manifest declara um conjunto só, gerado a partir de `icone_white.png`, que é a arte de bloco creme escolhida pelo proprietário.
+
+O favicon da aba **troca**, porque o navegador relê o `<link rel="icon">` sempre que ele muda. Ele acompanha a escolha feita **no app**, não `prefers-color-scheme`: a forma declarativa (`<link rel="icon" media="...">`) segue o sistema, e sistema claro com DATE escuro daria favicon claro sobre interface escura. A resolução é a mesma da D-141 para a barra de status — o `ThemeScript` decide antes da primeira pintura e o `ThemeProvider` atualiza o `href` na troca.
+
+**O `favicon.ico` precisou sair de `app/` para `public/`.** Em `app/` o Next o detecta e gera um `<link rel="icon">` próprio; com dois links na página, quem escolhe é o navegador e o resultado deixa de ser previsível. Remover o link do Next no script não resolve — medido: o React o reinsere na hidratação, e o teste acusou dois links. Em `public/` o arquivo continua servido em `/favicon.ico`, que é onde navegador e rastreador procuram por convenção quando não há link, e é a versão de quem não executa script.
+
+**A arte de origem não servia como ícone declarado.** `icone_white.png` e `icone_dark.png` têm 1168×1169 — nem quadradas, nem em nenhum tamanho que um manifest anuncie —, e o manifest chegou a declará-las como `192x192` e `512x512`, o que entrega ao navegador uma imagem que não corresponde ao `sizes`. Os arquivos servidos passam a ser gerados: 192 e 512 para `any` preservando o canto arredondado da arte; o maskable **achatado sobre o creme**, porque canto transparente vira recorte no Android e preto no iOS, e quem arredonda um maskable é o sistema; o `apple-touch-icon` de 180 sem canal alfa nenhum; e os dois favicons de 32.
+
+Medido antes de aceitar: o símbolo fica a 436 px do centro e o raio seguro do maskable é 467 px — passa, então o recorte em círculo não corta o calendário. A prova com o círculo sobreposto está em `screenshots/pwa-maskable-zona-segura.png`.
+
 ### D-164 — A função roda em `gru1`, ao lado do banco
 **16/09/2026.** `vercel.json` passa a declarar `regions: ["gru1"]`. O Neon está em `sa-east-1` e a região padrão de função da Vercel fica nos Estados Unidos: cada ida e volta ao banco custa algo entre 100 e 150 ms atravessando o hemisfério, contra 5 a 15 ms de dentro do Brasil. Uma página que faz três consultas paga meio segundo só de distância — mais do que tudo que a disciplina de consulta do B9 economizou ao provar que a timeline faz duas consultas e não setenta e duas (D-108). A medida definitiva é o TTFB de um celular no Brasil, antes e depois, e ela é do B12; o que este registro fixa é que a região deixou de ser a padrão por omissão.
 

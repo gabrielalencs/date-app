@@ -25,8 +25,8 @@ export default function manifest(): MetadataRoute.Manifest {
     /* Fixo desde o primeiro deploy: é a identidade da instalação. Sem ele, uma
        mudança futura de `start_url` viraria um segundo DATE na tela inicial. */
     id: "/",
-    name: "DATE",
-    short_name: "DATE",
+    name: "Date",
+    short_name: "Date",
     description:
       "Organizar ideias de rolês, escolher datas, planejar e guardar memórias — para duas pessoas.",
     start_url: "/",
@@ -38,6 +38,18 @@ export default function manifest(): MetadataRoute.Manifest {
        sistema: não existe splash escura. O cream é a escolha consciente. */
     background_color: THEME_COLOR_LIGHT,
     theme_color: THEME_COLOR_LIGHT,
+    /**
+     * O ícone do app instalado é **um só**, e isso não é escolha nossa: o
+     * sistema operacional congela o ícone no momento da instalação e não o
+     * relê depois. Não existe ícone de tela inicial que siga o tema — nem pelo
+     * manifest, nem por outro caminho. Quem troca com o tema é o favicon da
+     * aba, que o navegador relê a cada momento (ver components/theme-script).
+     *
+     * Os arquivos são gerados a partir de `icone_white.png`, que é a arte de
+     * bloco creme. A fonte tem 1168x1169 — nem quadrada, nem nos tamanhos que
+     * um manifest declara —, então declará-la direto faria o navegador receber
+     * uma imagem que não corresponde ao `sizes` anunciado.
+     */
     icons: [
       {
         src: "/brand/icons/icon-192.png",
@@ -51,9 +63,13 @@ export default function manifest(): MetadataRoute.Manifest {
         type: "image/png",
         purpose: "any",
       },
-      /* Entrada separada, nunca "any maskable" no mesmo arquivo: declarar os
-         dois propósitos num arquivo só afirma que o mesmo desenho serve para as
-         duas situações, e essa afirmação precisa ser medida, não suposta. */
+      /* Entrada separada, nunca "any maskable" no mesmo arquivo. E esta sangra
+         até a borda: o canto arredondado da arte é transparente, e quem
+         arredonda um maskable é o sistema. Deixar a transparência faria o
+         Android recortar sobre nada e o iOS compor preto atrás.
+
+         Medido: o símbolo fica a 436px do centro e o raio seguro é 467px —
+         passa, então o recorte em círculo não corta o calendário. */
       {
         src: "/brand/icons/icon-maskable-512.png",
         sizes: "512x512",

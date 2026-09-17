@@ -63,8 +63,8 @@ test.describe("manifest e ícones", () => {
 
     const manifest = await response.json();
     expect(manifest.id).toBe("/");
-    expect(manifest.name).toBe("DATE");
-    expect(manifest.short_name).toBe("DATE");
+    expect(manifest.name).toBe("Date");
+    expect(manifest.short_name).toBe("Date");
     expect(manifest.short_name.length).toBeLessThanOrEqual(12);
     expect(manifest.start_url).toBe("/");
     expect(manifest.scope).toBe("/");
@@ -231,6 +231,47 @@ test.describe("o HTML servido", () => {
 
     // Rota que herdou o título do layout é rota que não existe na lista de janelas.
     expect(new Set(vistos).size).toBe(esperado.length);
+  });
+
+  test("o favicon segue o tema do app, não o do sistema", async ({
+    browser,
+  }) => {
+    /* Sistema claro, app escuro: é o caso que a forma declarativa
+       (`<link rel="icon" media="...">`) não resolve, porque ela lê o sistema. */
+    const contexto = await browser.newContext({ colorScheme: "light" });
+    const page = await contexto.newPage();
+    await page.addInitScript(() => {
+      window.localStorage.setItem("date-theme", "dark");
+    });
+    await page.goto("/login");
+
+    const icones = page.locator('link[rel~="icon"]');
+    /* Um só. Com vários, quem escolhe é o navegador, e o resultado deixa de ser
+       previsível — o Next gera um a partir do app/favicon.ico e o ThemeScript o
+       substitui em vez de somar. */
+    await expect(icones).toHaveCount(1);
+    await expect(icones).toHaveAttribute("href", /favicon-dark\.png/);
+
+    await contexto.close();
+  });
+
+  test("trocar o tema troca o favicon sem recarregar", async ({ page }) => {
+    await signInForFeature(page, account);
+    await page.goto("/perfil");
+
+    const seletor = page.locator("#conteudo");
+    const icone = page.locator("#date-favicon");
+
+    await seletor.getByRole("button", { name: "Escuro", exact: true }).click();
+    await expect(icone).toHaveAttribute("href", /favicon-dark\.png/);
+
+    await seletor.getByRole("button", { name: "Claro", exact: true }).click();
+    await expect(icone).toHaveAttribute("href", /favicon-light\.png/);
+
+    await expect(page.locator('link[rel~="icon"]')).toHaveCount(1);
+
+    // Volta ao padrão para não deixar estado para o próximo spec.
+    await seletor.getByRole("button", { name: "Sistema", exact: true }).click();
   });
 
   test("o viewport pede área segura e não impede zoom", async ({ page }) => {

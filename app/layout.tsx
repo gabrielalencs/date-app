@@ -23,11 +23,18 @@ export const metadata: Metadata = {
        para ganhar alguns pixels. Não compensa. */
     statusBarStyle: "default",
   },
+  /**
+   * Só o apple-touch aqui.
+   *
+   * Os PNG de 192 e 512 são ícones de **aplicativo** e o lugar deles é o
+   * manifest; declarados também como `icon` eles viravam candidatos a favicon e
+   * competiam com o favicon por tema, que é montado pelo ThemeScript.
+   *
+   * O `<link rel="icon">` do `app/favicon.ico` continua saindo automaticamente
+   * e é o que vale para quem não executa script; com script, o ThemeScript o
+   * substitui pelo do tema certo antes da primeira pintura.
+   */
   icons: {
-    icon: [
-      { url: "/brand/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/brand/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
