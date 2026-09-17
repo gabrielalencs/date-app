@@ -10,13 +10,19 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/auth/errors";
 const ALLOWED = ["dono@example.com", "par@example.com"];
 const WORKSPACE = "11111111-1111-4111-8111-111111111111";
 
+/**
+ * `displayName` começa `null` — profile ainda não existe — para os testes
+ * existentes continuarem exercitando o caminho que grava. O teste novo cobre o
+ * caso oposto, que é o estado normal do produto.
+ */
 function repository(
   memberships: readonly WorkspaceMembership[],
+  displayName: string | null = null,
 ): AuthorizationRepository & { upsertProfile: ReturnType<typeof vi.fn> } {
   const upsertProfile = vi.fn(async () => {});
   return {
     upsertProfile,
-    findMemberships: async () => memberships,
+    loadProfileSnapshot: async () => ({ displayName, memberships }),
   };
 }
 
@@ -123,6 +129,48 @@ describe("resolveAuthorizedContext", () => {
     expect(repo.upsertProfile).toHaveBeenCalledWith({
       id: "user_1",
       displayName: "Pessoa DATE",
+    });
+  });
+
+  it("não grava quando o nome do perfil já é o da sessão", async () => {
+    /* O estado normal: a pessoa entra, o perfil já existe com o nome certo e a
+       resolução de contexto é uma leitura e nada mais. Gravar aqui era uma ida
+       e volta ao banco em toda requisição autenticada — inclusive em cada foto
+       de uma grade — sem nada mudar na linha. */
+    const repo = repository(
+      [{ workspaceId: WORKSPACE, role: "owner" }],
+      "Dona",
+    );
+
+    const ctx = await resolveAuthorizedContext(
+      {
+        session: session("dono@example.com", "user_1", "Dona"),
+        allowedEmails: ALLOWED,
+      },
+      repo,
+    );
+
+    expect(ctx.workspaceId).toBe(WORKSPACE);
+    expect(repo.upsertProfile).not.toHaveBeenCalled();
+  });
+
+  it("grava quando a pessoa trocou o nome no provedor", async () => {
+    const repo = repository(
+      [{ workspaceId: WORKSPACE, role: "owner" }],
+      "Nome Antigo",
+    );
+
+    await resolveAuthorizedContext(
+      {
+        session: session("dono@example.com", "user_1", "Nome Novo"),
+        allowedEmails: ALLOWED,
+      },
+      repo,
+    );
+
+    expect(repo.upsertProfile).toHaveBeenCalledWith({
+      id: "user_1",
+      displayName: "Nome Novo",
     });
   });
 

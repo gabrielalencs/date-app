@@ -25,9 +25,26 @@ export type AuthorizedContext = {
   role: "owner" | "member";
 };
 
+/** O que uma única consulta devolve sobre a identidade. */
+export type ProfileSnapshot = {
+  /** `null` quando o profile ainda não existe — primeiro login. */
+  displayName: string | null;
+  memberships: readonly WorkspaceMembership[];
+};
+
 export type AuthorizationRepository = {
+  /**
+   * Perfil e memberships numa consulta só.
+   *
+   * Eram duas idas e voltas — um UPSERT e um SELECT — em **toda** requisição
+   * autenticada, inclusive em cada `/api/media/[id]` de uma grade de fotos.
+   * Medido em desenvolvimento, com o banco a ~14 ms: 28 ms por requisição, ou
+   * metade do tempo de servidor da página. Com a função longe do banco, como
+   * numa região dos Estados Unidos contra `sa-east-1`, os mesmos dois saltos
+   * passam de 240 ms — antes de a página ler o primeiro dado dela.
+   */
+  loadProfileSnapshot(profileId: string): Promise<ProfileSnapshot>;
   upsertProfile(profile: { id: string; displayName: string }): Promise<void>;
-  findMemberships(profileId: string): Promise<readonly WorkspaceMembership[]>;
 };
 
 export type AuthorizationInput = {
@@ -71,12 +88,21 @@ export async function resolveAuthorizedContext(
     throw new ForbiddenError();
   }
 
-  await repository.upsertProfile({
-    id: identity.id,
-    displayName: displayNameFor(identity),
-  });
+  const desejado = displayNameFor(identity);
+  const snapshot = await repository.loadProfileSnapshot(identity.id);
 
-  const memberships = await repository.findMemberships(identity.id);
+  /* A escrita só acontece quando há o que escrever: no primeiro login, quando o
+     profile ainda não existe, e quando a pessoa trocou o nome no provedor. No
+     estado normal — que é todo o resto do tempo — a resolução de contexto é uma
+     leitura e nada mais.
+
+     Gravar a cada requisição também mantinha uma linha de `profiles` sob
+     escrita constante sem que nada mudasse nela. */
+  if (snapshot.displayName !== desejado) {
+    await repository.upsertProfile({ id: identity.id, displayName: desejado });
+  }
+
+  const memberships = snapshot.memberships;
   if (memberships.length !== 1) {
     throw new ForbiddenError();
   }
