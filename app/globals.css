@@ -356,12 +356,60 @@
   .field-control::placeholder {
     color: var(--text-muted);
   }
+  /* Campos de data e hora têm um controle que o navegador desenha sozinho — o
+     ícone de calendário no Chrome, a seta no Android. Ele se ancora na borda
+     interna do input e ignora o `padding` do texto, então encostava na moldura
+     enquanto todo o resto do formulário respira 1rem. O recuo é dele, não do
+     campo: mexer no padding do `.field-control` deslocaria o texto junto. */
+  .field-control[type="date"],
+  .field-control[type="time"] {
+    padding-right: 0.5rem;
+  }
+  .field-control[type="date"]::-webkit-calendar-picker-indicator,
+  .field-control[type="time"]::-webkit-calendar-picker-indicator {
+    margin-right: 0.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    opacity: 0.65;
+  }
+  .field-control[type="date"]::-webkit-calendar-picker-indicator:hover,
+  .field-control[type="time"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
   .field-control:disabled {
     opacity: 0.55;
     cursor: not-allowed;
   }
   .field-control[aria-invalid="true"] {
     border-color: var(--danger);
+  }
+  /* Fila de chips que rola na horizontal.
+
+     A barra de rolagem do Android nasce encostada no elemento e ficava a 4px
+     dos botões, cortando a linha de base deles. Numa fila de chips ela não
+     informa nada que o corte na borda direita já não informe — e no dedo ela
+     não é nem alvo, porque ninguém arrasta uma barra de 3px.
+
+     Some no ponteiro grosso, que é o celular, e fica no ponteiro fino, onde
+     ainda serve para arrastar com o mouse. O espaço embaixo é do respiro, não
+     da barra. */
+  .chip-rail {
+    padding-bottom: 0.75rem;
+    scroll-padding-inline: 0.25rem;
+  }
+  @media (pointer: coarse) {
+    .chip-rail {
+      scrollbar-width: none;
+    }
+    .chip-rail::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  @media (pointer: fine) {
+    .chip-rail {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
   }
   .interactive-lift {
     transition:

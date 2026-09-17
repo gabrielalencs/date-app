@@ -90,15 +90,30 @@ export function NotificationSettings({
 }) {
   const [estado, setEstado] = useState<Estado>("carregando");
   const [erro, setErro] = useState<string | null>(null);
+  const [dispensado, setDispensado] = useState(false);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [pendente, startTransition] = useTransition();
 
   useEffect(() => {
     void detectarEstado().then(setEstado);
+
+    /* Sair do DATE, liberar a permissão nas configurações do navegador e voltar
+       não emite evento nenhum que o React veja: a tela continuaria dizendo
+       "bloqueado" até um recarregamento manual. O retorno à aba é o gatilho mais
+       próximo que existe de "a pessoa acabou de mexer nisso lá fora". */
+    function aoVoltar() {
+      if (document.visibilityState === "visible") {
+        void detectarEstado().then(setEstado);
+      }
+    }
+
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => document.removeEventListener("visibilitychange", aoVoltar);
   }, []);
 
   async function ativar() {
     setErro(null);
+    setDispensado(false);
 
     if (!vapidPublicKey) {
       setErro("As notificações ainda não estão configuradas neste ambiente.");
@@ -109,7 +124,12 @@ export function NotificationSettings({
        faz navegadores recusarem em silêncio. */
     const permissao = await Notification.requestPermission();
     if (permissao !== "granted") {
+      /* Três desfechos, não dois. `denied` é decisão registrada e o navegador
+         não deixa perguntar de novo; `default` é o prompt fechado sem escolher,
+         e aí perguntar de novo continua valendo. Tratar os dois como o mesmo
+         caso era o que fazia a opção sumir sem explicação. */
       setEstado(permissao === "denied" ? "bloqueado" : "disponivel");
+      setDispensado(permissao !== "denied");
       return;
     }
 
@@ -184,12 +204,36 @@ export function NotificationSettings({
         </p>
       ) : null}
 
+      {/* Bloqueado não é definitivo: é uma permissão guardada pelo navegador,
+          e a pessoa pode tirá-la de lá quando quiser. O que o DATE não pode é
+          perguntar de novo sozinho — então a tela ensina o caminho e oferece um
+          botão para reconferir na volta, em vez de só informar a derrota. */}
       {estado === "bloqueado" ? (
-        <p className="type-body-s text-text-muted">
-          As notificações estão bloqueadas nas configurações do navegador para
-          este site. Para voltar a receber, libere por lá — o DATE não consegue
-          pedir de novo.
-        </p>
+        <>
+          <p className="type-body-s text-text-muted">
+            As notificações estão bloqueadas para este site nas configurações do
+            navegador. O DATE não consegue pedir de novo — mas você pode liberar
+            por lá e voltar aqui.
+          </p>
+          <p className="type-body-s text-text-muted">
+            No Chrome, toque no{" "}
+            <strong className="text-text">ícone à esquerda do endereço</strong>{" "}
+            → Permissões → Notificações. No iPhone, em Ajustes → DATE →
+            Notificações.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-fit"
+            onClick={() => {
+              setErro(null);
+              void detectarEstado().then(setEstado);
+            }}
+          >
+            Verificar de novo
+          </Button>
+        </>
       ) : null}
 
       {estado === "disponivel" ? (
@@ -198,7 +242,19 @@ export function NotificationSettings({
             Avisos do que a outra pessoa fez e lembretes dos dates marcados.
             Nada de propaganda.
           </p>
-          <Button type="button" variant="secondary" size="sm" onClick={ativar}>
+          {dispensado ? (
+            <p className="type-body-s text-text-muted">
+              Você fechou o aviso sem escolher. Pode ativar quando quiser — o
+              botão continua aqui.
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-fit"
+            onClick={ativar}
+          >
             Ativar notificações
           </Button>
         </>

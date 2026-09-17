@@ -61,9 +61,18 @@ async function signIn(page: Page): Promise<void> {
   await signInForFeature(page, account);
 }
 
-/** Envia a foto pelo input escondido e devolve o id que a rota passa a servir. */
+/**
+ * Envia a foto pelo input escondido e devolve o id que a rota passa a servir.
+ *
+ * A contagem é da **grade**, não da página inteira. A capa passou a aparecer
+ * nos dois lugares — herói no topo e ladrilho marcado "Capa" na grade —, então
+ * `img[src^="/api/media/"]` no documento inteiro cresce de dois em dois para a
+ * primeira foto e o `antes + 1` deixou de valer. A grade é o que este helper
+ * está de fato observando.
+ */
 async function enviarFoto(page: Page, bytes: Buffer): Promise<string> {
-  const antes = await page.locator('img[src^="/api/media/"]').count();
+  const grade = page.locator('ul li img[src^="/api/media/"]');
+  const antes = await grade.count();
 
   await page.locator('input[type="file"]').setInputFiles({
     name: "foto-com-exif.png",
@@ -71,10 +80,9 @@ async function enviarFoto(page: Page, bytes: Buffer): Promise<string> {
     buffer: bytes,
   });
 
-  const imagens = page.locator('img[src^="/api/media/"]');
-  await expect(imagens).toHaveCount(antes + 1, { timeout: 60_000 });
+  await expect(grade).toHaveCount(antes + 1, { timeout: 60_000 });
 
-  const src = await imagens.first().getAttribute("src");
+  const src = await grade.last().getAttribute("src");
   const id = /\/api\/media\/([0-9a-f-]{36})/.exec(src ?? "")?.[1];
 
   if (!id) {

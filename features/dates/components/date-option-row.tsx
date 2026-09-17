@@ -72,6 +72,12 @@ export function DateOptionRow({
   );
 
   const encerrado = planStatus === "completed" || planStatus === "cancelled";
+  /* Confirmada, a data deixa de estar em votação. Sim/Talvez/Não ao lado de
+     "Data confirmada" é a tela perguntando de novo o que já foi decidido — e,
+     pior, deixando mudar o voto sem que isso mude coisa alguma. Quem quiser
+     reabrir a conversa usa "Desmarcar", que devolve a data à negociação com
+     todas as opções de volta. Os votos registrados continuam à vista. */
+  const emVotacao = !encerrado && !option.isConfirmed;
   const podeConfirmar = !option.isConfirmed && !encerrado;
   const podeDesmarcar = option.isConfirmed && planStatus === "planned";
   const erro = confirmState.error ?? unconfirmState.error ?? deleteState.error;
@@ -122,16 +128,17 @@ export function DateOptionRow({
       {/* Votar numa data de um date que já aconteceu não é caso de uso: a
           negociação terminou, e o controle ali só empurraria para baixo o que
           passou a importar — a avaliação, as fotos e o gasto. O mesmo vale para
-          plano cancelado. Os votos que existiram continuam visíveis. */}
+          plano cancelado e para a data já confirmada. Os votos que existiram
+          continuam visíveis. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {encerrado ? (
-          <span />
-        ) : (
+        {emVotacao ? (
           <VoteControl
             planId={planId}
             optionId={option.id}
             myVote={option.myVote}
           />
+        ) : (
+          <span />
         )}
 
         <ul className="type-meta text-text-muted flex items-center gap-3">

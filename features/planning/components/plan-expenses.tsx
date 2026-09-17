@@ -22,13 +22,11 @@ export function PlanExpenses({
   planId,
   expenses,
   estimatedBudgetCents,
-  members,
   readOnly,
 }: {
   planId: string;
   expenses: readonly ExpenseEntry[];
   estimatedBudgetCents: number | null;
-  members: readonly { profileId: string; displayName: string }[];
   readOnly: boolean;
 }) {
   if (readOnly && expenses.length === 0) return null;
@@ -81,7 +79,7 @@ export function PlanExpenses({
         </>
       )}
 
-      {readOnly ? null : <AddExpenseForm planId={planId} members={members} />}
+      {readOnly ? null : <AddExpenseForm planId={planId} />}
     </section>
   );
 }

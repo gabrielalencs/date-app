@@ -1,7 +1,7 @@
 "use client";
 
 import * as Select from "@radix-ui/react-select";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -97,10 +97,21 @@ export function DateSelect({
           {/* Entrada do painel por CSS. O atributo fica: é por ele que o teste
               do R1 confere que o painel chega a opacidade 1. */}
           <div data-date-select-motion className="pop">
-            <Select.ScrollUpButton className="grid min-h-11 place-items-center">
-              <ChevronUp className="size-4" />
-            </Select.ScrollUpButton>
-            <Select.Viewport className="max-h-[min(20rem,var(--radix-select-content-available-height))] p-1.5">
+            {/*
+              Sem `Select.ScrollUpButton`/`ScrollDownButton`.
+
+              As duas são afordância de mouse: rolam enquanto o ponteiro
+              repousa em cima delas. No celular não existe repousar, então elas
+              não faziam nada além de ocupar 44px em cada ponta e sugerir que a
+              lista rolava de algum jeito que o dedo não encontrava. Medido: a
+              categoria tem 408px de conteúdo em 320px de painel, ou seja a
+              lista rola mesmo — o que faltava era deixar o navegador rolar.
+
+              Sem elas o `overflow-y: auto` do viewport volta a valer, com
+              inércia nativa. `overscroll-contain` impede que o fim da lista
+              vire rolagem da página atrás.
+            */}
+            <Select.Viewport className="max-h-[min(20rem,var(--radix-select-content-available-height))] overscroll-contain p-1.5">
               {options.map((option) => (
                 <Select.Item
                   key={option.value}
@@ -116,9 +127,6 @@ export function DateSelect({
                 </Select.Item>
               ))}
             </Select.Viewport>
-            <Select.ScrollDownButton className="grid min-h-11 place-items-center">
-              <ChevronDown className="size-4" />
-            </Select.ScrollDownButton>
           </div>
         </Select.Content>
       </Select.Portal>

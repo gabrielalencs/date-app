@@ -73,92 +73,106 @@ export function ChecklistRow({
     <li
       data-checklist-item={item.id}
       data-done={marcado}
-      className="border-border-subtle flex flex-wrap items-center gap-2 border-b py-1 last:border-b-0"
+      className="border-border-subtle flex flex-col border-b last:border-b-0"
     >
-      {/* `basis-48` força os três botões a quebrarem para a linha de baixo
-          quando não cabem: a 320px eles comem 132px dos ~248px úteis, e o
-          rótulo ficava com ~80px — o suficiente para "estacionamento" quebrar
-          no meio da palavra. Com a base, o texto sempre tem 12rem antes de a
-          linha ceder. */}
-      <form
-        action={toggleAction}
-        ref={formRef}
-        className="min-w-0 flex-1 basis-48"
-      >
-        <input type="hidden" name="planId" value={planId} />
-        <input type="hidden" name="itemId" value={item.id} />
+      {/* Os controles ficam **à direita**, na mesma linha quando cabem.
 
-        {/* O alvo de toque é o label inteiro, não o quadrado. */}
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 py-1">
-          <input
-            ref={checkboxRef}
-            className="check-control"
-            type="checkbox"
-            name="done"
-            defaultChecked={marcado}
-            disabled={readOnly || togglePending}
-            onChange={() => formRef.current?.requestSubmit()}
-          />
-          <span className="flex min-w-0 flex-col">
-            <span
-              className={cn(
-                "type-body-s break-words",
-                marcado && "text-text-muted line-through",
-              )}
-            >
-              {item.label}
-            </span>
-            {marcado && item.doneByName ? (
-              <span className="type-meta text-text-muted">
-                {item.doneByName}
-                {item.doneAt ? `, ${formatRelativeDay(item.doneAt, now)}` : ""}
+          Antes eles caíam para uma segunda linha alinhada à esquerda, abaixo do
+          checkbox — soltos, longe do item, sem nada que os ligasse a ele. Tirar
+          a quebra resolveria o alinhamento e quebraria outra coisa: a 320px o
+          rótulo sobra com 70px e "estacionamento" parte no meio da palavra, que
+          é o que o `basis-48` evitava e o teste de medidas pega.
+
+          A saída é manter a quebra e mandar o grupo para a direita com
+          `ml-auto`: cabendo, os botões ficam na linha do item; não cabendo,
+          descem encostados na margem direita, ainda lidos como pertencentes à
+          linha de cima em vez de flutuando no vazio à esquerda.
+
+          O erro fica fora desta linha, na coluna de cima: como item do flex ele
+          disputaria largura com o rótulo. */}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-0 py-1">
+        <form
+          action={toggleAction}
+          ref={formRef}
+          className="min-w-0 flex-1 basis-48"
+        >
+          <input type="hidden" name="planId" value={planId} />
+          <input type="hidden" name="itemId" value={item.id} />
+
+          {/* O alvo de toque é o label inteiro, não o quadrado. */}
+          <label className="flex min-h-12 cursor-pointer items-center gap-3 py-1">
+            <input
+              ref={checkboxRef}
+              className="check-control"
+              type="checkbox"
+              name="done"
+              defaultChecked={marcado}
+              disabled={readOnly || togglePending}
+              onChange={() => formRef.current?.requestSubmit()}
+            />
+            <span className="flex min-w-0 flex-col">
+              <span
+                className={cn(
+                  "type-body-s break-words",
+                  marcado && "text-text-muted line-through",
+                )}
+              >
+                {item.label}
               </span>
-            ) : null}
-          </span>
-        </label>
-      </form>
+              {marcado && item.doneByName ? (
+                <span className="type-meta text-text-muted">
+                  {item.doneByName}
+                  {item.doneAt
+                    ? `, ${formatRelativeDay(item.doneAt, now)}`
+                    : ""}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        </form>
 
-      {readOnly ? null : (
-        <div className="flex shrink-0 items-center">
-          <form action={moveAction}>
-            <input type="hidden" name="planId" value={planId} />
-            <input type="hidden" name="itemId" value={item.id} />
-            <IconButton
-              type="submit"
-              name="direction"
-              value="up"
-              label={`Subir ${item.label}`}
-              disabled={isFirst || movePending}
-              icon={<ChevronUp aria-hidden="true" className="size-4" />}
-            />
-          </form>
-          <form action={moveAction}>
-            <input type="hidden" name="planId" value={planId} />
-            <input type="hidden" name="itemId" value={item.id} />
-            <IconButton
-              type="submit"
-              name="direction"
-              value="down"
-              label={`Descer ${item.label}`}
-              disabled={isLast || movePending}
-              icon={<ChevronDown aria-hidden="true" className="size-4" />}
-            />
-          </form>
-          <form action={deleteAction}>
-            <input type="hidden" name="planId" value={planId} />
-            <input type="hidden" name="itemId" value={item.id} />
-            <IconButton
-              type="submit"
-              label={`Apagar ${item.label}`}
-              disabled={deletePending}
-              icon={<Trash2 aria-hidden="true" className="size-4" />}
-            />
-          </form>
-        </div>
-      )}
+        {readOnly ? null : (
+          <div className="ml-auto flex shrink-0 items-center">
+            <form action={moveAction}>
+              <input type="hidden" name="planId" value={planId} />
+              <input type="hidden" name="itemId" value={item.id} />
+              <IconButton
+                type="submit"
+                name="direction"
+                value="up"
+                label={`Subir ${item.label}`}
+                disabled={isFirst || movePending}
+                icon={<ChevronUp aria-hidden="true" className="size-4" />}
+              />
+            </form>
+            <form action={moveAction}>
+              <input type="hidden" name="planId" value={planId} />
+              <input type="hidden" name="itemId" value={item.id} />
+              <IconButton
+                type="submit"
+                name="direction"
+                value="down"
+                label={`Descer ${item.label}`}
+                disabled={isLast || movePending}
+                icon={<ChevronDown aria-hidden="true" className="size-4" />}
+              />
+            </form>
+            <form action={deleteAction}>
+              <input type="hidden" name="planId" value={planId} />
+              <input type="hidden" name="itemId" value={item.id} />
+              <IconButton
+                type="submit"
+                label={`Apagar ${item.label}`}
+                disabled={deletePending}
+                icon={<Trash2 aria-hidden="true" className="size-4" />}
+              />
+            </form>
+          </div>
+        )}
+      </div>
 
       {(toggleState.error ?? moveState.error ?? deleteState.error) ? (
-        <p role="alert" className="type-meta text-danger basis-full">
+        <p role="alert" className="type-meta text-danger pb-2">
           {toggleState.error ?? moveState.error ?? deleteState.error}
         </p>
       ) : null}

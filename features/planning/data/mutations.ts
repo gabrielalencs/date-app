@@ -75,7 +75,18 @@ async function lockPlan(
   return plano;
 }
 
-/** Plano cancelado ou arquivado é leitura nas três seções (seção 8). */
+/**
+ * Plano cancelado, arquivado ou já realizado é leitura no planejamento.
+ *
+ * `completed` entrou aqui quando a memória deixou de ser editável: a
+ * confirmação de que o date aconteceu é a fronteira entre planejar e registrar,
+ * e reserva, checklist e gasto descrevem o que foi combinado antes dela. Editar
+ * depois reescreveria o passado.
+ *
+ * Isto é a autoridade — a tela esconde os controles, mas quem decide é aqui. O
+ * que nasce **depois** do date, avaliação e fotos de memória, não passa por esta
+ * função.
+ */
 function assertWritable(plano: PlanoTravado): void {
   if (plano.archivedAt !== null) {
     throw new ValidationError(
@@ -88,25 +99,22 @@ function assertWritable(plano: PlanoTravado): void {
       "Esse plano está cancelado. Reative antes de editar.",
     );
   }
-}
-
-/**
- * O checklist fecha quando o date acontece (seção 3 do docs/MEMORIES.md).
- *
- * `completed` é terminal na transição e **não** na escrita — é por isso que
- * gasto continua editável ali, e é depois que se sabe quanto custou. O
- * checklist é a exceção declarada: "o que levar" perde a função no momento em
- * que as duas pessoas já foram, e marcar um item depois não afirma nada sobre
- * o mundo.
- */
-function assertChecklistWritable(plano: PlanoTravado): void {
-  assertWritable(plano);
 
   if (plano.status === "completed") {
     throw new ValidationError(
-      "Esse date já aconteceu. O checklist fica só de leitura.",
+      "Esse date já aconteceu. A memória fica só de leitura.",
     );
   }
+}
+
+/**
+ * O checklist fechava em `completed` por regra própria, quando gasto e reserva
+ * ainda aceitavam escrita ali. Agora a regra é a mesma para os três, e esta
+ * função virou um apelido de `assertWritable` — mantido porque os quatro pontos
+ * de chamada dizem, pelo nome, qual seção estão protegendo.
+ */
+function assertChecklistWritable(plano: PlanoTravado): void {
+  assertWritable(plano);
 }
 
 /** Move o status do plano e emite o evento, na transação de quem chamou. */

@@ -9,13 +9,18 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { NotificationSettings } from "@/features/notifications/components/notification-settings";
 import { getPreferences } from "@/features/notifications/data/subscriptions";
+import { ArchivedPlans } from "@/features/plans/components/archived-plans";
+import { listArchivedPlans } from "@/features/plans/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 
 export const metadata: Metadata = { title: "Perfil" };
 
 export default async function Page() {
   const context = await requireAuthorizedContext();
-  const preferencias = await getPreferences(context);
+  const [preferencias, arquivados] = await Promise.all([
+    getPreferences(context),
+    listArchivedPlans(context),
+  ]);
   return (
     <div className="page-stack">
       <PageIntro
@@ -67,6 +72,7 @@ export default async function Page() {
               process.env.NEXT_PUBLIC_WEB_PUSH_VAPID_PUBLIC_KEY ?? ""
             }
           />
+          <ArchivedPlans plans={arquivados} />
           {/* Texto estático no lugar de um banner de instalação. O
               `beforeinstallprompt` não existe no iOS, então um banner próprio
               resolveria metade do problema e acrescentaria estado à tela

@@ -33,7 +33,6 @@ export function PlanPhotos({
   photos,
   allPhotos,
   coverMediaId,
-  showCover = true,
   showReorder = true,
   title = "Fotos do plano",
   uploadPurpose,
@@ -48,7 +47,6 @@ export function PlanPhotos({
   /** Todas as fotos do plano, na ordem completa. Padrão: as desta grade. */
   allPhotos?: readonly PlanPhoto[];
   coverMediaId: string | null;
-  showCover?: boolean;
   showReorder?: boolean;
   title?: string;
   /** `purpose` do que for enviado por esta grade. */
@@ -84,9 +82,6 @@ export function PlanPhotos({
     );
   }
 
-  const capa = photos.find((photo) => photo.id === coverMediaId) ?? null;
-  const resto = photos.filter((photo) => photo.id !== capa?.id);
-
   return (
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -94,8 +89,11 @@ export function PlanPhotos({
         {readOnly ? null : (
           <PhotoPicker
             planId={planId}
-            purpose={uploadPurpose ?? (capa ? "gallery" : "cover")}
-            label={addLabel ?? (capa ? "Adicionar foto" : "Adicionar capa")}
+            purpose={uploadPurpose ?? (coverMediaId ? "gallery" : "cover")}
+            label={
+              addLabel ??
+              (photos.length > 0 ? "Adicionar foto" : "Adicionar capa")
+            }
           />
         )}
       </div>
@@ -109,67 +107,59 @@ export function PlanPhotos({
           />
           <p className="type-body-s text-text-muted max-w-xs">{emptyText}</p>
         </div>
-      ) : null}
+      ) : (
+        /* Uma grade só, com todas as fotos do mesmo tamanho.
+ 
+           Antes a capa era tirada da grade e desenhada à parte, com legenda
+           própria. Só que a página já mostra a capa grande no topo, e por isso
+           as duas chamadas passavam `showCover={false}` — o ramo do herói aqui
+           dentro nunca rodou. O efeito era a capa virar uma linha de botões sem
+           imagem nenhuma: subir a primeira foto de um plano produzia um bloco
+           "CAPA ★ ← → 🗑" flutuando sozinho, e a foto só aparecia quando uma
+           segunda entrava na galeria.
+ 
+           Com todas no mesmo lugar, a primeira foto aparece assim que sobe, e
+           trocar a capa é tocar a estrela de qualquer uma — que era a outra
+           pergunta sem resposta ("e se eu quiser mudar?"). */
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {photos.map((photo) => {
+            const ehCapa = photo.id === coverMediaId;
 
-      {capa ? (
-        <figure className="flex flex-col gap-3">
-          {showCover ? (
-            <div className="border-border-subtle relative aspect-4/5 w-full overflow-hidden rounded-lg border sm:aspect-16/9">
-              <MediaImage
-                mediaId={capa.id}
-                alt={`Capa de ${planTitle}`}
-                priority
-                sizes="(min-width: 1024px) 42rem, 100vw"
-              />
-            </div>
-          ) : null}
-          <figcaption className="flex flex-wrap items-center justify-between gap-2">
-            <span className="type-label text-text-muted">Capa</span>
-            {readOnly ? null : (
-              <PhotoActions
-                planId={planId}
-                mediaId={capa.id}
-                isCover
-                showReorder={showReorder}
-                canMoveUp={visiveis.indexOf(capa.id) > 0}
-                canMoveDown={visiveis.indexOf(capa.id) < visiveis.length - 1}
-                onMove={(direction) => reordenar(capa.id, direction)}
-              />
-            )}
-          </figcaption>
-        </figure>
-      ) : null}
-
-      {/* Galeria em uma coluna no celular: quatro alvos de 44px não cabem em
-          meia largura de 320px, e encolher o alvo não é opção. Foto grande no
-          telefone também é o que o design system pede. */}
-      {resto.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {resto.map((photo) => (
-            <li key={photo.id} className="flex flex-col gap-2">
-              <div className="border-border-subtle relative aspect-square w-full overflow-hidden rounded-md border">
-                <MediaImage
-                  mediaId={photo.id}
-                  alt={`Foto de ${planTitle}`}
-                  variant="thumb"
-                  sizes="(min-width: 1024px) 14rem, (min-width: 640px) 45vw, 92vw"
-                />
-              </div>
-              {readOnly ? null : (
-                <PhotoActions
-                  planId={planId}
-                  mediaId={photo.id}
-                  isCover={false}
-                  showReorder={showReorder}
-                  canMoveUp={visiveis.indexOf(photo.id) > 0}
-                  canMoveDown={visiveis.indexOf(photo.id) < visiveis.length - 1}
-                  onMove={(direction) => reordenar(photo.id, direction)}
-                />
-              )}
-            </li>
-          ))}
+            return (
+              <li key={photo.id} className="flex flex-col gap-2">
+                <div className="border-border-subtle relative aspect-square w-full overflow-hidden rounded-md border">
+                  <MediaImage
+                    mediaId={photo.id}
+                    alt={
+                      ehCapa ? `Capa de ${planTitle}` : `Foto de ${planTitle}`
+                    }
+                    variant="thumb"
+                    sizes="(min-width: 1024px) 12rem, (min-width: 640px) 30vw, 45vw"
+                  />
+                  {ehCapa ? (
+                    <span className="bg-surface type-meta absolute top-2 left-2 rounded-full px-2.5 py-0.5">
+                      Capa
+                    </span>
+                  ) : null}
+                </div>
+                {readOnly ? null : (
+                  <PhotoActions
+                    planId={planId}
+                    mediaId={photo.id}
+                    isCover={ehCapa}
+                    showReorder={showReorder}
+                    canMoveUp={visiveis.indexOf(photo.id) > 0}
+                    canMoveDown={
+                      visiveis.indexOf(photo.id) < visiveis.length - 1
+                    }
+                    onMove={(direction) => reordenar(photo.id, direction)}
+                  />
+                )}
+              </li>
+            );
+          })}
         </ul>
-      ) : null}
+      )}
     </section>
   );
 }

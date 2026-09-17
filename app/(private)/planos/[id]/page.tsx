@@ -8,10 +8,7 @@ import { parseActivityPage } from "@/features/activity/url";
 import { EditorialNote } from "@/components/brand/editorial";
 import { CategoryArt } from "@/components/brand/category-art";
 import { PlanDates } from "@/features/dates/components/plan-dates";
-import {
-  listPlanDateOptions,
-  listWorkspaceMembers,
-} from "@/features/dates/data/queries";
+import { listPlanDateOptions } from "@/features/dates/data/queries";
 import { PlanPhotos } from "@/features/media/components/plan-photos";
 import { PlanReview } from "@/features/memories/components/plan-review";
 import { listPlanRatings } from "@/features/memories/data/queries";
@@ -80,7 +77,6 @@ export default async function Page({
     reservation,
     checklist,
     expenses,
-    members,
     facts,
     ratings,
     reactions,
@@ -91,7 +87,6 @@ export default async function Page({
     getReservation(ctx, plan.id),
     listChecklist(ctx, plan.id),
     listExpenses(ctx, plan.id),
-    listWorkspaceMembers(ctx),
     readPlanFacts(ctx, plan.id),
     /* Avaliações, fotos de memória e gastos são três consultas, não três por
        linha (seção 7 do docs/MEMORIES.md). As fotos já vêm inteiras de
@@ -111,6 +106,18 @@ export default async function Page({
      docs/PLANNING.md). A camada de dados recusa de novo — isto aqui é só para
      a tela não oferecer o que seria recusado. */
   const somenteLeitura = isReadOnly(plan);
+  /* Memória é fato consumado.
+ 
+     A confirmação de que o date aconteceu é a fronteira: antes dela se planeja,
+     depois dela se registra. Checklist, gastos, fotos do plano e os detalhes do
+     plano descrevem o que foi combinado — editá-los depois reescreveria o
+     passado, e o produto passaria a guardar uma versão do rolê que não é a que
+     aconteceu.
+ 
+     O que continua aberto num plano realizado é só o que nasce **depois** dele:
+     a avaliação de cada pessoa e as fotos de memória. As duas coisas são a
+     memória em si, não o planejamento dela. */
+  const planejamentoCongelado = somenteLeitura || realizado;
   const reservaDisponivel =
     plan.requiresBooking && reservationAvailable(plan, facts);
   const now = new Date();
@@ -127,7 +134,11 @@ export default async function Page({
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <article className="flex min-w-0 flex-col gap-6">
           {cover ? (
-            <div className="relative aspect-[16/8] min-h-56 overflow-hidden rounded-lg">
+            /* 16/8 era uma fresta: uma foto vertical de celular entrava por
+               `object-cover` e sobrava uma faixa do meio, sem cabeça nem chão.
+               4/3 no telefone e 16/9 a partir do tablet ainda cortam, porque
+               capa é recorte — mas cortam pouco, e o assunto continua na foto. */
+            <div className="relative aspect-4/3 overflow-hidden rounded-lg sm:aspect-16/9">
               <MediaImage
                 mediaId={cover.id}
                 alt={`Capa de ${plan.title}`}
@@ -240,7 +251,6 @@ export default async function Page({
               photos={fotosDaMemoria}
               allPhotos={photos}
               coverMediaId={plan.coverMediaId}
-              showCover={false}
               showReorder={false}
               title="As fotos de vocês"
               uploadPurpose="memory"
@@ -255,14 +265,13 @@ export default async function Page({
             planId={plan.id}
             items={checklist}
             now={now}
-            readOnly={somenteLeitura}
+            readOnly={planejamentoCongelado}
           />
           <PlanExpenses
             planId={plan.id}
             expenses={expenses}
             estimatedBudgetCents={plan.estimatedBudgetCents}
-            members={members}
-            readOnly={somenteLeitura}
+            readOnly={planejamentoCongelado}
           />
           <PlanPhotos
             planId={plan.id}
@@ -270,19 +279,23 @@ export default async function Page({
             photos={fotosDoPlano}
             allPhotos={photos}
             coverMediaId={plan.coverMediaId}
-            showCover={false}
-            readOnly={somenteLeitura}
+            readOnly={planejamentoCongelado}
           />
-          <details className="editor-disclosure panel">
-            <summary>
-              <span className="section-heading flex items-center gap-3">
-                <Pencil aria-hidden="true" className="size-5" />
-                Editar detalhes
-              </span>
-              <ChevronDown aria-hidden="true" className="size-5 shrink-0" />
-            </summary>
-            <EditPlanForm plan={plan} />
-          </details>
+          {/* Some por inteiro no plano realizado, em vez de abrir e mostrar
+              campos desabilitados: uma gaveta chamada "Editar detalhes" que não
+              edita nada é pior que ausência. */}
+          {planejamentoCongelado ? null : (
+            <details className="editor-disclosure panel">
+              <summary>
+                <span className="section-heading flex items-center gap-3">
+                  <Pencil aria-hidden="true" className="size-5" />
+                  Editar detalhes
+                </span>
+                <ChevronDown aria-hidden="true" className="size-5 shrink-0" />
+              </summary>
+              <EditPlanForm plan={plan} />
+            </details>
+          )}
           <ActivityFeed
             planId={plan.id}
             activity={activity}

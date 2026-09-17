@@ -284,19 +284,17 @@ test("gastos aceitam vírgula, recusam formato ambíguo e somam centavos", async
   );
   await expect(page.locator("[data-expense]")).toHaveCount(0);
 
+  /* "Quem pagou" saiu do produto: gasto aqui é registro do casal, não acerto
+     de contas. O que o teste continua exigindo é o que importa — o valor entra
+     com vírgula e a soma fecha em centavos. */
   await label.fill("Jantar");
   await amount.fill("280,00");
-  const payer = page.getByRole("combobox", { name: "Quem pagou" });
-  await payer.click();
-  const firstMember = page.getByRole("option").nth(1);
-  const payerName = (await firstMember.textContent())?.trim() ?? "";
-  await firstMember.click();
   await page.getByRole("button", { name: "Lançar gasto" }).click();
   await expect(page.getByText("Jantar", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.locator("[data-expense]").first()).toContainText(
-    `Pagou: ${payerName}`,
+  await expect(page.getByRole("combobox", { name: "Quem pagou" })).toHaveCount(
+    0,
   );
   await expect(label).toHaveValue("");
   await expect(amount).toHaveValue("");

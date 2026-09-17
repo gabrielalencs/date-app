@@ -5,7 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { Input, SelectField } from "@/components/ui/field";
+import { Input } from "@/components/ui/field";
 import {
   addExpenseAction,
   deleteExpenseAction,
@@ -35,20 +35,13 @@ export function ExpenseRow({
       data-expense={expense.id}
       className="border-border-subtle flex flex-wrap items-center gap-3 border-b py-2 last:border-b-0"
     >
+      {/* "Quem pagou" saiu do produto a pedido do proprietário: gasto aqui é
+          registro do casal, não acerto de contas entre duas pessoas, e o campo
+          sugeria uma contabilidade que o DATE não faz. A coluna `paid_by`
+          continua no banco, vazia daqui em diante — remover coluna é migration
+          destrutiva e precisa de autorização própria. */}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="type-body-s break-words">{expense.label}</span>
-        {expense.paidByName ? (
-          /* `truncate` e não quebra: um nome de exibição pode ser um token
-             único sem espaço, e aí a única alternativa a truncar é hifenizar no
-             meio da palavra. Reticências dizem "tem mais"; "gabrieldealenc|ar"
-             não diz nada. */
-          <span
-            className="type-meta text-text-muted truncate"
-            title={`Pagou: ${expense.paidByName}`}
-          >
-            Pagou: {expense.paidByName}
-          </span>
-        ) : null}
       </span>
 
       {/* Coluna de valor alinhada à direita, em tabular. Número que não alinha
@@ -90,13 +83,7 @@ export function ExpenseRow({
  * oferece e devolve string vazia. O `Input` do design system não passa `type`
  * por padrão, então text é o que sai.
  */
-export function AddExpenseForm({
-  planId,
-  members,
-}: {
-  planId: string;
-  members: readonly { profileId: string; displayName: string }[];
-}) {
+export function AddExpenseForm({ planId }: { planId: string }) {
   const [state, formAction, pending] = useActionState(
     addExpenseAction,
     INITIAL,
@@ -122,21 +109,6 @@ export function AddExpenseForm({
           hint="Em reais. Pode usar vírgula."
         />
       </div>
-
-      {members.length > 0 ? (
-        <SelectField
-          label="Quem pagou"
-          name="paidBy"
-          hint="Opcional. É só registro, não é acerto de contas."
-        >
-          <option value="">Não registrar</option>
-          {members.map((member) => (
-            <option key={member.profileId} value={member.profileId}>
-              {member.displayName}
-            </option>
-          ))}
-        </SelectField>
-      ) : null}
 
       {state.error ? (
         <p role="alert" className="type-body-s text-danger">

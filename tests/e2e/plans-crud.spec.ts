@@ -164,3 +164,50 @@ test.describe("sem JavaScript", () => {
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 });
+
+/**
+ * O arquivo tem porta de entrada e porta de saída.
+ *
+ * Antes desta tela, `archivedAt` escondia o plano de `/ideias`, `/agenda`,
+ * `/memorias` e da Home — de tudo. O botão de restaurar existia, mas morava na
+ * página de detalhe, que tinha acabado de deixar de ser alcançável: quem não
+ * guardasse a URL perdia o plano. Arquivar era apagar com outro nome.
+ *
+ * O teste segue o caminho inteiro pela interface, sem atalho por URL: arquiva
+ * no detalhe, confere que sumiu das Ideias, acha no Perfil, restaura de lá e
+ * confere que voltou.
+ */
+test("arquivar some da lista, aparece no Perfil e volta ao restaurar", async ({
+  page,
+}) => {
+  await signIn(page);
+
+  const titulo = `Teste arquivo ${Date.now()}`;
+  await criarPlano(page, titulo);
+
+  await page.getByRole("button", { name: "Arquivar", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Tirar do arquivo" }),
+  ).toBeVisible({ timeout: 30_000 });
+
+  // Sumiu de onde as ideias vivem.
+  await page.goto("/ideias");
+  await expect(page.getByText(titulo, { exact: true })).toHaveCount(0);
+
+  // E existe no Perfil, que é a porta de entrada do arquivo.
+  await page.goto("/perfil");
+  const linha = page.getByRole("listitem").filter({ hasText: titulo });
+  await expect(linha).toHaveCount(1);
+  await expect(linha).toContainText("Ideia");
+
+  // Restaurar dali devolve o plano à lista, sem passar pelo detalhe.
+  await page.getByRole("button", { name: `Restaurar ${titulo}` }).click();
+  await expect(page.getByText(titulo, { exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
+
+  await page.goto("/ideias");
+  await expect(page.getByText(titulo, { exact: true }).first()).toBeVisible({
+    timeout: 30_000,
+  });
+});

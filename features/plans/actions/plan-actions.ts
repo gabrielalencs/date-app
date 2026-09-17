@@ -200,5 +200,12 @@ export async function archivePlanAction(
   revalidatePath(`/planos/${planId}`);
   revalidatePath("/ideias");
   revalidatePath("/");
+  /* Arquivar tira o plano de toda lista, e restaurar devolve a todas. Uma
+     memória arquivada sai de `/memorias`, um plano com data sai da `/agenda`, e
+     os dois passam a existir na lista do arquivo, no Perfil — que até agora não
+     existia e por isso não era revalidada. */
+  revalidatePath("/memorias");
+  revalidatePath("/agenda");
+  revalidatePath("/perfil");
   return EMPTY;
 }

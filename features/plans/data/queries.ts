@@ -9,6 +9,7 @@ import {
   exists,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   lte,
   sql,
@@ -166,6 +167,55 @@ export async function listPlans(
       wantALotBy: [],
     }),
   }));
+}
+
+export type ArchivedPlan = {
+  id: string;
+  title: string;
+  category: string | null;
+  status: PlanStatus;
+  coverMediaId: string | null;
+  archivedAt: Date;
+};
+
+/**
+ * O arquivo, que até aqui não tinha porta de entrada.
+ *
+ * `archivedAt` esconde o plano de `/ideias`, `/agenda`, `/memorias` e do próximo
+ * DATE — de tudo. Quem arquivava só voltava atrás se tivesse guardado a URL do
+ * plano, porque o botão de restaurar mora na página de detalhe e a página de
+ * detalhe tinha deixado de ser alcançável. Arquivar era, na prática, apagar.
+ *
+ * Isto é o inverso exato de `listPlans`: em vez de `isNull`, `isNotNull`. Ideia
+ * e memória saem juntas na mesma lista porque as duas são `plans` — o que muda
+ * entre elas é o status, e ele vai junto para a tela saber dizer qual é qual.
+ */
+export async function listArchivedPlans(
+  ctx: AuthorizedContext,
+): Promise<ArchivedPlan[]> {
+  const rows = await db
+    .select({
+      id: plans.id,
+      title: plans.title,
+      category: plans.category,
+      status: plans.status,
+      coverMediaId: plans.coverMediaId,
+      archivedAt: plans.archivedAt,
+    })
+    .from(plans)
+    .where(
+      and(eq(plans.workspaceId, ctx.workspaceId), isNotNull(plans.archivedAt)),
+    )
+    /* Mais recém-arquivado primeiro: quem abre esta tela quase sempre quer
+       desfazer o que acabou de fazer. */
+    .orderBy(desc(plans.archivedAt))
+    .limit(200);
+
+  /* O `isNotNull` do where já garante isto; o filtro existe para o tipo, que
+     promete `Date` e não `Date | null`. */
+  return rows.flatMap((row) =>
+    row.archivedAt ? [{ ...row, archivedAt: row.archivedAt }] : [],
+  );
 }
 
 /** Lança NotFoundError se o plano não existir ou for de outro workspace. */

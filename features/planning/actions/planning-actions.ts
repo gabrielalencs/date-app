@@ -246,11 +246,9 @@ const expenseSchema = z.object({
   /* O teto e o formato são recusados aqui, nunca pelo banco: erro de driver não
      tem como ser explicado a quem digitou. */
   amountCents: centsFromText,
-  paidBy: z
-    .string()
-    .trim()
-    .transform((value) => (value === "" ? null : value))
-    .nullable(),
+  /* Sem `paidBy`: "quem pagou" saiu do produto. O boundary deixa de aceitar o
+     campo em vez de apenas ignorá-lo — um schema que aceita o que a tela não
+     manda é um contrato que ninguém mais lê. */
 });
 
 export async function addExpenseAction(
@@ -263,7 +261,6 @@ export async function addExpenseAction(
   const parsed = expenseSchema.safeParse({
     label: text(formData, "label"),
     amountCents: text(formData, "amountCents"),
-    paidBy: text(formData, "paidBy"),
   });
 
   if (!parsed.success) {

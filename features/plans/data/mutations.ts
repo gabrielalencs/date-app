@@ -10,7 +10,7 @@ import {
 } from "@/features/notifications/data/outbox";
 import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
-import { NotFoundError } from "@/lib/errors";
+import { NotFoundError, ValidationError } from "@/lib/errors";
 import {
   assertBookingRequirementCanBeDisabled,
   assertTransitionAllowed,
@@ -118,7 +118,11 @@ export async function updatePlan(
 
   return db.transaction(async (tx) => {
     const [current] = await tx
-      .select({ id: plans.id })
+      .select({
+        id: plans.id,
+        status: plans.status,
+        archivedAt: plans.archivedAt,
+      })
       .from(plans)
       .where(and(eq(plans.workspaceId, ctx.workspaceId), eq(plans.id, planId)))
       .for("update")
@@ -126,6 +130,15 @@ export async function updatePlan(
 
     if (!current) {
       throw new NotFoundError("Plano");
+    }
+
+    /* Mesma fronteira do planejamento: depois que o date aconteceu, título,
+       categoria, orçamento e cidade descrevem algo que já foi. A tela esconde a
+       gaveta "Editar detalhes"; a recusa mora aqui, que é onde vale. */
+    if (current.status === "completed") {
+      throw new ValidationError(
+        "Esse date já aconteceu. A memória fica só de leitura.",
+      );
     }
 
     if (input.requiresBooking === false) {
