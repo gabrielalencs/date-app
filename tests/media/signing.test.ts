@@ -15,6 +15,9 @@ import { MAX_BYTES, SIGNED_URL_TTL_SECONDS } from "@/features/media/constants";
  * abrir a assinatura em silêncio. Não faz rede: assinar é operação local.
  */
 const CONTA = "abc123conta";
+const ACCESS_KEY_ID_FALSO = "0123456789abcdef0123456789abcdef";
+const SEGREDO_FALSO = "fedcba9876543210".repeat(4);
+
 const CHAVE =
   "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222/44444444-4444-4444-8444-444444444444/full.webp";
 
@@ -25,8 +28,10 @@ let signUpload: SignUpload;
 beforeAll(async () => {
   process.env.NEON_BRANCH = "development";
   process.env.R2_ACCOUNT_ID = CONTA;
-  process.env.R2_ACCESS_KEY_ID = "AKIADETESTE";
-  process.env.R2_SECRET_ACCESS_KEY = "segredo-de-teste-sem-valor";
+  /* Formato real, valor inventado: desde o D-170 `resolveR2` confere o formato
+     das credenciais, e um par fora de 32/64 hex aborta antes de assinar. */
+  process.env.R2_ACCESS_KEY_ID = ACCESS_KEY_ID_FALSO;
+  process.env.R2_SECRET_ACCESS_KEY = SEGREDO_FALSO;
   process.env.R2_BUCKET = "date-media-dev";
   process.env.R2_ENDPOINT = `https://${CONTA}.r2.cloudflarestorage.com`;
 
@@ -73,7 +78,7 @@ describe("signUpload", () => {
   it("não leva o segredo na URL", async () => {
     const { assinada } = await assinar();
 
-    expect(assinada.url).not.toContain("segredo-de-teste-sem-valor");
+    expect(assinada.url).not.toContain(SEGREDO_FALSO);
   });
 
   it("recusa MIME fora dos três permitidos", async () => {

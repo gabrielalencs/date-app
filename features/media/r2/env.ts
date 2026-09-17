@@ -10,6 +10,10 @@
  * variáveis de development para a Vercel e deixar o `R2_BUCKET` para trás. Sem
  * ele, o app de produção escreveria fotos reais no bucket de teste em silêncio.
  *
+ * Desde o D-170 há uma segunda guarda, de formato de credencial, pelo mesmo
+ * motivo: o erro que ela pega não falha em lugar nenhum até o PUT que sai do
+ * navegador. Ver `assertCredentialShape`.
+ *
  * Imprime bucket e endpoint. Nunca imprime credencial, nem mascarada — chave
  * mascarada em log é chave em log com passos a mais.
  *
@@ -92,6 +96,85 @@ function hostOf(endpoint: string): string {
 }
 
 /**
+ * Formato das credenciais, conferido antes de qualquer byte sair.
+ *
+ * **Por que esta guarda existe.** O painel do Cloudflare mostra tres valores
+ * quando um token de R2 e criado, e so dois deles entram aqui:
+ *
+ *   Token value        cfat_...   serve para a API REST do Cloudflare
+ *   Access Key ID      32 hex     -> R2_ACCESS_KEY_ID
+ *   Secret Access Key  64 hex     -> R2_SECRET_ACCESS_KEY
+ *
+ * O primeiro e o que aparece em destaque, e e o erro facil de cometer. Com ele
+ * em `R2_ACCESS_KEY_ID` nada falha no boot, nada falha no login e nada falha ao
+ * abrir a pagina: o servidor assina a URL normalmente e o R2 so recusa la na
+ * frente, no PUT que sai do navegador, com `400 InvalidArgument` — medido
+ * contra o bucket de desenvolvimento, resposta de 149 bytes. Uma chave com o
+ * formato certo mas inexistente responde `401 Unauthorized`; e a diferenca
+ * entre "nao consigo ler isto" e "isto nao e de ninguem".
+ *
+ * Como o Access Key ID viaja em toda URL assinada, por o token de API nesse
+ * campo tambem o entrega ao navegador a cada upload.
+ *
+ * A guarda compara formato, nunca valor, e a mensagem nomeia o campo do painel
+ * sem repetir nada do que leu.
+ */
+const FORMATO_ACCESS_KEY_ID = /^[0-9a-f]{32}$/;
+const FORMATO_SECRET = /^[0-9a-f]{64}$/;
+
+export function assertCredentialShape(config: R2Config): void {
+  if (!FORMATO_ACCESS_KEY_ID.test(config.accessKeyId)) {
+    const pareceToken = config.accessKeyId.startsWith("cfat_");
+
+    throw new R2ConfigError(
+      [
+        "",
+        "ABORTADO: R2_ACCESS_KEY_ID nao tem o formato de um Access Key ID do R2.",
+        "",
+        "Esperado: 32 caracteres hexadecimais minusculos.",
+        `Recebido: ${config.accessKeyId.length} caracteres` +
+          (pareceToken ? ", comecando em cfat_." : "."),
+        ...(pareceToken
+          ? [
+              "",
+              "Esse prefixo e o do Token value, que serve para a API REST do",
+              "Cloudflare e nao para assinar requisicao S3. O R2 recusa o PUT",
+              "assinado com 400 InvalidArgument, e o sintoma e uma foto que nao",
+              "sobe.",
+              "",
+              "Alem disso: o Access Key ID viaja em toda URL assinada, entao um",
+              "token de API nesse campo vai para o navegador a cada upload. Se",
+              "ja foi usado, gire o token no painel.",
+            ]
+          : []),
+        "",
+        "O que fazer:",
+        "  1. Cloudflare -> R2 -> Manage API tokens -> o token deste bucket",
+        "  2. Copie o campo Access Key ID (nao o Token value)",
+        "  3. Copie o campo Secret Access Key para R2_SECRET_ACCESS_KEY",
+        "  4. Reimplante para o ambiente reler as variaveis",
+      ].join("\n"),
+    );
+  }
+
+  if (!FORMATO_SECRET.test(config.secretAccessKey)) {
+    throw new R2ConfigError(
+      [
+        "",
+        "ABORTADO: R2_SECRET_ACCESS_KEY nao tem o formato de um Secret Access",
+        "Key do R2.",
+        "",
+        "Esperado: 64 caracteres hexadecimais minusculos.",
+        `Recebido: ${config.secretAccessKey.length} caracteres.`,
+        "",
+        "Copie o campo Secret Access Key do mesmo token, no painel do",
+        "Cloudflare em R2 -> Manage API tokens.",
+      ].join("\n"),
+    );
+  }
+}
+
+/**
  * A guarda. Aborta quando a branch de desenvolvimento está apontada para um
  * bucket que não é o de desenvolvimento — inclusive, e principalmente, quando
  * está apontada para o de produção.
@@ -152,6 +235,7 @@ export function resolveR2(env: EnvSource): {
   target: R2Target;
 } {
   const config = readR2Config(env);
+  assertCredentialShape(config);
   const target = assertBucketMatchesBranch(config, env.NEON_BRANCH);
   return { config, target };
 }

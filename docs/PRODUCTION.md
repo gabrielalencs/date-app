@@ -149,6 +149,14 @@ primeiro byte. Isso existe para o erro mais provável do deploy — copiar as
 variáveis de development e deixar o bucket para trás, mandando foto real para o
 bucket de teste em silêncio.
 
+As credenciais do R2 são dois campos do painel, e não três. Criar o token mostra
+`Token value`, `Access Key ID` e `Secret Access Key`; o primeiro é para a API
+REST do Cloudflare e não entra em variável nenhuma. Pôr o Token value em
+`R2_ACCESS_KEY_ID` não quebra o boot, nem o login, nem a página — quebra só o
+PUT, no navegador, com `400 InvalidArgument` (D-170). Desde então `resolveR2`
+confere o formato (32 hex e 64 hex) e aborta antes, com mensagem que nomeia o
+campo certo.
+
 ### 3.4 Migrations
 
 ```bash

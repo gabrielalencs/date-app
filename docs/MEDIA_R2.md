@@ -144,6 +144,25 @@ R2_BUCKET
 R2_ENDPOINT
 ```
 
+### Qual campo do painel vai em qual variável
+
+Criar um token de R2 no Cloudflare produz **três** valores, e só dois entram
+aqui:
+
+| Campo do painel | Formato | Vai para |
+|---|---|---|
+| Token value | `cfat_…` | nada aqui; é para a API REST do Cloudflare |
+| Access Key ID | 32 hex minúsculo | `R2_ACCESS_KEY_ID` |
+| Secret Access Key | 64 hex minúsculo | `R2_SECRET_ACCESS_KEY` |
+
+O Token value é o que aparece em destaque, e trocá-lo pelo Access Key ID não
+falha em lugar nenhum até o PUT: o servidor assina a URL normalmente, e o R2
+responde `400 InvalidArgument` ao navegador (D-170). Por isso `resolveR2`
+confere o formato dos dois e aborta antes — comparando formato, nunca valor.
+
+O Access Key ID viaja em toda URL assinada. Um token de API nesse campo é um
+token de API entregue ao navegador.
+
 ---
 
 ## 9. Onde a mídia aparece na V1

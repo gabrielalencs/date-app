@@ -4,6 +4,33 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-170 — Em produção, `R2_ACCESS_KEY_ID` recebeu o Token value do Cloudflare
+**17/09/2026.** Achado, não decisão. Depois de o CORS ser aplicado (D-169), o preflight passou e o PUT começou a chegar ao R2 — e voltou `400 Bad Request`. A URL assinada trazia a causa: `X-Amz-Credential=cfat_…`.
+
+O painel do Cloudflare mostra três valores quando um token de R2 é criado, e só dois entram no ambiente:
+
+| Campo do painel | Formato | Vai para |
+|---|---|---|
+| Token value | `cfat_…` | nada aqui; é para a API REST do Cloudflare |
+| Access Key ID | 32 hex | `R2_ACCESS_KEY_ID` |
+| Secret Access Key | 64 hex | `R2_SECRET_ACCESS_KEY` |
+
+O Token value foi para `R2_ACCESS_KEY_ID`. Medido contra o `date-media-dev`, assinando com a chave real e com duas chaves inventadas:
+
+```
+access key id com prefixo cfat_        → HTTP 400 · InvalidArgument · corpo de 149 bytes
+access key id 32 hex mas inexistente   → HTTP 401 · Unauthorized    · corpo de 109 bytes
+access key id real                     → HTTP 200 (pnpm test:media, 8/8)
+```
+
+O primeiro caso reproduz o erro do proprietário byte a byte — 400, `InvalidArgument`, 149 bytes. A diferença entre 400 e 401 é a diferença entre "não consigo ler isto" e "isto não é de ninguém": o R2 nem chega a procurar o token, porque o identificador não tem o formato de um.
+
+Descartada antes a hipótese do checksum. O SDK 3.1129.0 põe `x-amz-checksum-crc32=AAAAAA==` na URL assinada — que é o CRC32 de corpo **vazio**, porque ao assinar não há corpo. Parecia causa suficiente, mas a URL de desenvolvimento traz exatamente o mesmo parâmetro e o `pnpm test:media` sobe 8/8 contra o R2 de verdade. O R2 não valida esse checksum, e mudar `requestChecksumCalculation` teria sido conserto de algo que não estava quebrado.
+
+O que entra no repositório é `assertCredentialShape`, chamada por `resolveR2`: `R2_ACCESS_KEY_ID` fora de 32 hex e `R2_SECRET_ACCESS_KEY` fora de 64 hex abortam com mensagem que nomeia o campo do painel. Compara formato, nunca valor, e não repete no erro nada do que leu. Sem ela o sintoma só aparece no navegador da pessoa, como um 400 sem explicação, depois de login, home e página funcionarem normalmente.
+
+Consequência de segurança, para o proprietário: o Access Key ID viaja em toda URL assinada. Um token de API nesse campo foi entregue ao navegador a cada tentativa de upload, e precisa ser girado no painel.
+
 ### D-169 — O bucket de produção não tem CORS, e o upload quebra por isso
 **17/09/2026.** Achado, não decisão. O proprietário reportou que não consegue enviar foto em produção. O upload é um PUT assinado que sai do navegador direto para o R2, e como ele leva `content-type: image/webp` — que não está na lista segura do CORS — o navegador manda antes um `OPTIONS` de verificação. Medido, fazendo o mesmo `OPTIONS` que o navegador faz:
 

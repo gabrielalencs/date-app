@@ -5,19 +5,25 @@ import {
   PROD_BUCKET,
   R2ConfigError,
   assertBucketMatchesBranch,
+  assertCredentialShape,
   describeTarget,
   readR2Config,
   resolveR2,
 } from "@/features/media/r2/env";
 
 const CONTA = "abc123conta";
+/* Formato real, valor inventado: a guarda de credencial confere formato, entao
+   um fixture com "chave-de-teste" faria todo teste deste arquivo falhar por
+   motivo errado. */
+const CHAVE = "0123456789abcdef0123456789abcdef";
+const SEGREDO = "0123456789abcdef".repeat(4);
 
 function env(overrides: Record<string, string | undefined> = {}) {
   return {
     NEON_BRANCH: "development",
     R2_ACCOUNT_ID: CONTA,
-    R2_ACCESS_KEY_ID: "chave-de-teste",
-    R2_SECRET_ACCESS_KEY: "segredo-de-teste",
+    R2_ACCESS_KEY_ID: CHAVE,
+    R2_SECRET_ACCESS_KEY: SEGREDO,
     R2_BUCKET: DEV_BUCKET,
     R2_ENDPOINT: `https://${CONTA}.r2.cloudflarestorage.com`,
     ...overrides,
@@ -46,6 +52,57 @@ describe("readR2Config", () => {
     expect(() => readR2Config(env({ R2_ACCESS_KEY_ID: "   " }))).toThrow(
       /R2_ACCESS_KEY_ID/,
     );
+  });
+});
+
+describe("assertCredentialShape", () => {
+  it("aceita o par de formato correto", () => {
+    expect(() => assertCredentialShape(readR2Config(env()))).not.toThrow();
+  });
+
+  /* O erro que motivou a guarda: o painel do Cloudflare mostra o Token value em
+     destaque, e ele nao assina requisicao S3. Sem esta guarda o sintoma so
+     aparece no navegador, como 400 InvalidArgument num PUT para o R2. */
+  it("recusa o Token value do Cloudflare no lugar do Access Key ID", () => {
+    const erro = (() => {
+      try {
+        assertCredentialShape(
+          readR2Config(env({ R2_ACCESS_KEY_ID: `cfat_${"A".repeat(48)}` })),
+        );
+        return null;
+      } catch (e) {
+        return e as Error;
+      }
+    })();
+
+    expect(erro).toBeInstanceOf(R2ConfigError);
+    expect(erro?.message).toContain("Access Key ID");
+    expect(erro?.message).toContain("400 InvalidArgument");
+    // Nomeia o campo do painel; nunca repete o valor que leu.
+    expect(erro?.message).not.toContain("AAAA");
+  });
+
+  it("recusa um secret fora do formato sem repetir o valor", () => {
+    const erro = (() => {
+      try {
+        assertCredentialShape(
+          readR2Config(env({ R2_SECRET_ACCESS_KEY: "segredo-curto" })),
+        );
+        return null;
+      } catch (e) {
+        return e as Error;
+      }
+    })();
+
+    expect(erro).toBeInstanceOf(R2ConfigError);
+    expect(erro?.message).toContain("Secret Access Key");
+    expect(erro?.message).not.toContain("segredo-curto");
+  });
+
+  it("resolveR2 aplica a guarda de credencial", () => {
+    expect(() =>
+      resolveR2(env({ R2_ACCESS_KEY_ID: `cfat_${"A".repeat(48)}` })),
+    ).toThrow(R2ConfigError);
   });
 });
 
