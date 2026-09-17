@@ -26,12 +26,12 @@ import {
 
 type FakeImage = DecodedImage & { closed: boolean };
 
-function fakeFile(size: number, type = "image/jpeg"): File {
+function fakeFile(size: number, type = "image/jpeg", name = "foto.jpg"): File {
   // O conteúdo não é lido: quem decodifica é o runtime, que aqui é falso.
   return {
     size,
     type,
-    name: "foto.jpg",
+    name,
   } as File;
 }
 
@@ -192,13 +192,40 @@ describe("processImageFile", () => {
       failDecode: true,
     });
 
-    const erro = await processImageFile(fakeFile(3_000_000), runtime).catch(
-      (e: unknown) => e,
-    );
+    const erro = await processImageFile(
+      fakeFile(3_000_000, "image/png", "Screenshot_2026-09-17.png"),
+      runtime,
+    ).catch((e: unknown) => e);
 
     expect(erro).toBeInstanceOf(ImageProcessingError);
-    expect((erro as Error).message).toMatch(/HEIC/);
-    expect((erro as Error).message).toMatch(/exporte como JPEG/i);
+    /* O print de Android não pode receber explicação sobre iPhone: a mensagem
+       antiga afirmava HEIC para qualquer recusa do decodificador, e era isso
+       que mandava a pessoa procurar um problema que o arquivo não tinha. */
+    expect((erro as Error).message).not.toMatch(/HEIC/);
+    expect((erro as Error).message).not.toMatch(/iPhone/);
+    // Diz o que se sabe do arquivo, para a mensagem ser acionável.
+    expect((erro as Error).message).toMatch(/image\/png/);
+    expect((erro as Error).message).toMatch(/KB/);
+  });
+
+  it("só fala de HEIC quando o arquivo é HEIC", async () => {
+    const { runtime } = fakeRuntime({
+      width: 0,
+      height: 0,
+      failDecode: true,
+    });
+
+    for (const arquivo of [
+      fakeFile(3_000_000, "image/heic", "IMG_0001.heic"),
+      // `type` vazio é o que o share sheet entrega; sobra a extensão.
+      fakeFile(3_000_000, "", "IMG_0002.HEIF"),
+    ]) {
+      const erro = await processImageFile(arquivo, runtime).catch(
+        (e: unknown) => e,
+      );
+
+      expect((erro as Error).message, arquivo.name).toMatch(/HEIC/);
+    }
   });
 
   it("libera o bitmap mesmo quando o encode falha", async () => {
@@ -221,5 +248,88 @@ describe("processImageFile", () => {
       processImageFile(fakeFile(1000, "video/mp4"), runtime),
     ).rejects.toThrow(ImageProcessingError);
     expect(runtime.decode).not.toHaveBeenCalled();
+  });
+
+  /**
+   * O `type` do seletor de arquivos do Android não é confiável: arquivo vindo
+   * de outro app, de cartão ou de pasta não indexada chega como
+   * `application/octet-stream` ou sem tipo nenhum. Recusar por isso era barrar
+   * imagem legítima antes de olhar para ela.
+   */
+  it("deixa o decodificador decidir quando o tipo não diz nada", async () => {
+    for (const tipo of ["application/octet-stream", "", "image/png"]) {
+      const { runtime } = fakeRuntime({ width: 1200, height: 900 });
+
+      await expect(
+        processImageFile(fakeFile(2_000_000, tipo, "arquivo"), runtime),
+      ).resolves.toBeDefined();
+      expect(runtime.decode, tipo).toHaveBeenCalled();
+    }
+  });
+
+  it("continua recusando de cara o que sabidamente não é imagem", async () => {
+    for (const tipo of [
+      "video/mp4",
+      "audio/mpeg",
+      "application/pdf",
+      "text/plain",
+    ]) {
+      const { runtime } = fakeRuntime({ width: 100, height: 100 });
+
+      await expect(
+        processImageFile(fakeFile(1000, tipo), runtime),
+        tipo,
+      ).rejects.toThrow(ImageProcessingError);
+      expect(runtime.decode, tipo).not.toHaveBeenCalled();
+    }
+  });
+});
+
+/**
+ * A escada de tamanho.
+ *
+ * Antes existia só a de qualidade: três encodes no mesmo tamanho e, se nenhum
+ * coubesse, recusa. Print muito longo e foto com muito detalhe fino eram
+ * rejeitados por um teto que reduzir 25% resolve.
+ */
+describe("quando a qualidade sozinha não faz caber", () => {
+  it("reduz o tamanho e envia, em vez de recusar", async () => {
+    const cheio = scaleToFit({ width: 4000, height: 3000 }, MAX_EDGE.full);
+
+    const { runtime, encodes } = fakeRuntime({
+      width: 4000,
+      height: 3000,
+      /* Nada cabe no tamanho cheio; tudo cabe assim que o tamanho cede. */
+      bytesFor: ({ variant, size }) =>
+        variant === "full" && size.width === cheio.width
+          ? MAX_BYTES.full + 1
+          : 1024,
+    });
+
+    const resultado = await processImageFile(fakeFile(9_000_000), runtime);
+
+    // Saiu com menos pixels que o teto, e saiu.
+    expect(resultado.full.width).toBeLessThan(cheio.width);
+    expect(resultado.full.width).toBe(Math.round(cheio.width * 0.75));
+    // A altura acompanha: proporção preservada.
+    expect(resultado.full.height).toBe(Math.round(cheio.height * 0.75));
+
+    // Só desceu de tamanho depois de esgotar a qualidade no tamanho cheio.
+    const noCheio = encodes.filter(
+      (e) => e.variant === "full" && e.size.width === cheio.width,
+    );
+    expect(noCheio).toHaveLength(QUALITY_LADDER.length);
+  });
+
+  it("desiste quando nem metade dos pixels na pior qualidade cabe", async () => {
+    const { runtime } = fakeRuntime({
+      width: 4000,
+      height: 3000,
+      bytesFor: () => MAX_BYTES.full + 1,
+    });
+
+    await expect(
+      processImageFile(fakeFile(9_000_000), runtime),
+    ).rejects.toThrow(/acima do limite de envio/i);
   });
 });

@@ -67,10 +67,45 @@ export type ProcessedImage = {
   source: Size;
 };
 
-const NAO_DECODIFICOU =
-  "Não foi possível abrir essa imagem. Se ela veio de um iPhone, ela pode " +
-  "estar em HEIC, que este navegador não lê. Abra a foto, exporte como JPEG " +
-  "e tente de novo.";
+/**
+ * Duas mensagens, porque são dois fatos diferentes.
+ *
+ * A versão anterior tinha uma só, e ela **afirmava** a causa: "se ela veio de
+ * um iPhone, ela pode estar em HEIC". Só que esse texto disparava para qualquer
+ * recusa do decodificador — um print de Android que falhasse por outro motivo
+ * recebia uma explicação sobre iPhone, e quem lia ficava sem saber o que fazer
+ * com um arquivo que não tinha nada de HEIC.
+ *
+ * Agora o palpite sobre HEIC só aparece quando o arquivo **é** HEIC, decidido
+ * pelo tipo e pela extensão. No resto dos casos a mensagem diz o que houve, o
+ * que se sabe do arquivo, e o que costuma resolver — sem inventar diagnóstico.
+ */
+const HEIC =
+  "Essa foto está em HEIC, um formato que este navegador não abre. No iPhone, " +
+  "em Ajustes → Câmera → Formatos, escolha “Mais compatível” para as próximas. " +
+  "Para esta, abra na galeria e compartilhe como JPEG.";
+
+function naoDecodificou(file: File, cause: unknown): string {
+  const detalhe =
+    cause instanceof Error && cause.message ? ` (${cause.message})` : "";
+  const tipo = file.type || "tipo não informado";
+
+  return (
+    "Não foi possível abrir essa imagem neste navegador. " +
+    `O arquivo chegou como ${tipo}, com ${Math.round(file.size / 1024)} KB. ` +
+    "Tente outra foto, ou abra esta na galeria e salve uma cópia antes de " +
+    `enviar.${detalhe}`
+  );
+}
+
+/** HEIC/HEIF pelo tipo declarado ou pela extensão, que é o que sobra quando
+    o `type` vem vazio do share sheet. */
+function pareceHeic(file: File): boolean {
+  const tipo = file.type.toLowerCase();
+  if (tipo === "image/heic" || tipo === "image/heif") return true;
+
+  return /\.(heic|heif)$/i.test(file.name);
+}
 
 const NAO_E_IMAGEM =
   "Esse arquivo não é uma imagem. Escolha um JPEG, um PNG ou um WebP.";
@@ -82,6 +117,25 @@ const GRANDE_DEMAIS =
 const NAO_COUBE =
   "Mesmo reduzida, essa imagem ficou acima do limite de envio. Corte um " +
   "pedaço ou escolha outra foto.";
+
+/**
+ * Degraus de redução, aplicados sobre o tamanho já calculado para a variante.
+ *
+ * Antes existia só a escada de qualidade: três encodes no mesmo tamanho e, se
+ * nenhum coubesse, recusa. Isso rejeitava imagem legítima — print muito longo,
+ * foto com muito detalhe fino — por um teto que reduzir 30% resolveria.
+ *
+ * Reduzir pixel preserva melhor a imagem do que espremer qualidade até o fim:
+ * a 0.58 o WebP já borra. Por isso a segunda dimensão da escada existe, e por
+ * isso ela só entra depois que a qualidade fez o que podia no tamanho cheio.
+ *
+ * Seis encodes no pior caso (3 + 2 + 1), e só no caso que antes era recusa.
+ */
+const SIZE_LADDER = [
+  { escala: 1, qualidades: QUALITY_LADDER },
+  { escala: 0.75, qualidades: QUALITY_LADDER.slice(1) },
+  { escala: 0.5, qualidades: QUALITY_LADDER.slice(2) },
+] as const;
 
 const SEM_PIXEL = "Essa imagem não tem conteúdo visível.";
 
@@ -103,6 +157,36 @@ export function scaleToFit(source: Size, maxEdge: number): Size {
   };
 }
 
+/**
+ * Tipos que sabidamente não são imagem. Recusar por esta lista, e não por
+ * "não começa com image/", é o que abre a porta para a galeria.
+ *
+ * O `type` que chega do seletor de arquivos do Android não é confiável: além do
+ * vazio, que já era tratado, aparecem `application/octet-stream` e derivados
+ * quando o arquivo veio de outro app, de um cartão de memória ou de uma pasta
+ * que o provedor de mídia não indexou. Nenhum deles diz que o arquivo não é
+ * imagem — dizem que ninguém se deu ao trabalho de olhar.
+ *
+ * Quem sabe de verdade é o decodificador. Vídeo, áudio e PDF continuam sendo
+ * recusados de cara, porque para esses o `type` é confiável e decodificar um
+ * MP4 de 40 MB só para falhar é gastar a memória do celular à toa.
+ */
+const NAO_E_IMAGEM_PREFIXOS = ["video/", "audio/", "text/"] as const;
+const NAO_E_IMAGEM_TIPOS = [
+  "application/pdf",
+  "application/zip",
+  "application/json",
+] as const;
+
+function tipoRecusadoDeCara(type: string): boolean {
+  const tipo = type.toLowerCase();
+
+  return (
+    NAO_E_IMAGEM_PREFIXOS.some((prefixo) => tipo.startsWith(prefixo)) ||
+    (NAO_E_IMAGEM_TIPOS as readonly string[]).includes(tipo)
+  );
+}
+
 /** Só valida o que dá para saber sem decodificar. */
 export function assertAcceptableInput(file: File): void {
   if (file.size === 0) {
@@ -113,11 +197,19 @@ export function assertAcceptableInput(file: File): void {
     throw new ImageProcessingError(GRANDE_DEMAIS);
   }
 
-  /* O tipo vazio acontece em arquivo vindo de share sheet; nesse caso deixa
-     passar e quem decide é o decodificador, que é a autoridade real. */
-  if (file.type !== "" && !file.type.startsWith("image/")) {
+  if (tipoRecusadoDeCara(file.type)) {
     throw new ImageProcessingError(NAO_E_IMAGEM);
   }
+}
+
+/** Reduz um tamanho já calculado, sem nunca chegar a zero. */
+function escalar(size: Size, fator: number): Size {
+  if (fator === 1) return size;
+
+  return {
+    width: Math.max(1, Math.round(size.width * fator)),
+    height: Math.max(1, Math.round(size.height * fator)),
+  };
 }
 
 async function encodeWithinCap<TImage extends DecodedImage>(
@@ -128,17 +220,26 @@ async function encodeWithinCap<TImage extends DecodedImage>(
 ): Promise<ProcessedVariant> {
   let ultimo: Blob | undefined;
 
-  for (const quality of QUALITY_LADDER) {
-    const blob = await runtime.encode(image, { variant, size, quality });
-    ultimo = blob;
+  for (const degrau of SIZE_LADDER) {
+    const alvo = escalar(size, degrau.escala);
 
-    if (blob.size <= MAX_BYTES[variant]) {
-      return { variant, blob, mimeType: OUTPUT_MIME, ...size };
+    for (const quality of degrau.qualidades) {
+      const blob = await runtime.encode(image, {
+        variant,
+        size: alvo,
+        quality,
+      });
+      ultimo = blob;
+
+      if (blob.size <= MAX_BYTES[variant]) {
+        return { variant, blob, mimeType: OUTPUT_MIME, ...alvo };
+      }
     }
   }
 
-  /* Três degraus e para. Reencodar até caber é loop disfarçado, e uma foto que
-     não cabe a 0.58 tem um problema que qualidade não resolve. */
+  /* Escada finita e para. Reencodar até caber é loop disfarçado, e uma imagem
+     que não cabe com metade dos pixels a 0.58 tem um problema que nem qualidade
+     nem tamanho resolvem. */
   throw new ImageProcessingError(
     `${NAO_COUBE} (${Math.round((ultimo?.size ?? 0) / 1024)} KB depois de reduzir)`,
   );
@@ -158,7 +259,10 @@ export async function processImageFile<TImage extends DecodedImage>(
   try {
     image = await runtime.decode(file);
   } catch (cause) {
-    throw new ImageProcessingError(NAO_DECODIFICOU, { cause });
+    throw new ImageProcessingError(
+      pareceHeic(file) ? HEIC : naoDecodificou(file, cause),
+      { cause },
+    );
   }
 
   try {

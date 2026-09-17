@@ -106,7 +106,12 @@ export function PhotoPicker({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        /* `image/*` sozinho manda o seletor do Android esconder arquivo cujo
+           tipo o sistema não resolveu — e é justamente o que acontece com
+           imagem que veio de outro app, de cartão de memória ou de pasta não
+           indexada. As extensões entram ao lado para esses reaparecerem na
+           lista. Quem decide se abre continua sendo o decodificador. */
+        accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.heic,.heif,.avif"
         /* O controle acessível é o botão abaixo; este input é o mecanismo. Ele
            mesmo assim precisa de nome — sem rótulo, o axe reprova em
            `critical`, e um leitor de tela que chegue aqui por outro caminho
