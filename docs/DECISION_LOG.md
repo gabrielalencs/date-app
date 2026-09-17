@@ -4,6 +4,32 @@ Decisões arquiteturais e o motivo. Entrada nova vai no topo. Nenhuma entrada é
 
 ---
 
+### D-164 — A função roda em `gru1`, ao lado do banco
+**16/09/2026.** `vercel.json` passa a declarar `regions: ["gru1"]`. O Neon está em `sa-east-1` e a região padrão de função da Vercel fica nos Estados Unidos: cada ida e volta ao banco custa algo entre 100 e 150 ms atravessando o hemisfério, contra 5 a 15 ms de dentro do Brasil. Uma página que faz três consultas paga meio segundo só de distância — mais do que tudo que a disciplina de consulta do B9 economizou ao provar que a timeline faz duas consultas e não setenta e duas (D-108). A medida definitiva é o TTFB de um celular no Brasil, antes e depois, e ela é do B12; o que este registro fixa é que a região deixou de ser a padrão por omissão.
+
+### D-163 — `error.tsx` e `not-found.tsx` dentro do shell
+**16/09/2026.** Sem os dois, um erro de servidor e um `notFound()` caíam na página padrão do Next: fundo branco, tipografia do framework, fora da identidade e fora do shell. O `notFound()` já era chamado desde o B4 para plano inexistente e para plano de outro workspace — os dois chegam à mesma tela de propósito, porque para quem está de fora "não é seu" e "não existe" precisam ser indistinguíveis (D-038). A tela de erro **não** repassa `error.message`: mensagem de servidor pode carregar nome de tabela, id ou trecho de consulta. O `digest` aparece porque é a única coisa que liga a tela à linha do log.
+
+### D-162 — O toque responde por `useLinkStatus`, não por `loading.tsx`
+**16/09/2026.** Toda rota privada é dinâmica, e navegar para rota dinâmica sem `loading.js` **bloqueia**: a tela anterior fica congelada até o servidor responder, sem esqueleto e sem nenhum sinal de que o toque foi ouvido. Medido em viewport de celular com 150 ms de latência por requisição: tocar em Ideias deixava a interface parada por **898 ms**, Agenda por 335 ms, Memórias por 242 ms. No desktop de quem desenvolve, com o banco a 15 ms, isso passa despercebido — e foi o proprietário, com a PWA instalada, quem reportou.
+
+**A primeira tentativa foi `loading.tsx`, e ela custou três defeitos reais.** Todos medidos, todos pegos pela suíte, nenhum óbvio de antemão:
+
+1. o `notFound()` de `/planos/[id]` passou a responder **200 em vez de 404**: com transmissão, o shell sai antes de o erro existir e o status não pode mais mudar;
+2. o `router.refresh()` do envio de foto trocava a página pelo esqueleto **no meio do fluxo**, e a foto enviada não aparecia — sete testes de mídia estouraram por tempo, e em produção o sintoma seria a pessoa enviar uma foto e não ver nada;
+3. com JavaScript desligado, **o esqueleto ficava preso na tela para sempre**, porque a troca depende do script que o React injeta. Isso quebra a grade sem JavaScript que o B7 testa de propósito, e quebrava de forma intermitente: só quando a renderização chegava a suspender.
+
+A solução é `useLinkStatus`, que a documentação do Next indica para exatamente este caso — rota dinâmica, sem `loading.js`. Uma barra coral cresce no item tocado da navegação enquanto o servidor monta a rota. Medido depois: **57 a 70 ms** até o sinal aparecer, contra 242 a 898 ms de tela congelada, **e sem o custo extra no tempo total** que o esqueleto tinha trazido.
+
+É enriquecimento puro: sem JavaScript o indicador não existe e nada muda. Sob `prefers-reduced-motion` a regra global desliga a animação e sobra a barra estática, que diz a mesma coisa sem movimento — aqui a animação é informação, não decoração (D-018).
+
+### D-161 — A resolução de contexto é uma consulta, e nenhuma escrita no estado normal
+**16/09/2026.** `requireAuthorizedContext()` fazia duas idas e voltas ao banco em **toda** requisição autenticada: um `INSERT … ON CONFLICT DO UPDATE` em `profiles` e um `SELECT` em `workspace_members`. Isso acontecia em cada página e também em **cada `/api/media/[id]`** de uma grade de fotos. Medido em desenvolvimento, com o banco a ~14 ms: 28 ms por requisição, ou cerca de metade do tempo de servidor de uma página. Com a função longe do banco os mesmos dois saltos passam de 240 ms, antes de a página ler o primeiro dado dela.
+
+Passa a ser uma consulta com `LEFT JOIN` entre `profiles` e `workspace_members`, e a escrita só acontece quando há o que escrever: no primeiro login, quando o profile ainda não existe, e quando a pessoa trocou o nome no provedor. Medido depois: 12 ms. O `getSession()` não era o problema — custa 2 ms, porque o pacote guarda o dado da sessão no cookie com o TTL de 300 s.
+
+O `LEFT JOIN` importa: profile pode existir sem membership, que é o estado de quem autenticou e ainda não foi autorizado, e ele precisa chegar ao core como 403 e não como "profile não existe".
+
 ### D-160 — `db/alias-hooks.mjs` resolve o `@/` fora do Next
 **16/09/2026.** O backfill precisa das funções puras de `features/notifications/policy/`, e elas importam `@/lib/datetime` — alias do `tsconfig.json` que só o bundler do Next e o `resolve.alias` do Vitest entendem. Em Node puro a importação transitiva estoura com `ERR_MODULE_NOT_FOUND` apontando para um pacote chamado `@/lib`. A alternativa seria trocar `@/` por caminho relativo dentro de `features/`, quebrando a convenção do repositório inteiro para atender um script; vinte linhas de hook de resolução em `db/` saem mais barato e ficam contidas. O hook também completa a extensão `.ts`, que o Next completa e o Node não.
 
