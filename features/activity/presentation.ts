@@ -88,8 +88,10 @@ export function activityText(
       return "marcou o DATE como realizado";
     case "memory_added":
       return "adicionou uma avaliação à memória";
+    /* O verbo continua `want_a_lot` no banco; o rótulo dele na interface virou
+       "Amei" no R2, e o feed acompanha o rótulo, não o nome da coluna. */
     case "want_a_lot":
-      return "marcou que quer muito este DATE";
+      return "amou este DATE";
   }
 }
 

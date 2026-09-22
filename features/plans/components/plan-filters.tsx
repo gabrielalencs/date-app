@@ -1,7 +1,6 @@
 import {
   ArrowDownWideNarrow,
   Bookmark,
-  MapPin,
   Shapes,
   SlidersHorizontal,
   Wallet,
@@ -16,14 +15,12 @@ export function PlanFilters({
   status,
   category,
   sort,
-  city,
   maxBudgetInput,
   favoritesOnly,
 }: {
   status: PlanStatus | "open";
   category?: Category;
   sort: "recent" | "priority" | "budget";
-  city?: string;
   maxBudgetInput: string;
   favoritesOnly: boolean;
 }) {
@@ -63,14 +60,6 @@ export function PlanFilters({
         <option value="priority">Prioridade</option>
         <option value="budget">Orçamento</option>
       </SelectField>
-      <Input
-        label="Cidade"
-        icon={MapPin}
-        name="cidade"
-        defaultValue={city}
-        maxLength={120}
-        placeholder="Ex.: São Paulo"
-      />
       <Input
         label="Até quanto"
         icon={Wallet}

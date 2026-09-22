@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ChevronDown, MapPin, Pencil, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Link2, MapPin, Wallet } from "lucide-react";
 import { ActivityFeed } from "@/features/activity/components/activity-feed";
 import { listPlanActivity } from "@/features/activity/data/queries";
 import { parseActivityPage } from "@/features/activity/url";
@@ -26,9 +26,11 @@ import {
 import { MediaImage } from "@/features/media/components/media-image";
 import { listPlanMedia } from "@/features/media/data/queries";
 import { ArchivePlanForm } from "@/features/plans/components/archive-plan-form";
-import { EditPlanForm } from "@/features/plans/components/edit-plan-form";
+import { CompletePlanPanel } from "@/features/plans/components/complete-plan-panel";
 import { PlanStatusControl } from "@/features/plans/components/plan-status-control";
 import { getPlan } from "@/features/plans/data/queries";
+import { linkLabel } from "@/features/plans/completeness";
+import { FavoriteButton } from "@/features/reactions/components/favorite-button";
 import { PlanReactions } from "@/features/reactions/components/plan-reactions";
 import { listPlanReactions } from "@/features/reactions/data/queries";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
@@ -96,11 +98,19 @@ export default async function Page({
     listPlanActivity(ctx, plan.id, activityPage),
   ]);
 
-  /* `gallery` é antes, `memory` é depois. Duas grades, conjuntos disjuntos —
-     e a capa acompanha a grade onde ela está, porque `setPlanCover` muda o
-     `purpose` da foto promovida para `cover`. */
-  const fotosDoPlano = photos.filter((photo) => photo.purpose !== "memory");
-  const fotosDaMemoria = photos.filter((photo) => photo.purpose === "memory");
+  /* Uma grade só: a **galeria**, que é o registro do que aconteceu.
+
+     Até o R2 eram duas — "Fotos do plano" (a inspiração, antes) e "As fotos de
+     vocês" (a memória, depois) —, e a capa entrava e saía de uma delas conforme
+     o `purpose`. Na prática ninguém sobe print de restaurante: sobe a capa, e
+     depois as fotos do rolê. Duas grades para um uso só é uma delas sempre
+     vazia, e uma caixa vazia no meio da página é ruído.
+
+     O filtro é por `purpose`, e não por `coverMediaId`, de propósito: uma foto
+     de memória promovida a capa **mantém** `purpose = 'memory'` (D-104) e por
+     isso continua na galeria, com o selo de capa. Se o filtro fosse pelo id da
+     capa, promover uma foto a capa a faria desaparecer da grade. */
+  const galeria = photos.filter((photo) => photo.purpose !== "cover");
 
   /* Plano cancelado ou arquivado é leitura nas três seções (seção 8 do
      docs/PLANNING.md). A camada de dados recusa de novo — isto aqui é só para
@@ -122,6 +132,10 @@ export default async function Page({
     plan.requiresBooking && reservationAvailable(plan, facts);
   const now = new Date();
   const cover = photos.find((photo) => photo.id === plan.coverMediaId);
+  const meuFavorito = reactions.some(
+    (member) => member.isCurrent && member.favorite,
+  );
+
   return (
     <div className="page-stack">
       <Link
@@ -131,8 +145,13 @@ export default async function Page({
         <ArrowLeft aria-hidden="true" className="size-4" />
         Voltar às ideias
       </Link>
+      {/* Três posições explícitas, e não fluxo automático: no telefone a ordem
+          é a do DOM e o rail cai para o fim (`order-last`), enquanto no desktop
+          cada bloco declara onde mora. Deixar o rail auto-fluir era o que fazia
+          o celular abrir o plano por "Mover o plano" e "Arquivar" - controles
+          de administração servidos antes de a pessoa ter lido o que o plano é. */}
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]">
-        <article className="flex min-w-0 flex-col gap-6">
+        <article className="flex min-w-0 flex-col gap-6 lg:col-start-1 lg:row-start-1">
           {cover ? (
             /* 16/8 era uma fresta: uma foto vertical de celular entrava por
                `object-cover` e sobrava uma faixa do meio, sem cabeça nem chão.
@@ -150,9 +169,15 @@ export default async function Page({
             <CategoryArt category={plan.category} className="h-48 rounded-lg" />
           )}
           <header className="flex flex-col gap-3">
-            <span className="type-label text-text-muted">
-              {categoryLabel(plan.category)}
-            </span>
+            {/* Favoritar é marcador, e marcador pertence à beirada do que ele
+                marca. Empilhado dentro do painel de reações, ele parecia uma
+                resposta da mesma pergunta que "Quero muito" — e não é. */}
+            <div className="flex items-start justify-between gap-3">
+              <span className="type-label text-text-muted mt-2.5">
+                {categoryLabel(plan.category)}
+              </span>
+              <FavoriteButton planId={plan.id} active={meuFavorito} />
+            </div>
             <h1
               className={cn(
                 "type-display-l break-words",
@@ -177,14 +202,10 @@ export default async function Page({
                 <MapPin aria-hidden="true" className="size-5 shrink-0" />
                 Onde
               </dt>
+              {/* Uma linha so. `city` sobrevive como fallback das linhas
+                  gravadas antes de o formulario parar de perguntar (R3). */}
               <dd className="type-body-s mt-1">
                 {plan.placeName ?? plan.city ?? "Um lugar para escolher"}
-                {plan.placeName && plan.city ? (
-                  <span className="type-meta text-text-muted mt-1 block">
-                    {plan.city}
-                    {plan.state ? `, ${plan.state}` : ""}
-                  </span>
-                ) : null}
               </dd>
             </div>
             <div>
@@ -198,8 +219,42 @@ export default async function Page({
                   : formatCents(plan.estimatedBudgetCents)}
               </dd>
             </div>
+            {/* A ideia veio de algum lugar, e esse lugar é parte da ficha.
+                Guardado no cadastro e nunca mostrado, o link era um campo que o
+                produto pedia e depois perdia. */}
+            {plan.sourceUrl ? (
+              <div className="sm:col-span-2">
+                <dt className="type-meta text-text-muted flex items-center gap-2">
+                  <Link2 aria-hidden="true" className="size-5 shrink-0" />
+                  De onde veio
+                </dt>
+                <dd className="type-body-s mt-1 min-w-0">
+                  <a
+                    href={plan.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex min-h-11 max-w-full items-center gap-1.5 underline underline-offset-4"
+                  >
+                    <span className="truncate">{linkLabel(plan.sourceUrl)}</span>
+                    <ArrowUpRight
+                      aria-hidden="true"
+                      className="size-4 shrink-0"
+                    />
+                  </a>
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </article>
+
+        {/* Dizer o que o plano **é** vem antes de completá-lo.
+
+            O R2 mandou este painel para o fim no telefone, com o argumento de
+            que administração se faz depois de ler o plano. O uso real desmentiu:
+            mover de "Ideia" para "Decidindo" não é administração, é a decisão
+            principal — e ela estava a seis seções de distância. Volta para logo
+            abaixo da ficha, antes de "Complete a ideia". No desktop nada muda:
+            a coluna da direita já era a primeira coisa à vista. */}
         <aside className="flex flex-col gap-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <div className="panel flex flex-col gap-6 !p-5">
             <PlanStatusControl
@@ -214,20 +269,21 @@ export default async function Page({
               />
             </div>
           </div>
-          <PlanReactions planId={plan.id} members={reactions} />
-          {plan.requiresBooking ? (
-            <PlanReservation
-              planId={plan.id}
-              reservation={reservation}
-              available={reservaDisponivel}
-              readOnly={!reservaDisponivel}
-            />
-          ) : null}
           <EditorialNote tone="blush" className="hidden lg:flex">
             Boas experiências também aproximam.
           </EditorialNote>
         </aside>
-        <div className="flex min-w-0 flex-col gap-10 lg:col-start-1">
+
+        <div className="flex min-w-0 flex-col gap-10 lg:col-start-1 lg:row-start-2">
+          {/* A ordem é a do produto: o que é a ideia, o que vocês acham dela,
+              quando ela cabe, com o que ela se parece e, só então, o que
+              precisa ser combinado para ela acontecer. Some por inteiro no
+              plano realizado — uma gaveta chamada "Editar detalhes" que não
+              edita nada é pior que ausência. */}
+          {planejamentoCongelado ? null : <CompletePlanPanel plan={plan} />}
+
+          <PlanReactions planId={plan.id} members={reactions} />
+
           <PlanDates
             planId={plan.id}
             planStatus={plan.status}
@@ -241,26 +297,17 @@ export default async function Page({
             <PlanReview planId={plan.id} ratings={ratings} />
           ) : null}
 
-          {/* `completed` é terminal na transição, não na escrita: a grade de
-              fotos de memória só existe depois, e é onde vive o que vocês
-              fotografaram lá. */}
-          {realizado ? (
-            <PlanPhotos
+          {/* Reserva, checklist e gastos são um bloco só: o que falta combinar
+              para o date acontecer. No rail, a reserva ficava separada das
+              outras duas por uma coluna inteira. */}
+          {plan.requiresBooking ? (
+            <PlanReservation
               planId={plan.id}
-              planTitle={plan.title}
-              photos={fotosDaMemoria}
-              allPhotos={photos}
-              coverMediaId={plan.coverMediaId}
-              showReorder={false}
-              title="As fotos de vocês"
-              uploadPurpose="memory"
-              addLabel="Adicionar foto"
-              emptyText="Nenhuma foto desse date ainda. Suba as que vocês tiraram."
-              readOnly={somenteLeitura}
+              reservation={reservation}
+              available={reservaDisponivel}
+              readOnly={!reservaDisponivel}
             />
           ) : null}
-          {/* No desktop a reserva fica no rail; no mobile o rail vem antes
-              desta coluna, preservando reserva -> checklist -> gastos. */}
           <PlanChecklist
             planId={plan.id}
             items={checklist}
@@ -273,29 +320,31 @@ export default async function Page({
             estimatedBudgetCents={plan.estimatedBudgetCents}
             readOnly={planejamentoCongelado}
           />
-          <PlanPhotos
-            planId={plan.id}
-            planTitle={plan.title}
-            photos={fotosDoPlano}
-            allPhotos={photos}
-            coverMediaId={plan.coverMediaId}
-            readOnly={planejamentoCongelado}
-          />
-          {/* Some por inteiro no plano realizado, em vez de abrir e mostrar
-              campos desabilitados: uma gaveta chamada "Editar detalhes" que não
-              edita nada é pior que ausência. */}
-          {planejamentoCongelado ? null : (
-            <details className="editor-disclosure panel">
-              <summary>
-                <span className="section-heading flex items-center gap-3">
-                  <Pencil aria-hidden="true" className="size-5" />
-                  Editar detalhes
-                </span>
-                <ChevronDown aria-hidden="true" className="size-5 shrink-0" />
-              </summary>
-              <EditPlanForm plan={plan} />
-            </details>
-          )}
+
+          {/* A galeria é o fim do fluxo, e só existe quando há o que guardar.
+
+              Antes do rolê a única imagem é a capa, e ela mora em "Editar
+              detalhes" — uma grade vazia durante todo o planejamento seria uma
+              pergunta que ainda não tem resposta. A condição inclui `galeria
+              .length > 0` para que nenhuma foto já enviada fique invisível num
+              plano que ainda não foi marcado como realizado. */}
+          {realizado || galeria.length > 0 ? (
+            <PlanPhotos
+              planId={plan.id}
+              planTitle={plan.title}
+              photos={galeria}
+              allPhotos={photos}
+              coverMediaId={plan.coverMediaId}
+              showReorder={false}
+              title="Galeria"
+              uploadPurpose="memory"
+              addLabel="Adicionar foto"
+              emptyText="Nenhuma foto ainda. Depois do rolê, é aqui que ficam as que vocês tiraram."
+              readOnly={somenteLeitura}
+              canAdd={realizado}
+            />
+          ) : null}
+
           <ActivityFeed
             planId={plan.id}
             activity={activity}

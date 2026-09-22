@@ -24,7 +24,10 @@ const EMPTY_PLAN = crypto.randomUUID();
 const HISTORY_PLAN = crypto.randomUUID();
 const CARD_PLAN = crypto.randomUUID();
 const PLANS = [EMPTY_PLAN, HISTORY_PLAN, CARD_PLAN] as const;
-const UNIQUE_CITY = `B10 Visual ${CARD_PLAN.slice(0, 8)}`;
+/* Mesma troca do `discovery.spec`: o filtro de cidade saiu no R3. `outro` e
+   uma categoria que o seed nao usa, e o `discovery.spec` isola pela dele
+   (`cinema_teatro`), entao as duas suites nao disputam o mesmo recorte. */
+const ONLY_CATEGORY = "categoria=outro";
 
 const VIEWPORTS = [
   { name: "320", width: 320 },
@@ -55,7 +58,6 @@ test.beforeAll(async () => {
     .update(schema.plans)
     .set({
       title: "Um DATE que acabou de nascer",
-      city: UNIQUE_CITY,
       category: "ar_livre",
       estimatedBudgetCents: 8_000,
     })
@@ -64,7 +66,6 @@ test.beforeAll(async () => {
     .update(schema.plans)
     .set({
       title: "A história inteira de uma noite",
-      city: UNIQUE_CITY,
       category: "gastronomia",
       estimatedBudgetCents: 32_000,
     })
@@ -72,9 +73,8 @@ test.beforeAll(async () => {
   await db
     .update(schema.plans)
     .set({
-      title: "A ideia que os dois querem muito",
-      city: UNIQUE_CITY,
-      category: "cultura",
+      title: "A ideia que os dois amaram",
+      category: "outro",
       estimatedBudgetCents: 18_000,
       priority: 3,
     })
@@ -159,14 +159,8 @@ for (const viewport of VIEWPORTS) {
       for (const [name, route] of [
         ["plano-feed-vazio", `/planos/${EMPTY_PLAN}`],
         ["plano-historia-longa", `/planos/${HISTORY_PLAN}`],
-        [
-          "card-quero-muito",
-          `/ideias?cidade=${encodeURIComponent(UNIQUE_CITY)}`,
-        ],
-        [
-          "favoritos-vazio",
-          `/ideias?cidade=${encodeURIComponent(UNIQUE_CITY)}&favoritos=1`,
-        ],
+        ["card-quero-muito", `/ideias?${ONLY_CATEGORY}`],
+        ["favoritos-vazio", `/ideias?${ONLY_CATEGORY}&favoritos=1`],
       ] as const) {
         await page.goto(route);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -192,7 +186,7 @@ test("escala de cinza: quero muito continua sendo coração e texto", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 1000 });
   await signIn(page);
-  await page.goto(`/ideias?cidade=${encodeURIComponent(UNIQUE_CITY)}`);
+  await page.goto(`/ideias?${ONLY_CATEGORY}`);
   await page.addStyleTag({
     content: `
       html { filter: grayscale(1); }
@@ -204,8 +198,8 @@ test("escala de cinza: quero muito continua sendo coração e texto", async ({
 
   const card = page
     .getByRole("link")
-    .filter({ hasText: "A ideia que os dois querem muito" });
-  const mark = card.locator("span").filter({ hasText: /querem muito/ });
+    .filter({ hasText: "A ideia que os dois amaram" });
+  const mark = card.locator("span").filter({ hasText: /amaram/ });
   await expect(mark).toBeVisible();
   await expect(mark.locator("svg")).toHaveAttribute("fill", "currentColor");
 

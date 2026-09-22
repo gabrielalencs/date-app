@@ -26,7 +26,27 @@ export const linkType = pgEnum("link_type", [
   "other",
 ]);
 
-export const reactionType = pgEnum("reaction_type", ["favorite", "want_a_lot"]);
+/**
+ * Duas coisas diferentes no mesmo enum, de propósito.
+ *
+ * `favorite` é organização pessoal e silenciosa: liga e desliga sozinho, e é o
+ * que alimenta o filtro de /ideias. Os outros quatro são a **opinião** — a
+ * resposta de cada pessoa ao rolê —, e entre si são exclusivos: quem amou não
+ * está ao mesmo tempo indiferente. A exclusividade é do banco, pelo índice
+ * único parcial em `reactions`, não da aplicação.
+ *
+ * `want_a_lot` é o nome de nascença do topo da escala, hoje rotulado "Amei" na
+ * interface. O valor não foi renomeado porque ele é também um `activity_verb` e
+ * uma chave de notificação: renomear os três para ganhar um sinônimo trocaria
+ * clareza de leitura por risco em três subsistemas que já funcionam.
+ */
+export const reactionType = pgEnum("reaction_type", [
+  "favorite",
+  "want_a_lot",
+  "like",
+  "meh",
+  "pass",
+]);
 
 export const mediaPurpose = pgEnum("media_purpose", [
   "cover",

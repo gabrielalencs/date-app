@@ -24,7 +24,12 @@ const secondaryAccount = credentials.find(
 const REACTION_PLAN = crypto.randomUUID();
 const EMPTY_PLAN = crypto.randomUUID();
 const PLANS = [REACTION_PLAN, EMPTY_PLAN] as const;
-const UNIQUE_CITY = `B10 ${REACTION_PLAN.slice(0, 8)}`;
+/* O isolamento era por cidade, com um valor unico por execucao. O filtro de
+   cidade saiu no R3 junto com o campo, e `cinema_teatro` assumiu o papel: e a
+   unica categoria que nem o seed nem as outras fixtures usam — `prepareOwnedPlans`
+   cria tudo como `cultura` —, entao filtrar por ela devolve exatamente este
+   plano. */
+const ONLY_CATEGORY = "categoria=cinema_teatro";
 
 async function signIn(page: Page): Promise<void> {
   await signInForFeature(page, primaryAccount);
@@ -58,7 +63,6 @@ test.describe.serial("descoberta, reações e atividade", () => {
       .set({
         title: "Cinema secreto do B10",
         category: "cinema_teatro",
-        city: UNIQUE_CITY,
         estimatedBudgetCents: 12_500,
         priority: 3,
       })
@@ -67,12 +71,9 @@ test.describe.serial("descoberta, reações e atividade", () => {
       .update(schema.plans)
       .set({
         title: "Plano novo sem história",
+        /* Categoria diferente da do plano isolado, para nunca entrar no
+           conjunto que o sorteio percorre. */
         category: "em_casa",
-        /* Não pode conter UNIQUE_CITY: o filtro de cidade é
-           `ilike(city, '%valor%')`, então "Fora B10 abc" casava com a busca por
-           "B10 abc" e o sorteio passava a ter dois candidatos — o teste virava
-           cara ou coroa e só se revelava na matriz completa (B11). */
-        city: `Outro lugar ${EMPTY_PLAN.slice(0, 8)}`,
         estimatedBudgetCents: 90_000,
       })
       .where(eq(schema.plans.id, EMPTY_PLAN));
@@ -83,17 +84,20 @@ test.describe.serial("descoberta, reações e atividade", () => {
     await closeFixtureDb();
   });
 
-  test("favorito é pessoal; quero muito é compartilhado e identifica o ator", async ({
+  test("favorito é pessoal; a opinião é compartilhada e identifica o ator", async ({
     page,
     browser,
   }) => {
     await signIn(page);
     await page.goto(`/planos/${REACTION_PLAN}`);
 
+    /* Favoritar saiu da pilha de reacões e virou o marcador ao lado do
+       título; a opinião virou uma fileira exclusiva, com `role="radio"` (R2). */
     const favorite = page.getByRole("button", { name: "Favoritar" });
-    const want = page.getByRole("button", { name: "Quero muito" });
+    const amei = page.getByRole("radio", { name: "Amei" });
+    const naoCurti = page.getByRole("radio", { name: "Não curti" });
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
-    await expect(want).toHaveAttribute("aria-pressed", "false");
+    await expect(amei).toHaveAttribute("aria-checked", "false");
 
     const beforeFavorite = await countEvents();
     await favorite.click();
@@ -107,18 +111,37 @@ test.describe.serial("descoberta, reações e atividade", () => {
       beforeFavorite,
     );
 
-    await want.click();
-    await expect(
-      page.getByRole("button", { name: "Retirar quero muito" }),
-    ).toHaveAttribute("aria-pressed", "true", { timeout: 30_000 });
-    await expect(
-      page.getByText("marcou que quer muito este DATE"),
-    ).toBeVisible();
+    await amei.click();
+    await expect(amei).toHaveAttribute("aria-checked", "true", {
+      timeout: 30_000,
+    });
+    await expect(page.getByText("amou este DATE")).toBeVisible();
 
     const afterWant = await countEvents();
-    expect(afterWant, "quero muito precisa emitir um evento").toBe(
+    expect(afterWant, "o topo da escala precisa emitir um evento").toBe(
       beforeFavorite + 1,
     );
+
+    /* A opinião substitui: responder outra coisa desmarca a anterior sem
+       precisar retirá-la antes, e sem tocar no favorito. */
+    await naoCurti.click();
+    await expect(naoCurti).toHaveAttribute("aria-checked", "true", {
+      timeout: 30_000,
+    });
+    await expect(amei).toHaveAttribute("aria-checked", "false");
+    /* O favorito continua ligado. O locator é o "Remover dos favoritos":
+       favoritado, o botão troca de nome acessível, e é esse nome que diz o que
+       o próximo toque faz. */
+    await expect(removeFavorite).toHaveAttribute("aria-pressed", "true");
+
+    await amei.click();
+    await expect(amei).toHaveAttribute("aria-checked", "true", {
+      timeout: 30_000,
+    });
+
+    /* Nova referência depois da troca de opinião: reaplicar "Amei" emite outro
+       evento, e a asserção do fim mede o silêncio do favorito, não isto. */
+    const aposOpiniao = await countEvents();
 
     const [event] = await fixtureDb()
       .select({
@@ -139,7 +162,7 @@ test.describe.serial("descoberta, reações e atividade", () => {
     expect(event).toBeTruthy();
 
     await page.goto(
-      `/ideias?favoritos=1&cidade=${encodeURIComponent(UNIQUE_CITY)}`,
+      `/ideias?favoritos=1&${ONLY_CATEGORY}`,
     );
     await expect(
       page.getByText("Cinema secreto do B10", { exact: true }),
@@ -150,14 +173,18 @@ test.describe.serial("descoberta, reações e atividade", () => {
     const secondPage = await secondContext.newPage();
     await signInForFeature(secondPage, secondaryAccount!);
     await secondPage.goto(`/planos/${REACTION_PLAN}`);
+    /* `.first()`: o feed acumula um evento por vez que a reação entra, e este
+       teste marca "Amei" duas vezes de propósito, para provar a substituição.
+       Duas linhas iguais no histórico são o feed funcionando. */
     await expect(
-      secondPage.getByText(
-        `${event!.actorName} marcou que quer muito este DATE`,
-      ),
+      secondPage.getByText(`${event!.actorName} amou este DATE`).first(),
     ).toBeVisible();
 
+    // A resposta da outra pessoa aparece nomeada, não só contada.
+    await expect(secondPage.getByText("amou", { exact: true })).toBeVisible();
+
     await secondPage.goto(
-      `/ideias?favoritos=1&cidade=${encodeURIComponent(UNIQUE_CITY)}`,
+      `/ideias?favoritos=1&${ONLY_CATEGORY}`,
     );
     await expect(
       secondPage.getByText("Cinema secreto do B10", { exact: true }),
@@ -170,7 +197,7 @@ test.describe.serial("descoberta, reações e atividade", () => {
       page.getByRole("button", { name: "Favoritar" }),
     ).toHaveAttribute("aria-pressed", "false", { timeout: 30_000 });
     expect(await countEvents(), "retirar favorito também é silencioso").toBe(
-      afterWant,
+      aposOpiniao,
     );
   });
 
@@ -179,7 +206,7 @@ test.describe.serial("descoberta, reações e atividade", () => {
   }) => {
     await signIn(page);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto(`/ideias?cidade=${encodeURIComponent(UNIQUE_CITY)}`);
+    await page.goto(`/ideias?${ONLY_CATEGORY}`);
     await expect(
       page.getByText("Cinema secreto do B10", { exact: true }),
     ).toBeVisible();
@@ -196,7 +223,9 @@ test.describe.serial("descoberta, reações e atividade", () => {
       expect(new URL(page.url()).pathname).toBe(`/planos/${REACTION_PLAN}`);
     }
 
-    await page.goto("/ideias?cidade=nenhuma-cidade-do-b10");
+    /* Conjunto vazio sem inventar filtro: a categoria isola o plano e o teto
+       de um centavo o exclui, porque ele custa R$ 125,00. */
+    await page.goto(`/ideias?${ONLY_CATEGORY}&teto=0%2C01`);
     await page.getByRole("button", { name: "Sortear uma ideia" }).click();
     await expect(page.getByRole("status")).toContainText(
       "Nenhuma ideia combina com esses filtros",
@@ -274,11 +303,9 @@ test.describe.serial("descoberta, reações e atividade", () => {
       expect(measurements.tinyText, "texto abaixo de 12px").toEqual([]);
       expect(measurements.horizontalScroll, "scroll horizontal").toBe(false);
 
-      const want = page.getByRole("button", {
-        name: /^(Quero muito|Retirar quero muito)$/,
-      });
-      await want.focus();
-      const focus = await want.evaluate((element) => {
+      const amei = page.getByRole("radio", { name: "Amei" });
+      await amei.focus();
+      const focus = await amei.evaluate((element) => {
         const style = getComputedStyle(element);
         return {
           outlineStyle: style.outlineStyle,
@@ -288,10 +315,10 @@ test.describe.serial("descoberta, reações e atividade", () => {
       expect(focus.outlineStyle).not.toBe("none");
       expect(focus.outlineWidth).toBeGreaterThanOrEqual(2);
 
-      const before = await want.getAttribute("aria-pressed");
-      await want.click();
-      await expect(want).toHaveAttribute(
-        "aria-pressed",
+      const before = await amei.getAttribute("aria-checked");
+      await amei.click();
+      await expect(amei).toHaveAttribute(
+        "aria-checked",
         before === "true" ? "false" : "true",
         { timeout: 30_000 },
       );

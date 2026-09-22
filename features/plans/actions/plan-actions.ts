@@ -30,29 +30,36 @@ const optionalText = z
   .transform((value) => (value.length === 0 ? null : value))
   .nullable();
 
+/**
+ * Link de origem. Mesma regra na criação e na edição: a ideia nasce de um post,
+ * de um mapa ou de um site, e essa procedência não é menos editável que o resto.
+ * Até o R2 ela só era aceita no cadastro e depois não existia em lugar nenhum —
+ * gravada, nunca mostrada, impossível de corrigir.
+ */
+const optionalUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable()
+  .refine(
+    (value) => value === null || z.url().safeParse(value).success,
+    "O link precisa ser uma URL válida.",
+  );
+
 const createSchema = z.object({
   title: z.string().trim().min(1, "O título é obrigatório.").max(200),
   category: z.enum(CATEGORIES),
-  sourceUrl: z
-    .string()
-    .trim()
-    .max(2000)
-    .transform((value) => (value.length === 0 ? null : value))
-    .nullable()
-    .refine(
-      (value) => value === null || z.url().safeParse(value).success,
-      "O link precisa ser uma URL válida.",
-    ),
+  sourceUrl: optionalUrl,
 });
 
 const updateSchema = z.object({
   title: z.string().trim().min(1, "O título é obrigatório.").max(200),
   category: z.enum(CATEGORIES),
   description: optionalText,
+  sourceUrl: optionalUrl,
   priority: z.coerce.number().int().min(0).max(3),
   placeName: optionalText,
-  city: optionalText,
-  state: optionalText,
   notes: optionalText,
   estimatedBudgetCents: optionalCentsFromText,
   requiresBooking: z
@@ -106,8 +113,7 @@ export async function updatePlanAction(
     description: text(formData, "description"),
     priority: text(formData, "priority"),
     placeName: text(formData, "placeName"),
-    city: text(formData, "city"),
-    state: text(formData, "state"),
+    sourceUrl: text(formData, "sourceUrl"),
     notes: text(formData, "notes"),
     estimatedBudgetCents: text(formData, "estimatedBudgetCents"),
     requiresBooking: text(formData, "requiresBooking") === "on" ? "on" : "",

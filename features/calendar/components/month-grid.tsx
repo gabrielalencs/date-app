@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
   cellAccessibleName,
   type CalendarCell,
-  type CalendarEntry,
+  type CalendarPlacement,
 } from "@/features/calendar/grid";
 import { agendaHref } from "@/features/calendar/url";
 import { cn } from "@/lib/cn";
@@ -31,7 +31,7 @@ const COLUNAS = 7;
 const MAX_VISIVEIS = 3;
 
 /** Ponto preenchido para confirmada, contornado para candidata (seção 8). */
-function Marker({ entry }: { entry: CalendarEntry }) {
+function Marker({ entry }: { entry: CalendarPlacement }) {
   return (
     <span
       aria-hidden="true"
@@ -79,7 +79,11 @@ function Celula({
           <span key={entry.optionId} className="calendar-entry">
             <Marker entry={entry} />
             <span className={cn(entry.isConfirmed && "font-medium")}>
-              {entry.allDay ? entry.planTitle : formatTime(entry.startsAt)}
+              {/* Rolê de vários dias mostra o nome em todas as células: o
+                  horário de início não descreve o terceiro dia da viagem. */}
+              {entry.allDay || entry.dayCount > 1
+                ? entry.planTitle
+                : formatTime(entry.startsAt)}
             </span>
           </span>
         ))}

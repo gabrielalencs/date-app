@@ -4,7 +4,10 @@ import {
   APP_TIMEZONE,
   InvalidDateInputError,
   civilDateOf,
+  civilDayCount,
   civilDaysBetween,
+  formatCompactDay,
+  formatDaySpan,
   formatDateTime,
   formatDay,
   formatRelativeDay,
@@ -194,6 +197,46 @@ describe("formatação", () => {
     expect(formatTime(startOfDayInApp({ year: 2026, month: 6, day: 14 }))).toBe(
       "00:00",
     );
+  });
+});
+
+describe("rolê de vários dias (R2)", () => {
+  const sexta = startOfDayInApp({ year: 2026, month: 10, day: 9 });
+  const domingo = startOfDayInApp({ year: 2026, month: 10, day: 11 });
+
+  it("conta as duas pontas: de sexta a domingo são três dias", () => {
+    expect(civilDayCount(sexta, domingo)).toBe(3);
+  });
+
+  it("um dia só é um dia", () => {
+    expect(civilDayCount(sexta, sexta)).toBe(1);
+  });
+
+  it("conta dias civis, não períodos de 24 horas", () => {
+    /* Sai sábado às 23h e volta domingo à 1h: são dois dias de calendário e
+       duas horas de relógio. Subtrair milissegundos daria um dia. */
+    const noite = fromCivil({ year: 2026, month: 10, day: 10, hour: 23, minute: 0 });
+    const madrugada = fromCivil({
+      year: 2026,
+      month: 10,
+      day: 11,
+      hour: 1,
+      minute: 0,
+    });
+
+    expect(civilDayCount(noite, madrugada)).toBe(2);
+  });
+
+  it("atravessa a virada do mês", () => {
+    const fim = startOfDayInApp({ year: 2026, month: 11, day: 2 });
+    const comeco = startOfDayInApp({ year: 2026, month: 10, day: 30 });
+
+    expect(civilDayCount(comeco, fim)).toBe(4);
+  });
+
+  it("escreve o intervalo curto, no fuso do app", () => {
+    expect(formatCompactDay(sexta)).toBe("Sex, 9 de out.");
+    expect(formatDaySpan(sexta, domingo)).toBe("Sex, 9 de out. – Dom, 11 de out.");
   });
 });
 

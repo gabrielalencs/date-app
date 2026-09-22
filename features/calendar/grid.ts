@@ -1,9 +1,12 @@
 import {
   addCivilDays,
+  civilDateOf,
+  civilDayCount,
   civilDayKey,
   dayKey,
   isInMonth,
   monthGrid,
+  MONTH_GRID_CELLS,
   startOfDayInApp,
   type CivilDate,
   type CivilMonth,
@@ -29,8 +32,24 @@ export type CalendarEntry = {
   category: string | null;
   coverMediaId: string | null;
   startsAt: Date;
+  /** Meia-noite do último dia civil, quando o rolê ocupa mais de um dia. */
+  endsAt: Date | null;
   allDay: boolean;
   isConfirmed: boolean;
+};
+
+/**
+ * A mesma opção aparece em cada dia que ela ocupa, e cada aparição sabe qual
+ * das duas coisas ela é.
+ *
+ * Sem `dayIndex`, uma viagem de três dias mostraria "19:00" nos três — o
+ * horário de embarque repetido como se fosse o programa de domingo. Com ele, a
+ * célula diz "dia 2 de 3" e guarda o horário para onde ele é verdade.
+ */
+export type CalendarPlacement = CalendarEntry & {
+  /** 1 no primeiro dia do rolê. */
+  dayIndex: number;
+  dayCount: number;
 };
 
 export type CalendarCell = {
@@ -40,7 +59,7 @@ export type CalendarCell = {
   /** Dias de meses vizinhos aparecem apagados, com conteúdo real. */
   inMonth: boolean;
   isToday: boolean;
-  entries: CalendarEntry[];
+  entries: CalendarPlacement[];
 };
 
 /**
@@ -54,6 +73,15 @@ export type CalendarCell = {
  * Semiaberta porque o fim é uma meia-noite, e meia-noite pertence ao dia que
  * começa — `>= inicio and < fim`, nunca `<=`.
  */
+/**
+ * Teto de dias de um rolê, só para o agrupamento.
+ *
+ * Não é regra de produto: é o limite de quantas células a grade tem. Um
+ * `ends_at` absurdo — de um bug futuro ou de um dado colado à mão — não pode
+ * fazer este laço percorrer anos de dias civis.
+ */
+const MAX_DIAS_POR_ENTRADA = MONTH_GRID_CELLS;
+
 export function monthWindow(month: CivilMonth): { start: Date; end: Date } {
   const celulas = monthGrid(month);
   const primeira = celulas[0]!;
@@ -79,12 +107,24 @@ export function buildMonthCells(input: {
 }): CalendarCell[] {
   const { month, entries, now } = input;
 
-  const porDia = new Map<string, CalendarEntry[]>();
+  const porDia = new Map<string, CalendarPlacement[]>();
   for (const entrada of entries) {
-    const chave = dayKey(entrada.startsAt);
-    const lista = porDia.get(chave) ?? [];
-    lista.push(entrada);
-    porDia.set(chave, lista);
+    /* Um rolê de vários dias ocupa **cada** um deles. Agrupado só pelo começo,
+       uma viagem de sexta a domingo deixaria sábado e domingo em branco no
+       calendário — e um dia em branco na agenda é um convite para marcar outra
+       coisa em cima. */
+    const dias = entrada.endsAt
+      ? Math.min(civilDayCount(entrada.startsAt, entrada.endsAt), MAX_DIAS_POR_ENTRADA)
+      : 1;
+
+    let civil = civilDateOf(entrada.startsAt);
+    for (let i = 0; i < dias; i += 1) {
+      const chave = civilDayKey(civil);
+      const lista = porDia.get(chave) ?? [];
+      lista.push({ ...entrada, dayIndex: i + 1, dayCount: dias });
+      porDia.set(chave, lista);
+      civil = addCivilDays(civil, 1);
+    }
   }
 
   const hoje = dayKey(now);

@@ -100,10 +100,20 @@ export function DayPanel({ cell }: { cell: CalendarCell | null }) {
                       {entry.planTitle}
                     </span>
                     <span className="flex flex-wrap items-center gap-2">
+                      {/* Num rolê de vários dias, o que o dia responde é "em
+                          que ponto dele estamos". O horário só é verdade no
+                          primeiro dia, e só aparece lá. */}
                       <span className="tnum type-meta text-text-muted">
-                        {entry.allDay
-                          ? "Dia inteiro"
-                          : formatTime(entry.startsAt)}
+                        {entry.dayCount > 1
+                          ? `Dia ${entry.dayIndex} de ${entry.dayCount}`
+                          : entry.allDay
+                            ? "Dia inteiro"
+                            : formatTime(entry.startsAt)}
+                        {entry.dayCount > 1 &&
+                        entry.dayIndex === 1 &&
+                        !entry.allDay
+                          ? ` · ${formatTime(entry.startsAt)}`
+                          : null}
                       </span>
                       <StatusPill status={entry.planStatus} />
                     </span>

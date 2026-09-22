@@ -97,7 +97,7 @@ function full(
       const variantes: RenderedNotification[] = [
         {
           title: "Isso ganhou prioridade",
-          body: `${ator(facts)} marcou ${plano} como quero muito.`,
+          body: `${ator(facts)} amou ${plano}.`,
         },
         {
           title: "Recado entendido",

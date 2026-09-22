@@ -13,7 +13,11 @@ import {
 } from "@/features/dates/data/mutations";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { VOTE_VALUES } from "@/lib/consensus";
-import { InvalidDateInputError, parseDateInput } from "@/lib/datetime";
+import {
+  civilDaysBetween,
+  InvalidDateInputError,
+  parseDateInput,
+} from "@/lib/datetime";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { InvalidTransitionError } from "@/lib/plan-status";
 
@@ -61,6 +65,8 @@ const createSchema = z.object({
   date: z.string().trim().min(1, "Escolha um dia."),
   time: z.string().trim(),
   allDay: z.boolean(),
+  /** Vazio é rolê de um dia só, que continua sendo o caso comum. */
+  endDate: z.string().trim(),
   note: z
     .string()
     .trim()
@@ -79,6 +85,9 @@ export async function createDateOptionAction(
     date: text(formData, "date"),
     time: text(formData, "time"),
     allDay: text(formData, "allDay") === "on",
+    /* O campo só é enviado com o alternador ligado: desmarcar "mais de um dia"
+       desmonta o input, e o que não está no DOM não chega no FormData. */
+    endDate: text(formData, "spansDays") === "on" ? text(formData, "endDate") : "",
     note: text(formData, "note"),
   });
 
@@ -86,14 +95,24 @@ export async function createDateOptionAction(
     return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
   }
 
-  const { planId, date, time, allDay, note } = parsed.data;
+  const { planId, date, time, allDay, endDate, note } = parsed.data;
 
   try {
     /* Dia inteiro ignora o horário de propósito: se a pessoa marcou o
        alternador, o que ela quer é o dia, não as 00:00 de um instante. */
     const startsAt = parseDateInput(date, allDay ? null : time);
 
-    await createDateOption(ctx, planId, { startsAt, allDay, note });
+    /* Uma viagem de sexta a domingo é **uma** data para votar, não três.
+       `parseDateInput` sem horário já devolve a meia-noite daquele dia civil em
+       São Paulo, que é exatamente o que `ends_at` guarda: a granularidade do
+       fim é o dia, não a hora (D-171). */
+    const endsAt = endDate ? parseDateInput(endDate, null) : null;
+
+    if (endsAt && civilDaysBetween(startsAt, endsAt) < 1) {
+      return { error: "O último dia precisa ser depois do primeiro." };
+    }
+
+    await createDateOption(ctx, planId, { startsAt, endsAt, allDay, note });
   } catch (error) {
     return { error: toMessage(error) };
   }

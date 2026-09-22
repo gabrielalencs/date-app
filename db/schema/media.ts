@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -5,6 +6,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -84,6 +86,16 @@ export const reactions = pgTable(
       table.profileId,
       table.type,
     ),
+    /* Uma opinião por pessoa por plano, garantido pelo banco.
+ 
+       O unique acima permite que a mesma pessoa tenha "Amei" e "Não curti" no
+       mesmo plano: são tipos diferentes. Para a opinião isso é um estado
+       impossível, e estado impossível é invariante de correção — o lugar dele é
+       aqui, não numa condição da mutation. O parcial deixa `favorite` de fora,
+       que é o outro eixo e convive com qualquer opinião. */
+    uniqueIndex("reactions_one_opinion_per_plan_profile")
+      .on(table.planId, table.profileId)
+      .where(sql`${table.type} <> 'favorite'`),
     index("reactions_workspace_id_idx").on(table.workspaceId),
     index("reactions_plan_id_idx").on(table.planId),
     index("reactions_profile_id_idx").on(table.profileId),

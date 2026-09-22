@@ -8,29 +8,49 @@ import {
   reactions,
   workspaceMembers,
 } from "@/db/schema/index.ts";
+import {
+  isOpinion,
+  TOP_OPINION,
+  type OpinionType,
+  type ReactionType,
+} from "@/features/reactions/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 
 export type MemberReactions = {
   profileId: string;
   displayName: string;
   isCurrent: boolean;
+  /** Favorito é pessoal; aparece só para quem é dono dele. */
   favorite: boolean;
-  wantALot: boolean;
+  /** A opinião é exclusiva: uma ou nenhuma, nunca duas. */
+  opinion: OpinionType | null;
 };
 
 export type PlanReactionSummary = {
   isFavorite: boolean;
-  isWantedByMe: boolean;
-  wantALotBy: readonly string[];
+  myOpinion: OpinionType | null;
+  /** O topo da escala é visível para as duas pessoas, e só ele vai ao card. */
+  lovedBy: readonly string[];
 };
 
 const EMPTY_SUMMARY: PlanReactionSummary = {
   isFavorite: false,
-  isWantedByMe: false,
-  wantALotBy: [],
+  myOpinion: null,
+  lovedBy: [],
 };
 
-/** As duas pessoas e os dois tipos, sempre visíveis no detalhe. */
+/** A opinião de uma pessoa num plano, ou nada. Uma linha, por construção. */
+function opinionOf(
+  rows: readonly { profileId: string; type: ReactionType }[],
+  profileId: string,
+): OpinionType | null {
+  const row = rows.find(
+    (candidate) => candidate.profileId === profileId && isOpinion(candidate.type),
+  );
+  return row ? (row.type as OpinionType) : null;
+}
+
+/** As duas pessoas e o que cada uma respondeu, sempre visíveis no detalhe. */
 export async function listPlanReactions(
   ctx: AuthorizedContext,
   planId: string,
@@ -62,9 +82,7 @@ export async function listPlanReactions(
     favorite: rows.some(
       (row) => row.profileId === member.profileId && row.type === "favorite",
     ),
-    wantALot: rows.some(
-      (row) => row.profileId === member.profileId && row.type === "want_a_lot",
-    ),
+    opinion: opinionOf(rows, member.profileId),
   }));
 }
 
@@ -99,20 +117,22 @@ export async function listPlanReactionSummaries(
 
   for (const row of rows) {
     const current = summaries.get(row.planId) ?? EMPTY_SUMMARY;
+    const isMine = row.profileId === ctx.profileId;
+
     summaries.set(row.planId, {
       isFavorite:
-        current.isFavorite ||
-        (row.profileId === ctx.profileId && row.type === "favorite"),
-      isWantedByMe:
-        current.isWantedByMe ||
-        (row.profileId === ctx.profileId && row.type === "want_a_lot"),
-      wantALotBy:
-        row.type === "want_a_lot"
-          ? [
-              ...current.wantALotBy,
-              row.profileId === ctx.profileId ? "Você" : row.displayName,
-            ]
-          : current.wantALotBy,
+        current.isFavorite || (isMine && row.type === "favorite"),
+      myOpinion:
+        isMine && isOpinion(row.type)
+          ? (row.type as OpinionType)
+          : current.myOpinion,
+      /* Só o topo vira marca no card. "Não curti" é uma resposta legítima e
+         fica registrada no plano, mas transformá-la em etiqueta na grade
+         faria a lista de ideias exibir um placar de rejeição. */
+      lovedBy:
+        row.type === TOP_OPINION
+          ? [...current.lovedBy, isMine ? "Você" : row.displayName]
+          : current.lovedBy,
     });
   }
 

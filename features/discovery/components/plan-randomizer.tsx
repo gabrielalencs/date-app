@@ -41,7 +41,6 @@ export function PlanRandomizer({
         <input type="hidden" name="status" value={filters.status} />
         <input type="hidden" name="category" value={filters.category ?? ""} />
         <input type="hidden" name="sort" value={filters.sort} />
-        <input type="hidden" name="city" value={filters.city ?? ""} />
         <input type="hidden" name="maxBudget" value={maxBudgetInput} />
         <input
           type="hidden"

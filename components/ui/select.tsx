@@ -45,8 +45,40 @@ export function DateSelect({
     return () => form?.removeEventListener("reset", reset);
   }, [initialValue]);
 
+  /**
+   * Tocar no gatilho com o painel aberto precisa **fechar**.
+   *
+   * O Radix nunca alterna: `handleOpen` so chama `onOpenChange(true)`. Com o
+   * painel aberto, o Radix tambem poe `pointer-events: none` no `body`, e e
+   * isso que torna o problema dificil de enxergar. Medido no Chromium com
+   * toque, tocando no proprio gatilho com o painel aberto:
+   *
+   *   pointerdown  target=HTML   <- o gatilho NAO recebe o evento
+   *   touchstart   target=HTML   <- aqui o painel ja fechou (DismissableLayer)
+   *   click        target=SPAN   <- o body voltou a receber ponteiro, o clique
+   *                                 chega ao gatilho e `handleOpen` reabre
+   *
+   * O resultado e um botao que parece morto: o dedo toca e a tela nao muda.
+   *
+   * Por isso a guarda **nao pode** depender do `pointerdown` do gatilho — ele
+   * nunca acontece. Quem sabe onde o dedo encostou e o proprio painel, pelo
+   * `onPointerDownOutside`: ele carrega o evento original, e comparar as
+   * coordenadas com a caixa do gatilho diz se o toque que fechou o painel foi
+   * em cima dele. Nesse caso o clique seguinte — o mesmo gesto — e cancelado, e
+   * o `composeEventHandlers` do Radix pula o `handleOpen` dele.
+   *
+   * Sem relogio e sem tempo de espera: a marca e consumida pelo clique daquele
+   * gesto, e qualquer `pointerdown` novo no gatilho (que so acontece com o
+   * painel fechado) a limpa.
+   */
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const suprimirClique = useRef(false);
+
   return (
     <Select.Root
+      open={open}
+      onOpenChange={setOpen}
       value={value || EMPTY_VALUE}
       disabled={disabled}
       required={required}
@@ -69,6 +101,18 @@ export function DateSelect({
         aria-labelledby={labelId}
         aria-describedby={descriptionId}
         aria-invalid={invalid || undefined}
+        ref={triggerRef}
+        onPointerDown={() => {
+          /* So chega aqui com o painel fechado; serve para limpar uma marca
+             que tenha sobrado de um gesto sem clique. */
+          suprimirClique.current = false;
+        }}
+        onClick={(event) => {
+          if (suprimirClique.current) {
+            suprimirClique.current = false;
+            event.preventDefault();
+          }
+        }}
         className={cn(
           "field-frame min-h-[3.25rem] w-full text-left disabled:cursor-not-allowed disabled:opacity-50",
           className,
@@ -92,6 +136,21 @@ export function DateSelect({
           position="popper"
           sideOffset={8}
           collisionPadding={12}
+          onPointerDownOutside={(event) => {
+            /* O alvo do evento e o <html>, por causa do `pointer-events: none`
+               no body — entao quem responde "foi no gatilho?" e a geometria. */
+            const caixa = triggerRef.current?.getBoundingClientRect();
+            const origem = event.detail.originalEvent;
+            if (!caixa) return;
+
+            const dentro =
+              origem.clientX >= caixa.left &&
+              origem.clientX <= caixa.right &&
+              origem.clientY >= caixa.top &&
+              origem.clientY <= caixa.bottom;
+
+            if (dentro) suprimirClique.current = true;
+          }}
           className="border-border-strong bg-surface text-text shadow-raised z-50 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-24px)] overflow-hidden rounded-md border"
         >
           {/* Entrada do painel por CSS. O atributo fica: é por ele que o teste

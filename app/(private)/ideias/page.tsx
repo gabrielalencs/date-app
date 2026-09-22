@@ -30,7 +30,6 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
     status: first("status"),
     category: first("categoria"),
     sort: first("ordem"),
-    city: first("cidade"),
     maxBudget: maxBudgetInput,
     favorites: first("favoritos"),
   });
@@ -55,7 +54,6 @@ export default async function Page({ searchParams }: PageProps<"/ideias">) {
         status={filters.status}
         category={filters.category}
         sort={filters.sort}
-        city={filters.city}
         maxBudgetInput={maxBudgetInput}
         favoritesOnly={filters.favoritesOnly}
       />

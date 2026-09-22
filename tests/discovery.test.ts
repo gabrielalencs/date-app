@@ -12,7 +12,6 @@ describe("filtros de descoberta", () => {
         status: "planned",
         category: "gastronomia",
         sort: "budget",
-        city: "  São Paulo  ",
         maxBudget: "1.234,56",
         favorites: "1",
       }),
@@ -20,7 +19,6 @@ describe("filtros de descoberta", () => {
       status: "planned",
       category: "gastronomia",
       sort: "budget",
-      city: "São Paulo",
       maxBudgetCents: 123456,
       favoritesOnly: true,
     });
@@ -32,7 +30,6 @@ describe("filtros de descoberta", () => {
         status: "wat",
         category: "wat",
         sort: "wat",
-        city: "x".repeat(121),
         maxBudget: "abc",
         favorites: "0",
       }),
@@ -40,7 +37,6 @@ describe("filtros de descoberta", () => {
       status: "open",
       category: undefined,
       sort: "recent",
-      city: undefined,
       maxBudgetCents: undefined,
       favoritesOnly: false,
     });

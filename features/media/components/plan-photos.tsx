@@ -39,6 +39,7 @@ export function PlanPhotos({
   addLabel,
   emptyText = "Nenhuma foto ainda. Adicione uma imagem que conte um pouco desse plano.",
   readOnly = false,
+  canAdd,
 }: {
   planId: string;
   planTitle: string;
@@ -54,6 +55,16 @@ export function PlanPhotos({
   addLabel?: string;
   emptyText?: string;
   readOnly?: boolean;
+  /**
+   * Enviar foto nova, separado de poder mexer nas que ja existem.
+   *
+   * A galeria so aceita upload depois do role (R3), mas um plano que ainda nao
+   * foi marcado como realizado pode ter fotos de antes — e com um `readOnly`
+   * unico governando as duas coisas elas ficariam impossiveis de apagar ate
+   * alguem concluir o plano. Sao duas perguntas diferentes, entao sao dois
+   * parametros.
+   */
+  canAdd?: boolean;
 }) {
   const todas = (allPhotos ?? photos).map((photo) => photo.id);
   const visiveis = photos.map((photo) => photo.id);
@@ -86,7 +97,7 @@ export function PlanPhotos({
     <section className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="section-heading">{title}</h2>
-        {readOnly ? null : (
+        {readOnly || canAdd === false ? null : (
           <PhotoPicker
             planId={planId}
             purpose={uploadPurpose ?? (coverMediaId ? "gallery" : "cover")}

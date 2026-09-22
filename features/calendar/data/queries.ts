@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, gte, isNull, lt, notInArray } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lt, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { planDateOptions, plans } from "@/db/schema/index.ts";
@@ -40,8 +40,17 @@ export async function listMonthEntries(
   const filtros = [
     eq(planDateOptions.workspaceId, ctx.workspaceId),
     eq(plans.workspaceId, ctx.workspaceId),
-    gte(planDateOptions.startsAt, janela.start),
+    /* A janela pergunta por **sobreposição**, não por começo.
+ 
+       Um rolê de 29 de setembro a 2 de outubro começa fora da grade de outubro
+       e ocupa dois dias dela. Filtrar por `starts_at` dentro da janela perderia
+       exatamente as viagens, que são o caso que motivou o fim de intervalo.
+       `coalesce` trata a opção de um dia só como se terminasse onde começa. */
     lt(planDateOptions.startsAt, janela.end),
+    gte(
+      sql`coalesce(${planDateOptions.endsAt}, ${planDateOptions.startsAt})`,
+      janela.start,
+    ),
     /* Cancelado e arquivado não aparecem; `completed` aparece, na data em que
        aconteceu (D-079). O calendário é o primeiro lugar onde o produto vira
        arquivo de memória. */
@@ -62,6 +71,7 @@ export async function listMonthEntries(
       category: plans.category,
       coverMediaId: plans.coverMediaId,
       startsAt: planDateOptions.startsAt,
+      endsAt: planDateOptions.endsAt,
       allDay: planDateOptions.allDay,
       isConfirmed: planDateOptions.isConfirmed,
     })

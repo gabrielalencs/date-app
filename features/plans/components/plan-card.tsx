@@ -52,7 +52,7 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
             {plan.title}
           </p>
         ) : null}
-        {plan.isFavorite || plan.wantALotBy.length > 0 ? (
+        {plan.isFavorite || plan.lovedBy.length > 0 ? (
           <div className="type-meta flex flex-wrap gap-2">
             {plan.isFavorite ? (
               <span className="bg-sage-soft inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
@@ -64,24 +64,26 @@ export function PlanCard({ plan }: { plan: PlanSummary }) {
                 Seu favorito
               </span>
             ) : null}
-            {plan.wantALotBy.length > 0 ? (
+            {plan.lovedBy.length > 0 ? (
               <span className="bg-blush-soft inline-flex items-center gap-1.5 rounded-full px-2.5 py-1">
                 <Heart
                   aria-hidden="true"
                   className="size-3.5"
                   fill="currentColor"
                 />
-                {plan.wantALotBy.join(" e ")}{" "}
-                {plan.wantALotBy.length > 1 ? "querem" : "quer"} muito
+                {plan.lovedBy.join(" e ")}{" "}
+                {plan.lovedBy.length > 1 ? "amaram" : "amou"}
               </span>
             ) : null}
           </div>
         ) : null}
         <div className="type-meta text-text-muted flex flex-col gap-2">
-          {plan.city ? (
+          {/* `city` continua no fallback so pelas linhas anteriores ao R3,
+              quando o formulario ainda perguntava a cidade. */}
+          {plan.placeName ?? plan.city ? (
             <span className="flex items-center gap-2">
               <MapPin aria-hidden="true" className="size-3.5 shrink-0" />
-              {plan.city}
+              {plan.placeName ?? plan.city}
             </span>
           ) : null}
           {plan.estimatedBudgetCents !== null ? (

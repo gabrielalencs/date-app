@@ -47,6 +47,7 @@ function entrada(
     planStatus: "deciding",
     category: "gastronomia",
     coverMediaId: null,
+    endsAt: null,
     allDay: false,
     isConfirmed: false,
     ...over,
@@ -276,6 +277,70 @@ describe("buildMonthCells — agrupamento", () => {
 
     expect(trinta.entries).toHaveLength(1);
     expect(primeiroDeOutubro.entries).toHaveLength(0);
+  });
+
+  it("um rolê de vários dias ocupa todos os dias, não só o primeiro", () => {
+    /* Viagem de 11 a 13 de setembro. Agrupada só pelo começo, o calendário
+       mostraria sábado e domingo em branco — e dia em branco na agenda é um
+       convite para marcar outra coisa em cima. */
+    const viagem = entrada({
+      startsAt: startOfDayInApp({ year: 2026, month: 9, day: 11 }),
+      endsAt: startOfDayInApp({ year: 2026, month: 9, day: 13 }),
+      allDay: true,
+    });
+
+    const celulas = buildMonthCells({
+      month: SETEMBRO,
+      entries: [viagem],
+      now: agora,
+    });
+
+    const ocupados = celulas.filter((c) => c.entries.length > 0);
+    expect(ocupados.map((c) => c.key)).toEqual([
+      "2026-09-11",
+      "2026-09-12",
+      "2026-09-13",
+    ]);
+
+    expect(ocupados.map((c) => c.entries[0]!.dayIndex)).toEqual([1, 2, 3]);
+    expect(ocupados.every((c) => c.entries[0]!.dayCount === 3)).toBe(true);
+
+    // 14 de setembro, um dia depois do fim, continua livre.
+    expect(celulas.find((c) => c.key === "2026-09-14")!.entries).toHaveLength(0);
+  });
+
+  it("um rolê que começa no mês anterior aparece nos dias que ele ocupa aqui", () => {
+    /* 29 de agosto a 2 de setembro começa fora da grade de setembro. É o caso
+       que o filtro por `starts_at` perdia inteiro. */
+    const virada = entrada({
+      startsAt: startOfDayInApp({ year: 2026, month: 8, day: 29 }),
+      endsAt: startOfDayInApp({ year: 2026, month: 9, day: 2 }),
+      allDay: true,
+    });
+
+    const celulas = buildMonthCells({
+      month: SETEMBRO,
+      entries: [virada],
+      now: agora,
+    });
+
+    for (const dia of ["2026-08-31", "2026-09-01", "2026-09-02"]) {
+      expect(celulas.find((c) => c.key === dia)!.entries).toHaveLength(1);
+    }
+    expect(celulas.find((c) => c.key === "2026-09-03")!.entries).toHaveLength(0);
+  });
+
+  it("uma data de um dia só continua sendo um dia só", () => {
+    const jantar = entrada({ startsAt: new Date("2026-09-15T23:00:00Z") });
+    const celulas = buildMonthCells({
+      month: SETEMBRO,
+      entries: [jantar],
+      now: agora,
+    });
+
+    const ocupados = celulas.filter((c) => c.entries.length > 0);
+    expect(ocupados).toHaveLength(1);
+    expect(ocupados[0]!.entries[0]).toMatchObject({ dayIndex: 1, dayCount: 1 });
   });
 
   it("mostra conteúdo real nas células de fora do mês", () => {

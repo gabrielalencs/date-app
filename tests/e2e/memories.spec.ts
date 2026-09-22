@@ -164,7 +164,7 @@ test("a travessia passa por modal e é irreversível", async ({ page }) => {
     page.getByRole("heading", { name: "Como foi?" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "As fotos de vocês" }),
+    page.getByRole("heading", { name: "Galeria" }),
   ).toBeVisible();
 
   // E ele passou a existir em /memorias.
@@ -236,7 +236,10 @@ test("a nota é um radiogroup navegável por teclado, com nome por opção", asy
   await signIn(page);
   await page.goto(`/planos/${REALIZADO}`);
 
-  const estrelas = page.getByRole("radio");
+  /* Por nome, e não "todos os radios da página": desde o R2 a seção de
+     reações também é um radiogroup, e contar a página inteira media a
+     coexistência dos dois grupos, não a nota. */
+  const estrelas = page.getByRole("radio", { name: /^\d de 5$/ });
   await expect(estrelas).toHaveCount(5);
 
   for (const nota of [1, 2, 3, 4, 5]) {

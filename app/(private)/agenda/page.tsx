@@ -98,7 +98,13 @@ export default async function Page({ searchParams }: PageProps<"/agenda">) {
         description="O mês de vocês, com tudo que já está combinado dentro dele."
       />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
+      {/* O mes fica com a coluna larga.
+
+          Com `22rem` fixos a partir do `lg`, a grade ficava com 576px num 1280
+          e o painel do dia — duas frases — ocupava quase o mesmo tanto. O rail
+          encolhe para 19rem e so aparece no `xl`; entre 1024 e 1280 o mes usa a
+          largura inteira, que e onde ele e o conteudo. */}
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-8">
         {/* min-w-0: item de grid tem `min-width: auto`, então o scroller
             horizontal do filtro empurraria a coluna inteira — e a grade junto —
             para além da viewport no mobile. */}

@@ -7,7 +7,6 @@ import {
   desc,
   eq,
   exists,
-  ilike,
   inArray,
   isNotNull,
   isNull,
@@ -17,6 +16,7 @@ import {
 
 import { db } from "@/db/client";
 import { plans, reactions } from "@/db/schema/index.ts";
+import type { OpinionType } from "@/features/reactions/constants";
 import { listPlanReactionSummaries } from "@/features/reactions/data/queries";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
@@ -35,6 +35,8 @@ export type PlanSummary = {
   title: string;
   category: string | null;
   status: PlanStatus;
+  /** O lugar como o card mostra: o bairro, ou a cidade das linhas antigas. */
+  placeName: string | null;
   city: string | null;
   /** Capa real do plano. Nulo mantém a capa tipográfica do card (D-041). */
   coverMediaId: string | null;
@@ -44,9 +46,9 @@ export type PlanSummary = {
   createdAt: Date;
   /** Favorito é sempre o da pessoa atual; nunca a união do workspace. */
   isFavorite: boolean;
-  isWantedByMe: boolean;
-  /** "Quero muito" é visível para as duas pessoas. */
-  wantALotBy: readonly string[];
+  myOpinion: OpinionType | null;
+  /** O topo da escala de opinião é visível para as duas pessoas. */
+  lovedBy: readonly string[];
 };
 
 export type Plan = typeof plans.$inferSelect;
@@ -59,7 +61,6 @@ export type ListPlansOptions = {
   sort?: PlanSort;
   includeArchived?: boolean;
   limit?: number;
-  city?: string;
   maxBudgetCents?: number;
   favoritesOnly?: boolean;
 };
@@ -89,7 +90,6 @@ export async function listPlans(
     category,
     sort = "recent",
     includeArchived = false,
-    city,
     maxBudgetCents,
     favoritesOnly = false,
   } = options;
@@ -108,10 +108,6 @@ export async function listPlans(
 
   if (!includeArchived) {
     conditions.push(isNull(plans.archivedAt));
-  }
-
-  if (city) {
-    conditions.push(ilike(plans.city, `%${city}%`));
   }
 
   if (maxBudgetCents !== undefined) {
@@ -142,6 +138,7 @@ export async function listPlans(
       title: plans.title,
       category: plans.category,
       status: plans.status,
+      placeName: plans.placeName,
       city: plans.city,
       coverMediaId: plans.coverMediaId,
       priority: plans.priority,
@@ -163,8 +160,8 @@ export async function listPlans(
     ...row,
     ...(reactionSummaries.get(row.id) ?? {
       isFavorite: false,
-      isWantedByMe: false,
-      wantALotBy: [],
+      myOpinion: null,
+      lovedBy: [],
     }),
   }));
 }

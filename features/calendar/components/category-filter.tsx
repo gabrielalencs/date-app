@@ -29,7 +29,7 @@ export function CategoryFilter({
       {/* Rola no mobile em vez de quebrar em quatro linhas antes da grade. O
           `chip-rail` cuida do respiro e da barra de rolagem, que no Android
           nascia encostada nos chips. */}
-      <ul className="chip-rail -mx-1 flex snap-x gap-2 overflow-x-auto px-1">
+      <ul className="chip-rail chip-rail-faded -mx-1 flex snap-x gap-2 overflow-x-auto px-1">
         {opcoes.map((opcao) => {
           const ativa = opcao.value === selected;
 

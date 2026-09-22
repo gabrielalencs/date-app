@@ -28,7 +28,6 @@ const randomizerSchema = z.object({
   status: z.string().max(32),
   category: z.string().max(64),
   sort: z.string().max(32),
-  city: z.string().max(120),
   maxBudget: z.string().max(64),
   favorites: z.string().max(1),
 });
@@ -75,7 +74,6 @@ export async function choosePlanAction(
     status: text(formData, "status"),
     category: text(formData, "category"),
     sort: text(formData, "sort"),
-    city: text(formData, "city"),
     maxBudget: text(formData, "maxBudget"),
     favorites: text(formData, "favorites"),
   });

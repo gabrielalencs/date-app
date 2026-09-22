@@ -158,6 +158,8 @@ const DIA_MES_ANO = formatter({
 });
 const HORA = formatter({ hour: "2-digit", minute: "2-digit", hour12: false });
 const CURTA = formatter({ day: "2-digit", month: "2-digit" });
+const DIA_SEMANA_CURTO = formatter({ weekday: "short" });
+const DIA_E_MES_CURTO = formatter({ day: "numeric", month: "short" });
 
 function capitalizar(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
@@ -182,6 +184,28 @@ export function formatTime(instant: Date): string {
 /** "14/06", para onde o espaço é curto. */
 export function formatShortDate(instant: Date): string {
   return CURTA.format(instant);
+}
+
+/** "Sex, 12 de out." — dia com nome, para caber ao lado de outro dia. */
+export function formatCompactDay(instant: Date): string {
+  const semana = capitalizar(DIA_SEMANA_CURTO.format(instant)).replace(".", "");
+  return `${semana}, ${DIA_E_MES_CURTO.format(instant)}`;
+}
+
+/**
+ * "Sex, 12 de out. – Dom, 14 de out." — um rolê que ocupa mais de um dia.
+ *
+ * A granularidade do fim é o **dia**, não a hora: `ends_at` guarda a meia-noite
+ * do último dia civil, e um fim de semana fora é um bloco de dias, não um
+ * intervalo de horas. A hora em que vocês voltam, quando importa, é observação.
+ */
+export function formatDaySpan(start: Date, end: Date): string {
+  return `${formatCompactDay(start)} – ${formatCompactDay(end)}`;
+}
+
+/** Quantos dias civis o rolê ocupa, contando as duas pontas. */
+export function civilDayCount(start: Date, end: Date): number {
+  return civilDaysBetween(start, end) + 1;
 }
 
 /** "Sábado, 14 de junho, 20:30" — ou sem a hora, quando é dia inteiro. */

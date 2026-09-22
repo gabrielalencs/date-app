@@ -1,18 +1,29 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import { activityEvents, plans, reactions } from "@/db/schema/index.ts";
 import { enqueuePartnerIntent } from "@/features/notifications/data/outbox";
 import { startNotificationWorkflows } from "@/features/notifications/workflow/start";
-import type { ReactionType } from "@/features/reactions/constants";
+import {
+  isOpinion,
+  TOP_OPINION,
+  type ReactionType,
+} from "@/features/reactions/constants";
 import type { AuthorizedContext } from "@/lib/auth/authorization-core";
 import { NotFoundError } from "@/lib/errors";
 
 /**
  * Reagir de novo retira. A trava no plano serializa dois cliques concorrentes
  * antes do select/delete/insert e deixa o unique do banco como última garantia.
+ *
+ * Favorito e opinião passam pela mesma porta, mas não pela mesma regra: o
+ * favorito é sozinho no eixo dele e só liga e desliga, enquanto uma opinião
+ * **substitui** a anterior. Trocar "Curti" por "Não curti" é uma mudança de
+ * ideia, não duas reações — e é por isso que o delete abaixo apaga as irmãs
+ * dentro da mesma transação que insere a nova. O índice único parcial do B2+R2
+ * é a garantia final, para o caso de dois toques escaparem da trava.
  */
 export async function toggleReaction(
   ctx: AuthorizedContext,
@@ -52,6 +63,20 @@ export async function toggleReaction(
       return { active: false, intents: [] as string[] };
     }
 
+    /* Uma opinião por pessoa por plano. Sem isto, responder "Curti" depois de
+       "Amei" deixaria as duas gravadas e a tela teria de escolher qual contar —
+       e o feed já teria avisado a outra pessoa de um entusiasmo revogado. */
+    if (isOpinion(type)) {
+      await tx.delete(reactions).where(
+        and(
+          eq(reactions.workspaceId, ctx.workspaceId),
+          eq(reactions.planId, planId),
+          eq(reactions.profileId, ctx.profileId),
+          ne(reactions.type, "favorite"),
+        ),
+      );
+    }
+
     await tx.insert(reactions).values({
       workspaceId: ctx.workspaceId,
       planId,
@@ -59,9 +84,10 @@ export async function toggleReaction(
       type,
     });
 
-    /* Favorito é organização pessoal e fica em silêncio. "Quero muito" é a
-       mensagem para a outra pessoa e emite apenas quando entra, não ao sair. */
-    if (type === "want_a_lot") {
+    /* Favorito é organização pessoal e fica em silêncio. O topo da escala é a
+       mensagem para a outra pessoa e emite apenas quando entra, não ao sair —
+       e "Curti", "Tanto faz" e "Não curti" são resposta, não chamado. */
+    if (type === TOP_OPINION) {
       await tx.insert(activityEvents).values({
         workspaceId: ctx.workspaceId,
         actorProfileId: ctx.profileId,
@@ -72,7 +98,7 @@ export async function toggleReaction(
     }
 
     const intents =
-      type === "want_a_lot"
+      type === TOP_OPINION
         ? await enqueuePartnerIntent(tx, ctx, {
             kind: "want_a_lot",
             planId,

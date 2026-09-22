@@ -133,11 +133,12 @@ describe("reações por pessoa e isolamento", () => {
     const seenByOther = await listPlanReactions(ctxA2, PLAN_A);
     expect(seenByOther.find((member) => member.profileId === PROFILE_A)).toMatchObject({
       favorite: true,
-      wantALot: true,
+      opinion: "want_a_lot",
     });
     const badges = await listPlanReactionSummaries(ctxA2, [PLAN_A]);
-    expect(badges.get(PLAN_A)?.wantALotBy).toEqual(["Pessoa A"]);
+    expect(badges.get(PLAN_A)?.lovedBy).toEqual(["Pessoa A"]);
   });
+
 
   it("reagir novamente retira sem apagar o evento histórico", async () => {
     const before = await eventCount(WORKSPACE_A);
@@ -280,5 +281,58 @@ describe("colapso e escala do feed", () => {
     expect(twoHundred.result.total).toBe(200);
     expect(twoHundred.queries).toBe(ten.queries);
     expect(twoHundred.queries).toBe(2);
+  });
+  it("a opinião é exclusiva e não arrasta o favorito junto", async () => {
+    /* Plano próprio, para não depender do estado que os testes acima
+       deixam no PLAN_A nem o alterar para os de baixo. */
+    const planId = randomUUID();
+    await db.insert(schema.plans).values({
+      id: planId,
+      workspaceId: WORKSPACE_A,
+      title: "Opinião exclusiva",
+      category: "gastronomia",
+      createdBy: PROFILE_A,
+    });
+
+    await toggleReaction(ctxA, planId, "favorite");
+    await toggleReaction(ctxA, planId, "want_a_lot");
+
+    // Trocar de ideia é uma opinião, não duas.
+    expect(await toggleReaction(ctxA, planId, "pass")).toEqual({ active: true });
+
+    const linhas = await db
+      .select({ type: schema.reactions.type })
+      .from(schema.reactions)
+      .where(
+        and(
+          eq(schema.reactions.workspaceId, WORKSPACE_A),
+          eq(schema.reactions.planId, planId),
+          eq(schema.reactions.profileId, PROFILE_A),
+        ),
+      );
+
+    expect(linhas.map((linha) => linha.type).sort()).toEqual([
+      "favorite",
+      "pass",
+    ]);
+
+    const membros = await listPlanReactions(ctxA, planId);
+    expect(membros.find((member) => member.profileId === PROFILE_A)).toMatchObject({
+      favorite: true,
+      opinion: "pass",
+    });
+
+    /* "Não curti" não vira marca no card: só o topo da escala vai para a
+       grade, e um placar de rejeição em /ideias seria outro produto. */
+    const badges = await listPlanReactionSummaries(ctxA, [planId]);
+    expect(badges.get(planId)?.lovedBy).toEqual([]);
+    expect(badges.get(planId)?.myOpinion).toBe("pass");
+
+    // Responder a mesma coisa de novo retira, como o voto.
+    expect(await toggleReaction(ctxA, planId, "pass")).toEqual({ active: false });
+    const vazio = await listPlanReactions(ctxA, planId);
+    expect(vazio.find((member) => member.profileId === PROFILE_A)?.opinion).toBeNull();
+
+    await db.delete(schema.plans).where(eq(schema.plans.id, planId));
   });
 });

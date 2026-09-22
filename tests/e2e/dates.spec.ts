@@ -126,6 +126,65 @@ test("dia inteiro guarda a meia-noite do dia em São Paulo", async ({
   expect(linha!.startsAt.toISOString()).toBe("2027-06-14T03:00:00.000Z");
 });
 
+test("um rolê de vários dias é uma data só, e ocupa todos os dias na agenda", async ({
+  page,
+}) => {
+  await limpar();
+  await signIn(page);
+  await page.goto(`/planos/${PLANO}`);
+
+  /* 8 a 10 de outubro de 2027: sexta, sábado e domingo. Uma viagem de fim de
+     semana é **uma** proposta para votar, não três linhas concorrendo. */
+  await page.getByRole("button", { name: "Sugerir data" }).click();
+  await page.locator('input[name="date"]').fill("2027-10-08");
+  await page.locator('input[name="allDay"]').check();
+  await page.locator('input[name="spansDays"]').check();
+  await page.locator('input[name="endDate"]').fill("2027-10-10");
+  await page.getByRole("button", { name: "Salvar data" }).click();
+
+  await expect(page.getByRole("button", { name: "Sugerir data" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // Uma linha, com o intervalo e a contagem de dias.
+  await expect(
+    page.getByText("Sex, 8 de out. – Dom, 10 de out.", { exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("3 dias · dia inteiro", { exact: true })).toBeVisible();
+
+  const linhas = await fixtureDb()
+    .select({
+      startsAt: schema.planDateOptions.startsAt,
+      endsAt: schema.planDateOptions.endsAt,
+    })
+    .from(schema.planDateOptions)
+    .where(eq(schema.planDateOptions.planId, PLANO));
+
+  // Uma linha no banco, não três. Meia-noite de São Paulo nas duas pontas.
+  expect(linhas).toHaveLength(1);
+  expect(linhas[0]!.startsAt.toISOString()).toBe("2027-10-08T03:00:00.000Z");
+  expect(linhas[0]!.endsAt?.toISOString()).toBe("2027-10-10T03:00:00.000Z");
+
+  /* A agenda mostra o rolê nos três dias. Mostrar só no primeiro deixaria
+     sábado e domingo em branco - e dia em branco é convite para marcar outra
+     coisa em cima. */
+  await page.goto("/agenda?mes=2027-10");
+  for (const dia of ["2027-10-08", "2027-10-09", "2027-10-10"]) {
+    await expect(page.locator(`[data-day="${dia}"]`)).toHaveAttribute(
+      "data-entries",
+      "1",
+    );
+  }
+  await expect(page.locator('[data-day="2027-10-11"]')).toHaveAttribute(
+    "data-entries",
+    "0",
+  );
+
+  // E o painel do dia do meio diz em que ponto do rolê aquele dia está.
+  await page.goto("/agenda?mes=2027-10&dia=2027-10-09");
+  await expect(page.getByText("Dia 2 de 3", { exact: true })).toBeVisible();
+});
+
 test("sugerir, votar e confirmar move o status", async ({ page }) => {
   await limpar();
   await signIn(page);

@@ -14,13 +14,14 @@ const INITIAL: ActionState = {};
 
 /**
  * Sugerir uma data: dia obrigatório, horário opcional, alternador de dia
- * inteiro, observação opcional (seção 9).
+ * inteiro, alternador de vários dias, observação opcional (seção 9).
  *
  * O formulário começa fechado. Aberto por padrão, ele empurraria a lista de
  * datas para baixo da dobra justamente quando ela é o que importa olhar.
  *
  * O horário some quando "dia inteiro" está ligado, em vez de ficar desabilitado:
- * campo desabilitado é uma pergunta que a tela faz e não deixa responder.
+ * campo desabilitado é uma pergunta que a tela faz e não deixa responder. O
+ * "até" segue a mesma regra e só existe com "mais de um dia" ligado.
  */
 export function AddDateForm({ planId }: { planId: string }) {
   const [state, formAction, pending] = useActionState(
@@ -29,6 +30,7 @@ export function AddDateForm({ planId }: { planId: string }) {
   );
   const [aberto, setAberto] = useState(false);
   const [diaInteiro, setDiaInteiro] = useState(false);
+  const [variosDias, setVariosDias] = useState(false);
 
   /* Fecha ao salvar. Deixar aberto com os valores antigos faria a tela parecer
      que não salvou, e o botão de sugerir some enquanto o formulário ocupa o
@@ -44,6 +46,7 @@ export function AddDateForm({ planId }: { planId: string }) {
     if (state.ok) {
       setAberto(false);
       setDiaInteiro(false);
+      setVariosDias(false);
     }
   }
 
@@ -69,11 +72,26 @@ export function AddDateForm({ planId }: { planId: string }) {
       <input type="hidden" name="planId" value={planId} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="Dia" name="date" type="date" required />
+        <Input
+          label={variosDias ? "Do dia" : "Dia"}
+          name="date"
+          type="date"
+          required
+        />
+
+        {variosDias ? (
+          <Input
+            label="Até o dia"
+            name="endDate"
+            type="date"
+            required
+            hint="O último dia do rolê."
+          />
+        ) : null}
 
         {diaInteiro ? null : (
           <Input
-            label="Horário"
+            label={variosDias ? "Horário de início" : "Horário"}
             name="time"
             type="time"
             className="tnum"
@@ -92,6 +110,20 @@ export function AddDateForm({ planId }: { planId: string }) {
           className="check-control"
         />
         <span className="type-body text-text">Dia inteiro</span>
+      </label>
+
+      {/* Viagem, feriado prolongado, festival: o rolê ocupa um bloco de dias e
+          é **uma** proposta para votar. Sem isto, um fim de semana fora virava
+          três linhas concorrendo entre si na mesma lista. */}
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 py-2">
+        <input
+          type="checkbox"
+          name="spansDays"
+          checked={variosDias}
+          onChange={(event) => setVariosDias(event.target.checked)}
+          className="check-control"
+        />
+        <span className="type-body text-text">Mais de um dia</span>
       </label>
 
       <Input

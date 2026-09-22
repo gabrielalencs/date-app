@@ -14,7 +14,13 @@ import { VoteControl } from "@/features/dates/components/vote-control";
 import type { DateOption } from "@/features/dates/data/queries";
 import { CONSENSUS_TONE } from "@/lib/consensus";
 import { cn } from "@/lib/cn";
-import { formatDay, formatTime, formatWeekday } from "@/lib/datetime";
+import {
+  civilDayCount,
+  formatDay,
+  formatDaySpan,
+  formatTime,
+  formatWeekday,
+} from "@/lib/datetime";
 import type { PlanStatus } from "@/lib/status";
 
 const INITIAL: ActionState = {};
@@ -71,6 +77,13 @@ export function DateOptionRow({
     INITIAL,
   );
 
+  /* Um rolê de vários dias tem fim; um de um dia só, não. O `endsAt` guarda a
+     meia-noite do último dia civil, então basta ele existir. A constante local
+     é o que estreita o tipo — `option.endsAt` sozinho voltaria a ser
+     `Date | null` dentro do JSX e pediria um `!` para calar o compilador. */
+  const fim = option.endsAt;
+  const dias = fim ? civilDayCount(option.startsAt, fim) : 1;
+
   const encerrado = planStatus === "completed" || planStatus === "cancelled";
   /* Confirmada, a data deixa de estar em votação. Sim/Talvez/Não ao lado de
      "Data confirmada" é a tela perguntando de novo o que já foi decidido — e,
@@ -92,13 +105,17 @@ export function DateOptionRow({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex flex-col gap-0.5">
           <p className="type-title text-text">
-            {formatWeekday(option.startsAt)}, {formatDay(option.startsAt, now)}
+            {fim
+              ? formatDaySpan(option.startsAt, fim)
+              : `${formatWeekday(option.startsAt)}, ${formatDay(option.startsAt, now)}`}
           </p>
           <p className="type-body-s text-text-muted tnum">
-            {option.allDay ? "Dia inteiro" : formatTime(option.startsAt)}
-            {option.endsAt && !option.allDay
-              ? ` – ${formatTime(option.endsAt)}`
-              : null}
+            {fim ? `${dias} dias · ` : null}
+            {option.allDay
+              ? fim
+                ? "dia inteiro"
+                : "Dia inteiro"
+              : `${fim ? "a partir de " : ""}${formatTime(option.startsAt)}`}
           </p>
         </div>
 

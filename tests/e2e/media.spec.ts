@@ -70,6 +70,47 @@ async function signIn(page: Page): Promise<void> {
  * primeira foto e o `antes + 1` deixou de valer. A grade é o que este helper
  * está de fato observando.
  */
+/**
+ * Envia a capa pela gaveta "Editar detalhes", que e onde ela passou a morar.
+ *
+ * Ate o R2 a capa entrava pela grade de fotos do plano; no R3 a grade virou a
+ * **galeria**, que so existe depois do role, e a capa ganhou controle proprio
+ * dentro da gaveta — sem miniatura, so o estado e as acoes. Por isso o sinal de
+ * sucesso aqui e o texto da gaveta mudar, e a prova visual e a capa aparecer no
+ * topo da pagina depois de fechar.
+ */
+async function enviarCapa(page: Page, bytes: Buffer): Promise<string> {
+  await page.getByRole("button", { name: "Editar detalhes" }).click();
+  const gaveta = page.getByRole("dialog", { name: "Editar detalhes" });
+  await expect(gaveta).toBeVisible();
+
+  await gaveta.locator('input[type="file"]').setInputFiles({
+    name: "foto-com-exif.png",
+    mimeType: "image/png",
+    buffer: bytes,
+  });
+
+  await expect(gaveta.getByText(/ja tem capa|j\u00e1 tem capa/)).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.keyboard.press("Escape");
+  await expect(gaveta).toHaveCount(0);
+
+  const capa = page.locator('img[src^="/api/media/"]').first();
+  await expect(capa).toBeVisible({ timeout: 30_000 });
+
+  const src = await capa.getAttribute("src");
+  const id = /\/api\/media\/([0-9a-f-]{36})/.exec(src ?? "")?.[1];
+
+  if (!id) {
+    throw new Error(`Nao achei o id da capa em "${src}".`);
+  }
+
+  return id;
+}
+
+/** Envia pela grade da galeria, que so existe em plano ja realizado. */
 async function enviarFoto(page: Page, bytes: Buffer): Promise<string> {
   const grade = page.locator('ul li img[src^="/api/media/"]');
   const antes = await grade.count();
@@ -95,6 +136,16 @@ async function enviarFoto(page: Page, bytes: Buffer): Promise<string> {
 test.beforeAll(async () => {
   const db = fixtureDb();
   await prepareOwnedPlans(PLANOS_USADOS);
+
+  /* A galeria so existe depois do role (R3), e e ela que os testes de medida
+     precisam ver com duas fotos dentro. O status vai direto no banco de
+     proposito: quem esta sob teste aqui e a interface de fotos, nao a maquina
+     de status, que tem suite propria e pre-condicoes que exigiriam montar data
+     confirmada so para chegar em `completed`. */
+  await db
+    .update(schema.plans)
+    .set({ status: "completed" })
+    .where(eq(schema.plans.id, PLANO_MEDIDAS));
 
   await db
     .insert(schema.workspaces)
@@ -168,7 +219,7 @@ test("o EXIF da imagem enviada não sobrevive ao reencode", async ({ page }) => 
   await signIn(page);
   await page.goto(`/planos/${PLANO_EXIF}`);
 
-  const mediaId = await enviarFoto(page, comExif);
+  const mediaId = await enviarCapa(page, comExif);
 
   for (const variante of ["", "?v=thumb"]) {
     const resposta = await page.request.get(`/api/media/${mediaId}${variante}`);
@@ -194,7 +245,7 @@ test("a rota serve a imagem com o cabeçalho de cache privado", async ({
   await page.goto(`/planos/${PLANO_CABECALHO}`);
 
   const comExif = await pngComExif("public/brand/icons/icon-512.png");
-  const mediaId = await enviarFoto(page, comExif);
+  const mediaId = await enviarCapa(page, comExif);
 
   const resposta = await page.request.get(`/api/media/${mediaId}`);
 
@@ -246,25 +297,29 @@ test("a foto vira a capa e substitui a capa tipográfica no card", async ({
   await page.goto(`/planos/${PLANO_CAPA}`);
 
   const comExif = await pngComExif("public/brand/icons/icon-512.png");
-  const mediaId = await enviarFoto(page, comExif);
-
-  // A primeira foto entra como capa.
-  await expect(page.getByText("Capa", { exact: true })).toBeVisible();
+  const mediaId = await enviarCapa(page, comExif);
 
   await page.goto("/ideias");
   const noCard = page.locator(`img[src*="/api/media/${mediaId}"]`);
   await expect(noCard).toBeVisible();
 
-  // Remove e a capa tipográfica volta.
+  // Remove pela gaveta, que e onde a capa passou a ser gerenciada (R3).
   await page.goto(`/planos/${PLANO_CAPA}`);
-  await page.getByRole("button", { name: "Remover foto" }).first().click();
-  const dialog = page.getByRole("dialog", { name: "Remover esta foto?" });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Manter foto" }).click();
-  await expect(dialog).toHaveCount(0);
-  await page.getByRole("button", { name: "Remover foto" }).first().click();
-  await dialog
-    .getByRole("button", { name: "Remover foto", exact: true })
+  await page.getByRole("button", { name: "Editar detalhes" }).click();
+  const gaveta = page.getByRole("dialog", { name: "Editar detalhes" });
+  await gaveta.getByRole("button", { name: "Remover capa" }).click();
+
+  const confirmar = page.getByRole("dialog", { name: "Remover a capa?" });
+  await expect(confirmar).toBeVisible();
+
+  // Desistir mantem a capa.
+  await confirmar.getByRole("button", { name: "Manter capa" }).click();
+  await expect(confirmar).toHaveCount(0);
+  await expect(page.locator('img[src^="/api/media/"]')).toHaveCount(1);
+
+  await gaveta.getByRole("button", { name: "Remover capa" }).click();
+  await confirmar
+    .getByRole("button", { name: "Remover capa", exact: true })
     .click();
   await expect(page.locator('img[src^="/api/media/"]')).toHaveCount(0, {
     timeout: 30_000,
