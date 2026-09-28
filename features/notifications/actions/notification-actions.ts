@@ -9,6 +9,7 @@ import {
   saveSubscription,
   savePreferences,
 } from "@/features/notifications/data/subscriptions";
+import { pushSubscriptionSchema } from "@/features/notifications/subscription-schema";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 
 /**
@@ -23,24 +24,20 @@ import { requireAuthorizedContext } from "@/lib/auth/authorization";
 export type NotificationActionState = { error?: string; ok?: boolean };
 
 /**
- * A forma que `PushSubscription.toJSON()` devolve.
+ * Grava — ou regrava — a subscription deste navegador.
  *
- * Tetos generosos mas finitos: endpoint de push service é longo e varia por
- * navegador, e um campo sem teto é um convite a gravar um megabyte de lixo.
+ * Idempotente pelo upsert no `endpoint`, e é por isso que o Perfil a chama a
+ * cada visita quando o navegador já está inscrito: é assim que um aparelho que
+ * se inscreveu sem o servidor ter gravado se conserta sozinho (D-180).
+ *
+ * Sem `revalidatePath`: nada que o Perfil renderiza depende de subscription, e
+ * revalidar aqui custaria uma renderização inteira da página a cada visita.
  */
-const subscriptionSchema = z.strictObject({
-  endpoint: z.url().max(2048),
-  keys: z.strictObject({
-    p256dh: z.string().min(1).max(256),
-    auth: z.string().min(1).max(256),
-  }),
-});
-
 export async function subscribeToPushAction(
   raw: unknown,
 ): Promise<NotificationActionState> {
   const ctx = await requireAuthorizedContext();
-  const parsed = subscriptionSchema.safeParse(raw);
+  const parsed = pushSubscriptionSchema.safeParse(raw);
 
   if (!parsed.success) {
     /* Sem detalhe do Zod na resposta: a mensagem do parser descreve a forma do
@@ -54,7 +51,6 @@ export async function subscribeToPushAction(
     auth: parsed.data.keys.auth,
   });
 
-  revalidatePath("/perfil");
   return { ok: true };
 }
 

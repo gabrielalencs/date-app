@@ -1,7 +1,7 @@
 import { saveSubscription } from "@/features/notifications/data/subscriptions";
+import { pushSubscriptionSchema } from "@/features/notifications/subscription-schema";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 import { ForbiddenError, UnauthenticatedError } from "@/lib/auth/errors";
-import { z } from "zod";
 
 /**
  * A rota que o Service Worker usa para reinscrever depois de um
@@ -16,14 +16,6 @@ import { z } from "zod";
  * Sem sessão responde 401 e não grava nada. Nada aqui devolve dado do produto.
  */
 export const dynamic = "force-dynamic";
-
-const schema = z.strictObject({
-  endpoint: z.url().max(2048),
-  keys: z.strictObject({
-    p256dh: z.string().min(1).max(256),
-    auth: z.string().min(1).max(256),
-  }),
-});
 
 export async function POST(request: Request): Promise<Response> {
   let ctx;
@@ -46,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     return new Response(null, { status: 400 });
   }
 
-  const parsed = schema.safeParse(corpo);
+  const parsed = pushSubscriptionSchema.safeParse(corpo);
   if (!parsed.success) {
     /* Sem detalhe do parser na resposta: a forma do payload é informação sobre
        a fronteira, e esta rota não precisa ensinar ninguém a acertá-la. */

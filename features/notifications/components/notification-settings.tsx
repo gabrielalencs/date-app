@@ -81,6 +81,24 @@ async function detectarEstado(): Promise<Estado> {
   return atual ? "ativo" : "disponivel";
 }
 
+/**
+ * Reentrega ao servidor a subscription que o navegador já tem.
+ *
+ * "Ativo" nesta tela é uma pergunta feita ao navegador, e o navegador não sabe
+ * se o servidor gravou. Foi exatamente assim que o DATE passou dias dizendo
+ * "este aparelho está recebendo notificações" com `push_subscriptions` vazia
+ * em produção (D-180). O upsert é idempotente, então reenviar a cada visita
+ * custa uma escrita e fecha a distância entre as duas respostas.
+ */
+async function reenviarInscricao(): Promise<string | null> {
+  const registro = await navigator.serviceWorker.ready;
+  const atual = await registro.pushManager.getSubscription();
+  if (!atual) return null;
+
+  const resposta = await subscribeToPushAction(atual.toJSON());
+  return resposta.error ?? null;
+}
+
 export function NotificationSettings({
   initialPreferences,
   vapidPublicKey,
@@ -95,7 +113,20 @@ export function NotificationSettings({
   const [pendente, startTransition] = useTransition();
 
   useEffect(() => {
-    void detectarEstado().then(setEstado);
+    void detectarEstado().then((inicial) => {
+      setEstado(inicial);
+      /* Só na abertura, não a cada volta à aba: a volta responde a uma
+         mudança de permissão lá fora, e a subscription não muda com ela. */
+      if (inicial === "ativo") {
+        void reenviarInscricao()
+          .then((falha) => {
+            if (falha) setErro(falha);
+          })
+          .catch(() => {
+            setErro("Não foi possível confirmar este aparelho com o servidor.");
+          });
+      }
+    });
 
     /* Sair do DATE, liberar a permissão nas configurações do navegador e voltar
        não emite evento nenhum que o React veja: a tela continuaria dizendo
@@ -133,15 +164,23 @@ export function NotificationSettings({
       return;
     }
 
-    const registro = await navigator.serviceWorker.ready;
-    const subscription = await registro.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: chaveParaBytes(vapidPublicKey),
-    });
+    /* `subscribe` rejeita quando o push service do navegador recusa ou está
+       fora do ar. Sem o `catch`, a promise morria sem ninguém ver e o botão
+       simplesmente não fazia nada. */
+    try {
+      const registro = await navigator.serviceWorker.ready;
+      const subscription = await registro.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: chaveParaBytes(vapidPublicKey),
+      });
 
-    const resposta = await subscribeToPushAction(subscription.toJSON());
-    if (resposta.error) {
-      setErro(resposta.error);
+      const resposta = await subscribeToPushAction(subscription.toJSON());
+      if (resposta.error) {
+        setErro(resposta.error);
+        return;
+      }
+    } catch {
+      setErro("Não foi possível ativar neste aparelho. Tente de novo.");
       return;
     }
 
