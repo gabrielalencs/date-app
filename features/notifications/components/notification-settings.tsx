@@ -6,10 +6,16 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   savePreferencesAction,
+  sendTestPushAction,
   subscribeToPushAction,
   unsubscribeFromPushAction,
 } from "@/features/notifications/actions/notification-actions";
+import {
+  applicationServerKeyBytes,
+  isSubscribedWithOtherKey,
+} from "@/features/notifications/application-server-key";
 import type { NotificationPreferences } from "@/features/notifications/data/subscriptions";
+import type { TestPushState } from "@/features/notifications/send/test-push";
 
 /**
  * A seção de notificações do Perfil (seção 16 do docs/NOTIFICATIONS.md).
@@ -31,28 +37,6 @@ type Estado =
   | "disponivel"
   | "bloqueado"
   | "ativo";
-
-/**
- * Base64 URL-safe → `ArrayBuffer`, que é o que `applicationServerKey` aceita.
- *
- * Devolve o buffer, e não a view: o tipo do DOM pede `BufferSource` com
- * `ArrayBuffer` concreto, e um `Uint8Array` genérico não satisfaz por causa da
- * possibilidade de `SharedArrayBuffer`.
- */
-function chaveParaBytes(base64: string): ArrayBuffer {
-  const preenchido = base64.padEnd(
-    base64.length + ((4 - (base64.length % 4)) % 4),
-    "=",
-  );
-  const normal = preenchido.replace(/-/g, "+").replace(/_/g, "/");
-  const bruto = window.atob(normal);
-  const buffer = new ArrayBuffer(bruto.length);
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bruto.length; i += 1) {
-    bytes[i] = bruto.charCodeAt(i);
-  }
-  return buffer;
-}
 
 /**
  * Uma única transição de estado, resolvida fora do componente.
@@ -82,21 +66,92 @@ async function detectarEstado(): Promise<Estado> {
 }
 
 /**
- * Reentrega ao servidor a subscription que o navegador já tem.
+ * Tira uma subscription de cena, no servidor e no navegador.
  *
- * "Ativo" nesta tela é uma pergunta feita ao navegador, e o navegador não sabe
- * se o servidor gravou. Foi exatamente assim que o DATE passou dias dizendo
- * "este aparelho está recebendo notificações" com `push_subscriptions` vazia
- * em produção (D-180). O upsert é idempotente, então reenviar a cada visita
- * custa uma escrita e fecha a distância entre as duas respostas.
+ * Ordem: servidor primeiro. Se o navegador cancelasse antes e a action
+ * falhasse, o endpoint continuaria ativo no banco sem nenhum navegador do outro
+ * lado — e viraria entrega falhando para sempre.
  */
-async function reenviarInscricao(): Promise<string | null> {
+async function descartar(subscription: PushSubscription): Promise<void> {
+  await unsubscribeFromPushAction(subscription.endpoint);
+  await subscription.unsubscribe();
+}
+
+type Conferencia = { estado: Estado; erro?: string };
+
+/**
+ * Confere com o servidor o aparelho que o navegador diz estar inscrito.
+ *
+ * "Ativo" nesta tela é uma pergunta feita ao navegador, e há duas coisas que
+ * ele não sabe responder:
+ *
+ * 1. **O servidor gravou?** Foi assim que o DATE passou dias dizendo "este
+ *    aparelho está recebendo notificações" com `push_subscriptions` vazia em
+ *    produção (D-180). O upsert é idempotente, então reenviar a cada visita
+ *    custa uma escrita e fecha a distância.
+ * 2. **A inscrição é da chave que o servidor usa hoje?** Uma subscription feita
+ *    antes de uma troca de chave VAPID continua "ativa" para sempre no
+ *    navegador, e o push service recusa todo envio para ela (D-181). Reenviá-la
+ *    só gravaria no banco um endpoint condenado. Ela é trocada por uma nova,
+ *    com a chave atual; a permissão já foi dada, então não há prompt.
+ */
+async function conferirInscricao(vapidPublicKey: string): Promise<Conferencia> {
   const registro = await navigator.serviceWorker.ready;
   const atual = await registro.pushManager.getSubscription();
-  if (!atual) return null;
+  if (!atual) return { estado: "disponivel" };
+
+  if (vapidPublicKey) {
+    const chave = applicationServerKeyBytes(vapidPublicKey);
+
+    if (isSubscribedWithOtherKey(atual, chave)) {
+      await descartar(atual);
+
+      try {
+        const nova = await registro.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: chave,
+        });
+        const resposta = await subscribeToPushAction(nova.toJSON());
+        return { estado: "ativo", erro: resposta.error };
+      } catch {
+        /* Há navegador que só inscreve dentro de um toque. O botão de ativar é
+           esse toque, e a velha já saiu — então ele funciona de primeira. */
+        return {
+          estado: "disponivel",
+          erro: "Este aparelho precisa ativar as notificações de novo.",
+        };
+      }
+    }
+  }
 
   const resposta = await subscribeToPushAction(atual.toJSON());
-  return resposta.error ?? null;
+  return { estado: "ativo", erro: resposta.error };
+}
+
+/** O que dizer quando o teste não chegou ao aparelho. */
+function mensagemDoTeste(
+  resposta: Extract<TestPushState, { ok: false }>,
+): string {
+  const codigo = resposta.codigo ? ` (${resposta.codigo})` : "";
+
+  switch (resposta.motivo) {
+    case "sem-registro":
+      return "O servidor não reconheceu este aparelho. Desative e ative de novo.";
+    case "expirada":
+      return "A inscrição deste aparelho tinha expirado. Ative de novo.";
+    case "servidor":
+      return (
+        `As chaves de notificação do servidor estão mal configuradas${codigo}. ` +
+        "Isso se corrige nas variáveis de ambiente do deploy, não no aparelho."
+      );
+    case "recusada":
+      return (
+        `O serviço de notificações recusou o envio${codigo}. ` +
+        "Desative e ative de novo neste aparelho."
+      );
+    case "indisponivel":
+      return `O serviço de notificações não respondeu agora${codigo}. Tente de novo em instantes.`;
+  }
 }
 
 export function NotificationSettings({
@@ -108,7 +163,9 @@ export function NotificationSettings({
 }) {
   const [estado, setEstado] = useState<Estado>("carregando");
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [dispensado, setDispensado] = useState(false);
+  const [testando, setTestando] = useState(false);
   const [prefs, setPrefs] = useState(initialPreferences);
   const [pendente, startTransition] = useTransition();
 
@@ -118,9 +175,10 @@ export function NotificationSettings({
       /* Só na abertura, não a cada volta à aba: a volta responde a uma
          mudança de permissão lá fora, e a subscription não muda com ela. */
       if (inicial === "ativo") {
-        void reenviarInscricao()
-          .then((falha) => {
-            if (falha) setErro(falha);
+        void conferirInscricao(vapidPublicKey)
+          .then((conferida) => {
+            setEstado(conferida.estado);
+            if (conferida.erro) setErro(conferida.erro);
           })
           .catch(() => {
             setErro("Não foi possível confirmar este aparelho com o servidor.");
@@ -140,10 +198,11 @@ export function NotificationSettings({
 
     document.addEventListener("visibilitychange", aoVoltar);
     return () => document.removeEventListener("visibilitychange", aoVoltar);
-  }, []);
+  }, [vapidPublicKey]);
 
   async function ativar() {
     setErro(null);
+    setAviso(null);
     setDispensado(false);
 
     if (!vapidPublicKey) {
@@ -169,9 +228,19 @@ export function NotificationSettings({
        simplesmente não fazia nada. */
     try {
       const registro = await navigator.serviceWorker.ready;
+      const chave = applicationServerKeyBytes(vapidPublicKey);
+
+      /* Uma inscrição antiga com outra chave faz o `subscribe` rejeitar com
+         InvalidStateError — e com a mesma chave ele só a devolve. Então a velha
+         sai antes, e só quando a chave dela é outra. */
+      const antiga = await registro.pushManager.getSubscription();
+      if (antiga && isSubscribedWithOtherKey(antiga, chave)) {
+        await descartar(antiga);
+      }
+
       const subscription = await registro.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: chaveParaBytes(vapidPublicKey),
+        applicationServerKey: chave,
       });
 
       const resposta = await subscribeToPushAction(subscription.toJSON());
@@ -187,18 +256,65 @@ export function NotificationSettings({
     setEstado("ativo");
   }
 
+  /**
+   * O teste de ponta a ponta (D-181): servidor, chave, push service, Service
+   * Worker e sistema, na hora, com a resposta voltando para esta tela.
+   */
+  async function testar() {
+    setErro(null);
+    setAviso(null);
+    setTestando(true);
+
+    try {
+      const registro = await navigator.serviceWorker.ready;
+      const atual = await registro.pushManager.getSubscription();
+      if (!atual) {
+        setEstado("disponivel");
+        return;
+      }
+
+      let resposta = await sendTestPushAction(atual.endpoint);
+
+      /* O servidor não conhecia este aparelho — o defeito do D-180. Registra e
+         tenta mais uma vez, em vez de mandar a pessoa adivinhar o que fazer. */
+      if (!resposta.ok && resposta.motivo === "sem-registro") {
+        const gravou = await subscribeToPushAction(atual.toJSON());
+        if (gravou.error) {
+          setErro(gravou.error);
+          return;
+        }
+        resposta = await sendTestPushAction(atual.endpoint);
+      }
+
+      if (resposta.ok) {
+        /* Daqui em diante o push service aceitou: se nada aparecer, o bloqueio
+           é do sistema, e é isso que a frase precisa dizer. */
+        setAviso(
+          "Enviada. Ela aparece em alguns segundos — se não aparecer, as " +
+            "notificações do DATE estão desligadas nos ajustes do aparelho.",
+        );
+        return;
+      }
+
+      if (resposta.motivo === "expirada") {
+        await atual.unsubscribe();
+        setEstado("disponivel");
+      }
+
+      setErro(mensagemDoTeste(resposta));
+    } catch {
+      setErro("Não foi possível enviar o teste agora. Tente de novo.");
+    } finally {
+      setTestando(false);
+    }
+  }
+
   async function desativar() {
     setErro(null);
+    setAviso(null);
     const registro = await navigator.serviceWorker.ready;
     const subscription = await registro.pushManager.getSubscription();
-
-    if (subscription) {
-      /* Ordem: servidor primeiro. Se o navegador cancelasse antes e a action
-         falhasse, o endpoint continuaria ativo no banco sem nenhum navegador do
-         outro lado — e viraria entrega falhando para sempre. */
-      await unsubscribeFromPushAction(subscription.endpoint);
-      await subscription.unsubscribe();
-    }
+    if (subscription) await descartar(subscription);
 
     setEstado("disponivel");
   }
@@ -353,16 +469,28 @@ export function NotificationSettings({
             </label>
           </fieldset>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={desativar}
-            className="w-fit"
-          >
-            Desativar neste aparelho
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={testar}
+              loading={testando}
+              loadingLabel="Enviando…"
+            >
+              Enviar notificação de teste
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={desativar}>
+              Desativar neste aparelho
+            </Button>
+          </div>
         </>
+      ) : null}
+
+      {aviso ? (
+        <p role="status" className="type-body-s text-text-muted">
+          {aviso}
+        </p>
       ) : null}
 
       {erro ? (

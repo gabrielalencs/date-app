@@ -4,11 +4,19 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import {
+  findOwnActiveSubscription,
   getPreferences,
+  recordTestPushOutcome,
   removeSubscription,
   saveSubscription,
   savePreferences,
 } from "@/features/notifications/data/subscriptions";
+import {
+  TEST_PUSH_PAYLOAD,
+  testPushStateFor,
+  type TestPushState,
+} from "@/features/notifications/send/test-push";
+import { webPushSender } from "@/features/notifications/send/web-push-sender";
 import { pushSubscriptionSchema } from "@/features/notifications/subscription-schema";
 import { requireAuthorizedContext } from "@/lib/auth/authorization";
 
@@ -70,6 +78,38 @@ export async function unsubscribeFromPushAction(
 
   revalidatePath("/perfil");
   return { ok: true };
+}
+
+/**
+ * Manda um push de teste para este navegador, e só para ele (D-181).
+ *
+ * O caminho é o mesmo do Workflow — o mesmo remetente, as mesmas chaves, o
+ * mesmo push service —, só que agora e com a resposta voltando para a tela. É o
+ * que separa "o servidor está mal configurado" de "este aparelho não mostra
+ * notificação", e até aqui as duas coisas tinham o mesmo sintoma: nada.
+ *
+ * Sem `revalidatePath`: o desfecho volta no retorno, e a página não lê nada
+ * que o teste mude.
+ */
+export async function sendTestPushAction(
+  rawEndpoint: unknown,
+): Promise<TestPushState> {
+  const ctx = await requireAuthorizedContext();
+  const parsed = endpointSchema.safeParse(rawEndpoint);
+
+  if (!parsed.success) {
+    return { ok: false, motivo: "sem-registro" };
+  }
+
+  const alvo = await findOwnActiveSubscription(ctx, parsed.data);
+  if (!alvo) {
+    return { ok: false, motivo: "sem-registro" };
+  }
+
+  const resultado = await webPushSender(alvo, TEST_PUSH_PAYLOAD);
+  await recordTestPushOutcome(ctx, alvo.id, resultado.status);
+
+  return testPushStateFor(resultado);
 }
 
 const preferencesSchema = z.strictObject({

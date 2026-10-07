@@ -149,6 +149,68 @@ export async function removeSubscription(
     );
 }
 
+/**
+ * A subscription ativa deste navegador — se ela for desta pessoa.
+ *
+ * Para o envio de teste do Perfil (D-181). O endpoint vem do navegador, mas o
+ * predicado leva o profile e o workspace do contexto: o endpoint de outra
+ * pessoa não encontra linha nenhuma, e o teste não vira um jeito de mandar push
+ * para o telefone dela.
+ */
+export async function findOwnActiveSubscription(
+  ctx: AuthorizedContext,
+  endpoint: string,
+): Promise<(SubscriptionInput & { id: string }) | null> {
+  const [linha] = await db
+    .select({
+      id: pushSubscriptions.id,
+      endpoint: pushSubscriptions.endpoint,
+      p256dh: pushSubscriptions.p256dh,
+      auth: pushSubscriptions.auth,
+    })
+    .from(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.workspaceId, ctx.workspaceId),
+        eq(pushSubscriptions.profileId, ctx.profileId),
+        eq(pushSubscriptions.endpoint, endpoint),
+        isNull(pushSubscriptions.disabledAt),
+      ),
+    )
+    .limit(1);
+
+  return linha ?? null;
+}
+
+/**
+ * O que o envio de teste ensinou sobre a subscription, com a regra das
+ * entregas: aceito vira `last_success_at`, 404/410 desativa, e falha temporária
+ * ou de configuração não encosta na linha.
+ */
+export async function recordTestPushOutcome(
+  ctx: AuthorizedContext,
+  subscriptionId: string,
+  status: "sent" | "stale" | "failed",
+): Promise<void> {
+  if (status === "failed") return;
+
+  const agora = new Date();
+  await db
+    .update(pushSubscriptions)
+    .set(
+      status === "sent"
+        ? { lastSuccessAt: agora, updatedAt: agora }
+        : { disabledAt: agora, updatedAt: agora },
+    )
+    .where(
+      and(
+        eq(pushSubscriptions.id, subscriptionId),
+        eq(pushSubscriptions.workspaceId, ctx.workspaceId),
+        eq(pushSubscriptions.profileId, ctx.profileId),
+      ),
+    );
+}
+
 /** Quantos navegadores desta pessoa estão ativos. Para a tela do Perfil. */
 export async function countActiveSubscriptions(
   ctx: AuthorizedContext,

@@ -6,7 +6,12 @@ import {
   confirmDateOption,
   createDateOption,
 } from "@/features/dates/data/mutations";
-import { getPreferences, savePreferences } from "@/features/notifications/data/subscriptions";
+import {
+  findOwnActiveSubscription,
+  getPreferences,
+  recordTestPushOutcome,
+  savePreferences,
+} from "@/features/notifications/data/subscriptions";
 import { processIntent } from "@/features/notifications/workflow/steps";
 import { listRecoverableIntents } from "@/features/notifications/data/system";
 import type {
@@ -36,6 +41,9 @@ const WORKSPACE_A = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_N = "99999999-9999-4999-8999-999999999999";
 const ATOR = "seed_profile_notif_ator";
 const PARCEIRO = "seed_profile_notif_parceiro";
+/* Endpoint claramente falso: nada aqui pode parecer credencial de verdade
+   numa fixture versionada. */
+const ENDPOINT = "https://push.invalid/fixture-b115";
 
 type DatabaseModule = typeof import("@/db/client.ts");
 let databaseModule: DatabaseModule | undefined;
@@ -133,14 +141,12 @@ beforeAll(async () => {
     ])
     .onConflictDoNothing();
 
-  /* Endpoint claramente falso: nada aqui pode parecer credencial de verdade
-     numa fixture versionada. */
   const [sub] = await database
     .insert(schema.pushSubscriptions)
     .values({
       workspaceId: WORKSPACE_N,
       profileId: PARCEIRO,
-      endpoint: "https://push.invalid/fixture-b115",
+      endpoint: ENDPOINT,
       p256dh: "fixture-p256dh",
       auth: "fixture-auth",
     })
@@ -288,6 +294,34 @@ describe("o workspace de fora não enxerga nada", () => {
     expect((await getPreferences(ctxParceiro)).previewMode).toBe("private");
 
     await savePreferences(ctx, { previewMode: "private" });
+  });
+
+  it("o envio de teste só alcança a subscription da própria pessoa", async () => {
+    /* O endpoint vem do navegador (D-181). O ator, mesmo mandando o endpoint
+       certo do parceiro, não encontra linha: o botão de teste não vira um jeito
+       de mandar push para o telefone da outra pessoa. */
+    expect(await findOwnActiveSubscription(ctx, ENDPOINT)).toBeNull();
+    expect(
+      await findOwnActiveSubscription(ctxParceiro, ENDPOINT),
+    ).toMatchObject({ id: subscriptionId, endpoint: ENDPOINT });
+  });
+
+  it("o desfecho de um teste só encosta na subscription de quem testou", async () => {
+    const desativada = async () => {
+      const [linha] = await database
+        .select({ disabledAt: schema.pushSubscriptions.disabledAt })
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.id, subscriptionId));
+      return linha!.disabledAt;
+    };
+
+    await recordTestPushOutcome(ctx, subscriptionId, "stale");
+    expect(await desativada()).toBeNull();
+
+    /* O mesmo 410 vindo do teste do próprio dono desativa, como numa entrega.
+       O `beforeEach` a devolve a ativa para o resto da suíte. */
+    await recordTestPushOutcome(ctxParceiro, subscriptionId, "stale");
+    expect(await desativada()).not.toBeNull();
   });
 
   it("a subscription do parceiro não pertence a outra pessoa", async () => {

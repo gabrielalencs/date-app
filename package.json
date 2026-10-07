@@ -53,6 +53,8 @@
     "test:notifications": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/notifications.spec.ts",
     "shots:notifications": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/notifications-shots.spec.ts",
     "notifications:backfill": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./db/alias-register.mjs db/notifications-backfill.ts",
+    "notifications:status": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/notifications-status.ts",
+    "notifications:status:prod": "node --env-file=.env.deploy --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/notifications-status.ts",
     "test:nojs": "node --env-file=.env.local ./node_modules/@playwright/test/cli.js test tests/e2e/no-js.spec.ts",
     "r2:cors": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types db/r2-cors-check.ts"
   },
