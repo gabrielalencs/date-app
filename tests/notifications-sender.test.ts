@@ -1,3 +1,5 @@
+import { createECDH, randomBytes } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -42,6 +44,30 @@ async function parVapid(): Promise<ParVapid> {
     default: { generateVAPIDKeys(): ParVapid };
   }>("web-push");
   return real.default.generateVAPIDKeys();
+}
+
+type DetalhesDoEnvio = { headers: Record<string, unknown> };
+
+/**
+ * A montagem da requisição pela biblioteca de verdade, sem enviá-la. É ela que
+ * valida as opções: uma que o `web-push` não conhecesse estouraria aqui — e no
+ * app, onde o erro não tem status HTTP, viraria um `network` mudo.
+ */
+async function montarRequisicao(...args: unknown[]): Promise<DetalhesDoEnvio> {
+  const real = await vi.importActual<{
+    default: { generateRequestDetails(...args: unknown[]): DetalhesDoEnvio };
+  }>("web-push");
+  return real.default.generateRequestDetails(...args);
+}
+
+/** As chaves que um navegador de verdade entrega no `toJSON()`. */
+function chavesDeNavegador() {
+  const ecdh = createECDH("prime256v1");
+  ecdh.generateKeys();
+  return {
+    p256dh: ecdh.getPublicKey().toString("base64url"),
+    auth: randomBytes(16).toString("base64url"),
+  };
 }
 
 /** Módulo novo a cada teste: o remetente guarda a configuração da primeira chamada. */
@@ -192,7 +218,7 @@ describe("o remetente de verdade, com a rede substituída", () => {
     expect(envio.sendNotification).not.toHaveBeenCalled();
   });
 
-  it("envia com TTL e teto de espera, e 201 é entrega", async () => {
+  it("envia com TTL, teto de espera e urgência alta, e 201 é entrega", async () => {
     const par = await parVapid();
     configurar(par.publicKey, par.privateKey, "mailto:fixture@date.invalid");
     envio.sendNotification.mockResolvedValue({
@@ -212,8 +238,21 @@ describe("o remetente de verdade, com a rede substituída", () => {
         keys: { p256dh: ALVO.p256dh, auth: ALVO.auth },
       },
       JSON.stringify(PAYLOAD),
-      { TTL: 43_200, timeout: 10_000 },
+      /* `urgency: "high"` é o que faz o FCM acordar um Android em repouso
+         (D-182). Sem ele, o envio sai com 201 e fica retido no aparelho. */
+      { TTL: 43_200, timeout: 10_000, urgency: "high" },
     );
+
+    /* E as mesmas opções, pela biblioteca de verdade, viram os headers que o
+       push service lê. */
+    const [, corpo, opcoes] = envio.sendNotification.mock.calls[0]!;
+    const requisicao = await montarRequisicao(
+      { endpoint: ALVO.endpoint, keys: chavesDeNavegador() },
+      corpo,
+      opcoes,
+    );
+    expect(requisicao.headers).toMatchObject({ Urgency: "high", TTL: 43_200 });
+    expect(requisicao.headers.Authorization).toMatch(/^vapid t=.+, k=.+$/);
   });
 
   it("a recusa chega com o motivo do push service", async () => {

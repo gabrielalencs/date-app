@@ -37,6 +37,23 @@ import { vapidPairMatches } from "@/features/notifications/send/vapid";
  */
 const TIMEOUT_MS = 10_000;
 
+/**
+ * Todo push sai com `Urgency: high` (D-182).
+ *
+ * O FCM traduz o header em prioridade de entrega. Com o padrão `normal`, um
+ * Android em repouso — tela apagada, Doze, ou o gerenciamento de bateria da
+ * Samsung pondo o Chrome para dormir — segura a mensagem até o aparelho
+ * acordar. Foi o que se mediu em produção: o envio de teste chegou na hora,
+ * com o celular na mão, e o "Amei" das 14h59, aceito pelo Google com 201 para
+ * a mesma inscrição, não apareceu com o celular parado.
+ *
+ * `high` é para mensagem que a pessoa vê, e toda notificação do DATE é vista:
+ * a inscrição é `userVisibleOnly` e o Service Worker sempre mostra o que
+ * recebe. O que não pode tocar de madrugada a janela silenciosa da política já
+ * segura antes de o push existir.
+ */
+const URGENCY = "high";
+
 let configurado = false;
 
 export type VapidErrorCode =
@@ -127,7 +144,7 @@ export const webPushSender: PushSender = async (
         keys: { p256dh: target.p256dh, auth: target.auth },
       },
       JSON.stringify(payload),
-      { TTL: 60 * 60 * 12, timeout: TIMEOUT_MS },
+      { TTL: 60 * 60 * 12, timeout: TIMEOUT_MS, urgency: URGENCY },
     );
 
     return classifyPushStatus(resposta.statusCode);
