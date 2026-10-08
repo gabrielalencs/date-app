@@ -1,5 +1,10 @@
 import { OUTPUT_MIME, type MediaVariant } from "@/features/media/constants";
 import {
+  decodeHeic,
+  hasHeifBrand,
+  isDeclaredHeic,
+} from "@/features/media/image/heic";
+import {
   ImageProcessingError,
   type DecodedImage,
   type EncodeRequest,
@@ -73,6 +78,8 @@ async function decodeViaElement(file: File): Promise<BitmapImage> {
  *    o caso que motivou a escada, nasce sem orientação para perder.
  * 3. `<img>` + `decode()`. Outro decodificador, com outra lista de formatos e
  *    outras tolerâncias a arquivo levemente fora do padrão.
+ * 4. A libheif, só para HEIC (D-183). É o último degrau porque é o único que
+ *    baixa código: no Safari, que abre HEIC sozinho, ele nunca roda.
  *
  * Uma tentativa só era o que fazia print de Android esbarrar numa mensagem
  * sobre iPhone: qualquer recusa do primeiro caminho virava "não dá para abrir".
@@ -104,9 +111,23 @@ async function decode(file: File): Promise<BitmapImage> {
     // segue para a próxima tentativa
   }
 
-  /* A última falha é a que sobe, com a causa original: é ela que a mensagem
-     vai usar para dizer o que de fato aconteceu. */
-  return decodeViaElement(file);
+  try {
+    return await decodeViaElement(file);
+  } catch (cause) {
+    /* Fora de HEIC, a falha do `<img>` é a que sobe, com a causa original: é
+       ela que a mensagem vai usar para dizer o que de fato aconteceu. */
+    if (!isDeclaredHeic(file) && !(await hasHeifBrand(file))) {
+      throw cause;
+    }
+  }
+
+  const bitmap = await decodeHeic(file);
+  return {
+    bitmap,
+    width: bitmap.width,
+    height: bitmap.height,
+    close: () => bitmap.close(),
+  };
 }
 
 type Target = {

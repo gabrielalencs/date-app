@@ -6,6 +6,7 @@ import {
   QUALITY_LADDER,
   type MediaVariant,
 } from "@/features/media/constants";
+import { isDeclaredHeic } from "@/features/media/image/heic";
 
 /**
  * Reprocessamento da imagem no browser, antes de qualquer byte sair da máquina
@@ -79,15 +80,30 @@ export type ProcessedImage = {
  * Agora o palpite sobre HEIC só aparece quando o arquivo **é** HEIC, decidido
  * pelo tipo e pela extensão. No resto dos casos a mensagem diz o que houve, o
  * que se sabe do arquivo, e o que costuma resolver — sem inventar diagnóstico.
+ *
+ * Desde o D-183, HEIC é convertido no aparelho. A mensagem só aparece quando a
+ * conversão também falhou, e não supõe iPhone: quem a viu primeiro tinha um
+ * Samsung, que grava HEIC com "Imagens de alta eficiência" ligada.
  */
-const HEIC =
-  "Essa foto está em HEIC, um formato que este navegador não abre. No iPhone, " +
-  "em Ajustes → Câmera → Formatos, escolha “Mais compatível” para as próximas. " +
-  "Para esta, abra na galeria e compartilhe como JPEG.";
+function heicNaoConverteu(cause: unknown): string {
+  return (
+    "Essa foto está em HEIC e não deu para convertê-la neste aparelho. Tente " +
+    "de novo. Se continuar, as próximas fotos saem em JPEG se você desligar " +
+    "“Imagens de alta eficiência” na câmera (Samsung) ou escolher “Mais " +
+    `compatível” em Ajustes → Câmera → Formatos (iPhone).${detalheDe(cause)}`
+  );
+}
+
+/** A causa crua entre parênteses, quando há uma — para quem for diagnosticar. */
+function detalheDe(cause: unknown): string {
+  if (cause instanceof Error && cause.message) return ` (${cause.message})`;
+  /* A libheif rejeita com texto, não com `Error`. */
+  if (typeof cause === "string" && cause) return ` (${cause})`;
+  return "";
+}
 
 function naoDecodificou(file: File, cause: unknown): string {
-  const detalhe =
-    cause instanceof Error && cause.message ? ` (${cause.message})` : "";
+  const detalhe = detalheDe(cause);
   const tipo = file.type || "tipo não informado";
 
   return (
@@ -96,15 +112,6 @@ function naoDecodificou(file: File, cause: unknown): string {
     "Tente outra foto, ou abra esta na galeria e salve uma cópia antes de " +
     `enviar.${detalhe}`
   );
-}
-
-/** HEIC/HEIF pelo tipo declarado ou pela extensão, que é o que sobra quando
-    o `type` vem vazio do share sheet. */
-function pareceHeic(file: File): boolean {
-  const tipo = file.type.toLowerCase();
-  if (tipo === "image/heic" || tipo === "image/heif") return true;
-
-  return /\.(heic|heif)$/i.test(file.name);
 }
 
 const NAO_E_IMAGEM =
@@ -260,7 +267,9 @@ export async function processImageFile<TImage extends DecodedImage>(
     image = await runtime.decode(file);
   } catch (cause) {
     throw new ImageProcessingError(
-      pareceHeic(file) ? HEIC : naoDecodificou(file, cause),
+      isDeclaredHeic(file)
+        ? heicNaoConverteu(cause)
+        : naoDecodificou(file, cause),
       { cause },
     );
   }

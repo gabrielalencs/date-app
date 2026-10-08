@@ -122,7 +122,12 @@ function documentCsp(nonce: string, hostname: string): string {
     "font-src 'self'",
     `connect-src 'self'${r2 ? ` ${r2}` : ""}`,
     "manifest-src 'self'",
-    "worker-src 'self'",
+    /* `blob:` é do conversor de HEIC (D-183): a libheif roda num worker que a
+       biblioteca monta a partir de um `blob:`. A concessão é estreita — criar
+       um worker assim exige já estar executando script na página, que é o que
+       o `script-src` com nonce continua barrando. O worker herda esta mesma
+       política, e a variante usada não tem `eval` nem WebAssembly. */
+    "worker-src 'self' blob:",
     "form-action 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

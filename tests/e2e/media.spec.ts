@@ -1,4 +1,6 @@
-import { eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+
+import { eq, inArray } from "drizzle-orm";
 import { expect, test, type Page } from "./harness.ts";
 
 import { buildObjectKeys } from "@/features/media/r2/object-key";
@@ -35,11 +37,13 @@ const PLANO_CABECALHO = crypto.randomUUID();
 /* A fixture nasce aberta: /ideias filtra por status aberto por padrão. */
 const PLANO_CAPA = crypto.randomUUID();
 const PLANO_MEDIDAS = crypto.randomUUID();
+const PLANO_HEIC = crypto.randomUUID();
 const PLANOS_USADOS = [
   PLANO_EXIF,
   PLANO_CABECALHO,
   PLANO_CAPA,
   PLANO_MEDIDAS,
+  PLANO_HEIC,
 ] as const;
 
 /* Workspace de fora, montado direto no banco: a rota precisa responder "não
@@ -145,7 +149,7 @@ test.beforeAll(async () => {
   await db
     .update(schema.plans)
     .set({ status: "completed" })
-    .where(eq(schema.plans.id, PLANO_MEDIDAS));
+    .where(inArray(schema.plans.id, [PLANO_MEDIDAS, PLANO_HEIC]));
 
   await db
     .insert(schema.workspaces)
@@ -329,6 +333,57 @@ test("a foto vira a capa e substitui a capa tipográfica no card", async ({
   await expect(page.locator(`img[src*="/api/media/${mediaId}"]`)).toHaveCount(
     0,
   );
+});
+
+/**
+ * A foto HEIC do Samsung, de ponta a ponta (D-183).
+ *
+ * O Chromium, como o Chrome do Android, não abre HEIC: a foto passa pelos três
+ * decodificadores do navegador, cai na libheif, é reencodada em WebP e sobe. O
+ * arnês reprova violação de CSP, então o teste também prova que o worker da
+ * biblioteca roda sob a política do projeto.
+ *
+ * A fixture é o `examples/example.heic` do próprio projeto libheif: 1280×854,
+ * com uma miniatura de 320×212 embutida. A dimensão gravada é o que prova que
+ * foi a imagem principal que subiu, e não a miniatura.
+ */
+test("uma foto HEIC é convertida no aparelho e sobe como qualquer outra", async ({
+  page,
+}) => {
+  const heic = readFileSync("tests/e2e/fixtures/exemplo.heic");
+
+  await signIn(page);
+  await limparMidiaDosPlanos([PLANO_HEIC]);
+  await page.goto(`/planos/${PLANO_HEIC}`);
+
+  const grade = page.locator('ul li img[src^="/api/media/"]');
+
+  for (const [indice, arquivo] of [
+    /* Como a câmera do Samsung entrega. */
+    { name: "20261007_121314.heic", mimeType: "image/heic" },
+    /* Como chega de outro app ou de pasta não indexada: sem tipo útil e sem
+       extensão. Só o conteúdo diz que é HEIC. */
+    { name: "foto", mimeType: "application/octet-stream" },
+  ].entries()) {
+    await page
+      .locator('input[type="file"]')
+      .setInputFiles({ ...arquivo, buffer: heic });
+    await expect(grade).toHaveCount(indice + 1, { timeout: 90_000 });
+  }
+
+  const midias = await fixtureDb()
+    .select({
+      width: schema.media.width,
+      height: schema.media.height,
+      mimeType: schema.media.mimeType,
+    })
+    .from(schema.media)
+    .where(eq(schema.media.planId, PLANO_HEIC));
+
+  expect(midias).toEqual([
+    { width: 1280, height: 854, mimeType: "image/webp" },
+    { width: 1280, height: 854, mimeType: "image/webp" },
+  ]);
 });
 
 /**
