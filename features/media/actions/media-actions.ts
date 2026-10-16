@@ -6,6 +6,8 @@ import { z } from "zod";
 import {
   ALLOWED_UPLOAD_MIME,
   MAX_BYTES,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_DURATION_MS,
   UPLOADABLE_PURPOSES,
 } from "@/features/media/constants";
 import type { MediaResult, StartedUpload } from "@/features/media/contract";
@@ -31,22 +33,29 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
  */
 const uuid = z.uuid();
 
+/* O teto exato de cada variante depende do tipo e é conferido na camada de
+   dados (`maxBytesFor`); aqui vai o maior possível, para o Zod recusar o
+   absurdo sem duplicar a regra. */
 const startSchema = z.object({
   planId: uuid,
   purpose: z.enum(UPLOADABLE_PURPOSES),
   contentType: z.enum(ALLOWED_UPLOAD_MIME),
   sizes: z.object({
-    full: z.number().int().positive().max(MAX_BYTES.full),
+    full: z.number().int().positive().max(MAX_VIDEO_BYTES),
     thumb: z.number().int().positive().max(MAX_BYTES.thumb),
   }),
 });
 
+/* `kind` ausente é foto: um aparelho com o JavaScript de antes do D-184 em
+   cache continua confirmando foto sem saber que vídeo existe. */
 const confirmSchema = z.object({
   planId: uuid,
   uploadId: uuid,
   purpose: z.enum(UPLOADABLE_PURPOSES),
   width: z.number().int().positive().max(20_000),
   height: z.number().int().positive().max(20_000),
+  kind: z.enum(["image", "video"]).optional(),
+  durationMs: z.number().int().positive().max(MAX_VIDEO_DURATION_MS).optional(),
 });
 
 const removeSchema = z.object({ planId: uuid, mediaId: uuid });
@@ -59,7 +68,7 @@ const reorderSchema = z.object({
 /** Erro de domínio vira frase; o resto sobe e vira 500, como deve. */
 function toMessage(error: unknown): string {
   if (error instanceof NotFoundError) {
-    return "Essa imagem não existe mais.";
+    return "Essa foto ou vídeo não existe mais.";
   }
   if (error instanceof ValidationError) {
     return error.message;
@@ -70,7 +79,7 @@ function toMessage(error: unknown): string {
 function invalid(): { ok: false; error: string } {
   return {
     ok: false,
-    error: "Não deu para enviar essa imagem. Tente de novo.",
+    error: "Não deu para enviar esse arquivo. Tente de novo.",
   };
 }
 

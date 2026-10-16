@@ -57,6 +57,13 @@
       "when": 1790096110362,
       "tag": "0007_bouncy_tana_nile",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791918190804,
+      "tag": "0008_vengeful_juggernaut",
+      "breakpoints": true
     }
   ]
 }

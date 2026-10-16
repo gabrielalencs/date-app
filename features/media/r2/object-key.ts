@@ -1,16 +1,19 @@
-import { MEDIA_VARIANTS, type MediaVariant } from "@/features/media/constants";
+import type { MediaKind } from "@/features/media/constants";
 
 /**
  * Object key (seção 4 do docs/MEDIA_R2.md).
  *
  * ```text
  * {workspace_id}/{plan_id}/{uuid}/full.webp
+ * {workspace_id}/{plan_id}/{uuid}/full.mp4     ← vídeo (D-184)
  * {workspace_id}/{plan_id}/{uuid}/thumb.webp
  * ```
  *
  * Sempre gerada no servidor e nunca aceita do cliente — nem para escrever, nem
  * para ler, nem para remover. O `workspace_id` no prefixo torna colisão entre
  * workspaces impossível e deixa qualquer chave auditável a olho.
+ *
+ * O `thumb` é sempre `.webp`: num vídeo, ele é o pôster.
  */
 
 const UUID =
@@ -29,16 +32,24 @@ function assertUuid(value: string, field: string): void {
   }
 }
 
-export type MediaObjectKeys = Readonly<Record<MediaVariant, string>>;
+export type MediaObjectKeys = Readonly<{ full: string; thumb: string }>;
+
+const FULL_EXTENSION: Readonly<Record<MediaKind, string>> = {
+  image: "webp",
+  video: "mp4",
+};
 
 /**
  * O `mediaUuid` é sorteado aqui e não é o id da linha: a chave precisa existir
  * antes de a linha existir, porque o objeto sobe primeiro.
+ *
+ * `kind` ausente é foto, que é o que toda chave anterior ao D-184 é.
  */
 export function buildObjectKeys(input: {
   workspaceId: string;
   planId: string;
   mediaUuid: string;
+  kind?: MediaKind;
 }): MediaObjectKeys {
   assertUuid(input.workspaceId, "workspaceId");
   assertUuid(input.planId, "planId");
@@ -47,13 +58,15 @@ export function buildObjectKeys(input: {
   const prefixo = `${input.workspaceId}/${input.planId}/${input.mediaUuid}`;
 
   return {
-    full: `${prefixo}/full.webp`,
+    full: `${prefixo}/full.${FULL_EXTENSION[input.kind ?? "image"]}`,
     thumb: `${prefixo}/thumb.webp`,
   };
 }
 
+const SEGMENTO = UUID.source.slice(1, -1);
+
 const SHAPE = new RegExp(
-  `^${UUID.source.slice(1, -1)}/${UUID.source.slice(1, -1)}/${UUID.source.slice(1, -1)}/(${MEDIA_VARIANTS.join("|")})\\.webp$`,
+  `^${SEGMENTO}/${SEGMENTO}/${SEGMENTO}/(full\\.(webp|mp4)|thumb\\.webp)$`,
   "i",
 );
 

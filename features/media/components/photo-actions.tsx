@@ -17,6 +17,7 @@ import {
   reorderMediaAction,
   setCoverAction,
 } from "@/features/media/actions/media-actions";
+import type { MediaKind } from "@/features/media/constants";
 
 /**
  * Os controles de uma foto da galeria: virar capa, mover na ordem, remover.
@@ -36,6 +37,7 @@ export function PhotoActions({
   canMoveDown,
   onMove,
   showReorder = true,
+  kind = "image",
 }: {
   planId: string;
   mediaId: string;
@@ -50,7 +52,15 @@ export function PhotoActions({
    * desabilitados seriam pior que dois botões que não existem.
    */
   showReorder?: boolean;
+  /**
+   * Vídeo não vira capa (D-184), então não ganha a estrela — pelo mesmo
+   * motivo das setas acima: um botão que nunca funciona não deve existir. E o
+   * texto da remoção diz o que está sendo removido.
+   */
+  kind?: MediaKind;
 }) {
+  const ehVideo = kind === "video";
+  const nome = ehVideo ? "vídeo" : "foto";
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>("parado");
   const [erro, setErro] = useState<string | null>(null);
@@ -83,20 +93,22 @@ export function PhotoActions({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-1">
-        <IconButton
-          label={isCover ? "Já é a capa" : "Usar como capa"}
-          icon={
-            <Star
-              className="size-4"
-              fill={isCover ? "currentColor" : "none"}
-              strokeWidth={1.75}
-            />
-          }
-          disabled={ocupado || isCover}
-          onClick={() =>
-            void executar(() => setCoverAction({ planId, mediaId }))
-          }
-        />
+        {ehVideo ? null : (
+          <IconButton
+            label={isCover ? "Já é a capa" : "Usar como capa"}
+            icon={
+              <Star
+                className="size-4"
+                fill={isCover ? "currentColor" : "none"}
+                strokeWidth={1.75}
+              />
+            }
+            disabled={ocupado || isCover}
+            onClick={() =>
+              void executar(() => setCoverAction({ planId, mediaId }))
+            }
+          />
+        )}
 
         {showReorder ? (
           <>
@@ -127,15 +139,15 @@ export function PhotoActions({
         <Dialog open={confirmRemoval} onOpenChange={setConfirmRemoval}>
           <DialogTrigger asChild>
             <IconButton
-              label="Remover foto"
+              label={`Remover ${nome}`}
               icon={<Trash2 className="size-4" />}
               disabled={ocupado}
               className="text-danger hover:bg-surface-sunken"
             />
           </DialogTrigger>
           <DialogContent
-            title="Remover esta foto?"
-            description="Ela será removida deste plano. Essa ação não pode ser desfeita."
+            title={ehVideo ? "Remover este vídeo?" : "Remover esta foto?"}
+            description={`${ehVideo ? "Ele" : "Ela"} será ${ehVideo ? "removido" : "removida"} deste plano. Essa ação não pode ser desfeita.`}
           >
             {erro ? (
               <p role="alert" className="type-body-s text-danger">
@@ -145,7 +157,7 @@ export function PhotoActions({
             <div className="flex flex-wrap justify-end gap-3">
               <DialogClose asChild>
                 <Button variant="secondary" disabled={ocupado}>
-                  Manter foto
+                  Manter {nome}
                 </Button>
               </DialogClose>
               <Button
@@ -159,7 +171,7 @@ export function PhotoActions({
                     setConfirmRemoval(false);
                 }}
               >
-                Remover foto
+                Remover {nome}
               </Button>
             </div>
           </DialogContent>

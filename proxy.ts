@@ -119,6 +119,11 @@ function documentCsp(nonce: string, hostname: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data:",
+    /* Vídeo (D-184). `'self'` é a rota autenticada `/api/media/[id]`, de onde
+       o `<video>` da Galeria toca; `blob:` é a prévia do arquivo escolhido na
+       gaveta de corte, que ainda está no aparelho e não subiu. Sem esta linha
+       o `default-src 'none'` barra os dois. */
+    "media-src 'self' blob:",
     "font-src 'self'",
     `connect-src 'self'${r2 ? ` ${r2}` : ""}`,
     "manifest-src 'self'",

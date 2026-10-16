@@ -19,16 +19,27 @@ export function SheetContent({
   description,
   children,
   className,
+  dismissOnOutside = true,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   className?: string;
+  /**
+   * `false` enquanto um trabalho longo roda dentro da gaveta — um vídeo sendo
+   * convertido. Um toque sem querer na parte escurecida da tela jogaria fora
+   * um minuto de conversão. O X e o Escape continuam fechando: são gestos
+   * deliberados.
+   */
+  dismissOnOutside?: boolean;
 }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[var(--scrim)] data-[state=open]:animate-[fade-in_var(--duration-standard)_var(--ease-standard)]" />
       <DialogPrimitive.Content
+        onInteractOutside={(event) => {
+          if (!dismissOnOutside) event.preventDefault();
+        }}
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col gap-5 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[32rem] sm:rounded-lg sm:border",
           "border-border-subtle bg-surface rounded-t-lg border-t p-5",

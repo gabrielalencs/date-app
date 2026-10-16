@@ -18,6 +18,10 @@
   --brand-fg: #ffffff;
   --on-photo: #ffffff;
   --photo-shade: rgb(14 23 29 / 0.76);
+  /* Fundo do vídeo, atrás das faixas de um vídeo em pé num quadro deitado.
+     Escuro nos dois temas: é o fundo de qualquer player, e o vídeo precisa
+     dele para as bordas não competirem com a imagem (D-184). */
+  --video-backdrop: #0e171d;
   --border: #e4ddd6;
   --border-strong: rgb(30 45 61 / 0.22);
   --text: #1e2d3d;
@@ -86,6 +90,7 @@
   --color-brand-hover: var(--brand-hover);
   --color-brand-fg: var(--brand-fg);
   --color-on-photo: var(--on-photo);
+  --color-video-backdrop: var(--video-backdrop);
   --color-border-subtle: var(--border);
   --color-border-strong: var(--border-strong);
   --color-text: var(--text);
@@ -455,6 +460,138 @@
   }
   .opinion-chip:disabled {
     opacity: 0.6;
+  }
+  /* A régua de corte do vídeo (D-184): duas alças nativas, uma por cima da
+     outra, sobre um trilho desenhado à parte.
+
+     Nativas porque `<input type="range">` já traz teclado, leitor de tela e
+     arrasto no toque — reimplementar isso à mão é o que o design system
+     proíbe. O input inteiro ignora o ponteiro e só a alça o recebe; sem isso,
+     a alça de cima tomaria todo toque no trilho e a de baixo seria
+     inalcançável.
+
+     A alça tem 44px de lado, que é o alvo de toque, e desenha dentro dele um
+     círculo de 24px: a área é do dedo, o círculo é do olho. O anel extra no
+     foco existe porque as duas alças compartilham a mesma caixa — o contorno
+     do input sozinho não diria qual das duas está com o foco. */
+  .trim-range {
+    position: relative;
+    height: 2.75rem;
+  }
+  .trim-range__track,
+  .trim-range__window {
+    position: absolute;
+    top: 50%;
+    height: 0.375rem;
+    border-radius: 9999px;
+    transform: translateY(-50%);
+  }
+  .trim-range__track {
+    left: 1.375rem;
+    right: 1.375rem;
+    background: var(--surface-sunken);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .trim-range__window {
+    background: var(--brand);
+  }
+  .trim-range input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 2.75rem;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .trim-range input::-webkit-slider-runnable-track {
+    height: 2.75rem;
+    background: transparent;
+    border: 0;
+  }
+  .trim-range input::-moz-range-track {
+    height: 2.75rem;
+    background: transparent;
+    border: 0;
+  }
+  .trim-range input::-webkit-slider-thumb {
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      var(--surface) 0 0.5rem,
+      var(--brand) calc(0.5rem + 0.5px) 0.75rem,
+      transparent calc(0.75rem + 0.5px)
+    );
+    cursor: grab;
+    pointer-events: auto;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .trim-range input::-moz-range-thumb {
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      var(--surface) 0 0.5rem,
+      var(--brand) calc(0.5rem + 0.5px) 0.75rem,
+      transparent calc(0.75rem + 0.5px)
+    );
+    cursor: grab;
+    pointer-events: auto;
+  }
+  .trim-range input:focus-visible::-webkit-slider-thumb {
+    background: radial-gradient(
+      circle,
+      var(--surface) 0 0.5rem,
+      var(--brand) calc(0.5rem + 0.5px) 0.75rem,
+      transparent calc(0.75rem + 0.5px) 0.875rem,
+      var(--ring) calc(0.875rem + 0.5px) 1rem,
+      transparent calc(1rem + 0.5px)
+    );
+  }
+  .trim-range input:focus-visible::-moz-range-thumb {
+    background: radial-gradient(
+      circle,
+      var(--surface) 0 0.5rem,
+      var(--brand) calc(0.5rem + 0.5px) 0.75rem,
+      transparent calc(0.75rem + 0.5px) 0.875rem,
+      var(--ring) calc(0.875rem + 0.5px) 1rem,
+      transparent calc(1rem + 0.5px)
+    );
+  }
+  .trim-range input:disabled::-webkit-slider-thumb {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .trim-range input:disabled::-moz-range-thumb {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  .trim-range[data-disabled="true"] .trim-range__window {
+    opacity: 0.55;
+  }
+  /* Progresso de uma etapa longa — converter e enviar um vídeo. Não é loop:
+     a barra só cresce com o trabalho feito, e sob reduced-motion a regra
+     global tira até a transição da largura. */
+  .progress-track {
+    height: 0.375rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--surface-sunken);
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--brand);
+    transition: width var(--duration-standard) var(--ease-standard);
   }
   /* A fila de chips rola, e o corte precisa parecer corte de rolagem.
 

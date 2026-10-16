@@ -1,6 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { MAX_BYTES, SIGNED_URL_TTL_SECONDS } from "@/features/media/constants";
+import {
+  MAX_BYTES,
+  MAX_VIDEO_BYTES,
+  SIGNED_URL_TTL_SECONDS,
+} from "@/features/media/constants";
 
 /**
  * Regressão da armadilha do presigner (verificada em @aws-sdk/client-s3
@@ -81,15 +85,42 @@ describe("signUpload", () => {
     expect(assinada.url).not.toContain(SEGREDO_FALSO);
   });
 
-  it("recusa MIME fora dos três permitidos", async () => {
+  it("recusa MIME fora da lista", async () => {
     for (const contentType of [
       "image/gif",
       "image/svg+xml",
       "text/html",
       "application/octet-stream",
+      "video/quicktime",
+      "video/webm",
     ]) {
       await expect(assinar({ contentType })).rejects.toThrow(/não permitido/);
     }
+  });
+
+  it("assina vídeo no full com o teto de vídeo, e fixa o tipo", async () => {
+    const { assinada, query } = await assinar({
+      objectKey: CHAVE.replace("full.webp", "full.mp4"),
+      contentType: "video/mp4",
+      contentLength: MAX_VIDEO_BYTES,
+    });
+
+    expect(assinada.contentType).toBe("video/mp4");
+    expect(query.get("X-Amz-SignedHeaders")).toContain("content-type");
+
+    await expect(
+      assinar({ contentType: "video/mp4", contentLength: MAX_VIDEO_BYTES + 1 }),
+    ).rejects.toThrow(/fora do permitido/);
+  });
+
+  it("o thumb nunca é vídeo, nem num vídeo", async () => {
+    await expect(
+      assinar({
+        variant: "thumb",
+        contentType: "video/mp4",
+        contentLength: 10,
+      }),
+    ).rejects.toThrow(/não permitido/);
   });
 
   it("recusa tamanho acima do teto da variante", async () => {

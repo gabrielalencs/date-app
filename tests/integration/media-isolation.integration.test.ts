@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import * as schema from "@/db/schema/index.ts";
 import {
+  confirmUpload,
   removeMedia,
   reorderPlanMedia,
   setPlanCover,
@@ -245,6 +246,154 @@ describe("invariantes da capa", () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 });
+
+/**
+ * Vídeo (D-184). Toda recusa aqui acontece antes de qualquer chamada ao R2 —
+ * é regra de lugar e de forma, conferida pela camada de dados mesmo que a
+ * action seja chamada direto, sem a tela.
+ */
+describe("vídeo: só na Galeria, nunca capa, sempre com duração", () => {
+  /** Linha de vídeo direto no banco: aqui interessa a regra, não os bytes. */
+  async function inserirVideo(duracao: number | null = 8_000): Promise<string> {
+    const keys = buildObjectKeys({
+      workspaceId: WORKSPACE_B,
+      planId: planoDeB,
+      mediaUuid: crypto.randomUUID(),
+      kind: "video",
+    });
+
+    const [row] = await database
+      .insert(schema.media)
+      .values({
+        workspaceId: WORKSPACE_B,
+        planId: planoDeB,
+        objectKey: keys.full,
+        thumbObjectKey: keys.thumb,
+        mimeType: "video/mp4",
+        sizeBytes: 18_000_000,
+        width: 720,
+        height: 1280,
+        durationMs: duracao,
+        purpose: "memory",
+        position: 9,
+        uploadedBy: PROFILE_B,
+      })
+      .returning({ id: schema.media.id });
+
+    return row!.id;
+  }
+
+  it("listPlanMedia devolve o tipo e a duração, que a grade usa", async () => {
+    const video = await inserirVideo();
+
+    const lista = await listPlanMedia(ctxB, planoDeB);
+    expect(lista.find((m) => m.id === video)).toMatchObject({
+      mimeType: "video/mp4",
+      durationMs: 8_000,
+    });
+
+    await removeMediaLinha(video);
+  });
+
+  it("setPlanCover recusa vídeo, e a capa anterior continua", async () => {
+    const video = await inserirVideo();
+    const antes = (await getPlan(ctxB, planoDeB)).coverMediaId;
+
+    await expect(setPlanCover(ctxB, planoDeB, video)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    expect((await getPlan(ctxB, planoDeB)).coverMediaId).toBe(antes);
+
+    await removeMediaLinha(video);
+  });
+
+  it("startUpload recusa vídeo fora da Galeria, antes de assinar", async () => {
+    for (const purpose of ["cover", "gallery"] as const) {
+      await expect(
+        startUpload(ctxB, {
+          planId: planoDeB,
+          purpose,
+          contentType: "video/mp4",
+          sizes: { full: 1_000_000, thumb: 40_000 },
+        }),
+      ).rejects.toThrow(/só entra pela Galeria/);
+    }
+  });
+
+  it("startUpload recusa vídeo acima do teto de bytes", async () => {
+    await expect(
+      startUpload(ctxB, {
+        planId: planoDeB,
+        purpose: "memory",
+        contentType: "video/mp4",
+        sizes: { full: 41 * 1024 * 1024, thumb: 40_000 },
+      }),
+    ).rejects.toThrow(/acima do limite/);
+  });
+
+  it("confirmUpload recusa vídeo sem duração, longo demais ou fora da Galeria", async () => {
+    const base = {
+      planId: planoDeB,
+      uploadId: crypto.randomUUID(),
+      width: 720,
+      height: 1280,
+      kind: "video" as const,
+    };
+
+    await expect(
+      confirmUpload(ctxB, { ...base, purpose: "memory" }),
+    ).rejects.toThrow(/até 60 segundos/);
+    await expect(
+      confirmUpload(ctxB, { ...base, purpose: "memory", durationMs: 61_001 }),
+    ).rejects.toThrow(/até 60 segundos/);
+    await expect(
+      confirmUpload(ctxB, { ...base, purpose: "cover", durationMs: 8_000 }),
+    ).rejects.toThrow(/só entra pela Galeria/);
+  });
+
+  it("confirmUpload recusa foto com duração", async () => {
+    await expect(
+      confirmUpload(ctxB, {
+        planId: planoDeB,
+        uploadId: crypto.randomUUID(),
+        purpose: "memory",
+        width: 2000,
+        height: 1500,
+        durationMs: 8_000,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("o banco recusa vídeo sem duração e foto com duração", async () => {
+    await expect(inserirVideo(null)).rejects.toThrow();
+
+    const keys = buildObjectKeys({
+      workspaceId: WORKSPACE_B,
+      planId: planoDeB,
+      mediaUuid: crypto.randomUUID(),
+    });
+    await expect(
+      database.insert(schema.media).values({
+        workspaceId: WORKSPACE_B,
+        planId: planoDeB,
+        objectKey: keys.full,
+        thumbObjectKey: keys.thumb,
+        mimeType: "image/webp",
+        sizeBytes: 1_234,
+        durationMs: 8_000,
+        purpose: "memory",
+        uploadedBy: PROFILE_B,
+      }),
+    ).rejects.toThrow();
+
+    await expect(inserirVideo(0)).rejects.toThrow();
+  });
+});
+
+/** Apaga só a linha: a mídia inserida direto nunca teve objeto no R2. */
+async function removeMediaLinha(id: string): Promise<void> {
+  await database.delete(schema.media).where(eq(schema.media.id, id));
+}
 
 describe("a assinatura não deixa o caller escolher workspace nem chave", () => {
   it("as funções de mídia recebem contexto primeiro e só ids depois", () => {

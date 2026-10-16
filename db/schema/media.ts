@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   pgTable,
@@ -27,6 +28,12 @@ import { plans } from "./plans.ts";
  * O unique global de `object_key` cobre os dois: as duas chaves compartilham o
  * segmento uuid, então thumb duplicado implicaria full duplicado, que já é
  * impossível.
+ *
+ * **Vídeo** (D-184) é a mesma linha: `mime_type = 'video/mp4'`, `object_key`
+ * terminando em `full.mp4`, o `thumb` sendo o pôster em WebP, e `duration_ms`
+ * preenchido. Duração existe se e somente se a linha é vídeo — foto com
+ * duração ou vídeo sem ela são estados impossíveis, e estado impossível vive
+ * no banco (D-065).
  */
 export const media = pgTable(
   "media",
@@ -41,6 +48,8 @@ export const media = pgTable(
     sizeBytes: integer("size_bytes").notNull(),
     width: integer("width"),
     height: integer("height"),
+    /** Só vídeo. Declarada pelo cliente, como largura e altura. */
+    durationMs: integer("duration_ms"),
     purpose: mediaPurpose("purpose").notNull(),
     // Ciclo media <-> plans resolvido pelo callback lazy do references.
     planId: uuid("plan_id").references((): AnyPgColumn => plans.id, {
@@ -56,6 +65,14 @@ export const media = pgTable(
   },
   (table) => [
     unique("media_object_key_unique").on(table.objectKey),
+    check(
+      "media_duration_positive",
+      sql`${table.durationMs} is null or ${table.durationMs} > 0`,
+    ),
+    check(
+      "media_duration_iff_video",
+      sql`(${table.mimeType} like 'video/%') = (${table.durationMs} is not null)`,
+    ),
     index("media_workspace_id_idx").on(table.workspaceId),
     index("media_plan_id_idx").on(table.planId),
     index("media_uploaded_by_idx").on(table.uploadedBy),

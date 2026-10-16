@@ -42,6 +42,18 @@ describe("buildObjectKeys", () => {
     }
   });
 
+  it("vídeo ganha full.mp4, e o pôster continua thumb.webp", () => {
+    const keys = buildObjectKeys({
+      workspaceId: WORKSPACE_A,
+      planId: PLANO,
+      mediaUuid: UPLOAD,
+      kind: "video",
+    });
+
+    expect(keys.full).toBe(`${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.mp4`);
+    expect(keys.thumb).toBe(`${WORKSPACE_A}/${PLANO}/${UPLOAD}/thumb.webp`);
+  });
+
   it("não deixa o plano carregar travessia de caminho", () => {
     expect(() =>
       buildObjectKeys({
@@ -54,18 +66,25 @@ describe("buildObjectKeys", () => {
 });
 
 describe("isWellFormedObjectKey", () => {
-  it("aceita só as duas formas que o servidor gera", () => {
+  it("aceita só as formas que o servidor gera", () => {
     expect(
       isWellFormedObjectKey(`${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.webp`),
     ).toBe(true);
     expect(
       isWellFormedObjectKey(`${WORKSPACE_A}/${PLANO}/${UPLOAD}/thumb.webp`),
     ).toBe(true);
+    expect(
+      isWellFormedObjectKey(`${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.mp4`),
+    ).toBe(true);
   });
 
   it("recusa o resto", () => {
     for (const ruim of [
       `${WORKSPACE_A}/${PLANO}/${UPLOAD}/original.jpg`,
+      // O pôster é sempre imagem; um thumb de vídeo não é forma do servidor.
+      `${WORKSPACE_A}/${PLANO}/${UPLOAD}/thumb.mp4`,
+      `${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.mov`,
+      `${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.mp4.webp`,
       `${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.webp/../../x`,
       `${WORKSPACE_A}/${PLANO}/full.webp`,
       `/${WORKSPACE_A}/${PLANO}/${UPLOAD}/full.webp`,

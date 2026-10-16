@@ -59,6 +59,13 @@ const criadas: string[] = [];
    objeto órfão — comportamento correto por desenho (D-053), mas não é motivo
    para o teste sujar o bucket a cada execução. */
 const assinados: string[] = [];
+/* Os de vídeo à parte: a chave do `full` termina em `.mp4`. */
+const assinadosVideo: string[] = [];
+
+/* Vídeo (D-184): bytes reconhecíveis, de novo sem precisar ser MP4 de verdade
+   — o servidor não decodifica vídeo, como não decodifica foto. */
+const RECHEIO_VIDEO = "DATE-D184-VIDEO-";
+const VIDEO = new Blob([RECHEIO_VIDEO.repeat(4096)], { type: "video/mp4" });
 
 async function put(
   url: string,
@@ -135,6 +142,15 @@ afterAll(async () => {
       workspaceId: WORKSPACE_A,
       planId: PLANO,
       mediaUuid: uploadId,
+    });
+    await deleteObjects([keys.full, keys.thumb]);
+  }
+  for (const uploadId of assinadosVideo) {
+    const keys = buildObjectKeys({
+      workspaceId: WORKSPACE_A,
+      planId: PLANO,
+      mediaUuid: uploadId,
+      kind: "video",
     });
     await deleteObjects([keys.full, keys.thumb]);
   }
@@ -279,6 +295,68 @@ describe("ciclo completo contra o date-media-dev", () => {
         sizes: { full: MAX_BYTES.full + 1, thumb: THUMB.size },
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("vídeo: sobe como mp4 com pôster webp, grava a duração e é lido em pedaços", async () => {
+    const started = await startUpload(ctx, {
+      planId: PLANO,
+      purpose: "memory",
+      contentType: "video/mp4",
+      sizes: { full: VIDEO.size, thumb: THUMB.size },
+    });
+    assinadosVideo.push(started.uploadId);
+
+    // O full é vídeo; o pôster continua imagem.
+    expect(started.full.contentType).toBe("video/mp4");
+    expect(started.thumb.contentType).toBe("image/webp");
+
+    expect(await put(started.full.url, VIDEO, "video/mp4")).toBe(200);
+    expect(await put(started.thumb.url, THUMB)).toBe(200);
+
+    const row = await confirmUpload(ctx, {
+      planId: PLANO,
+      uploadId: started.uploadId,
+      purpose: "memory",
+      kind: "video",
+      width: 720,
+      height: 1280,
+      durationMs: 42_000,
+    });
+    criadas.push(row.id);
+
+    expect(row).toMatchObject({
+      mimeType: "video/mp4",
+      sizeBytes: VIDEO.size,
+      durationMs: 42_000,
+      purpose: "memory",
+    });
+    expect(row.objectKey).toMatch(/\/full\.mp4$/);
+
+    // Um pedaço do meio, como o `<video>` pede ao pular.
+    const alvo = await getMediaObject(ctx, row.id, "full");
+    const pedaco = await getObject(alvo.objectKey, "bytes=16-47");
+    expect(pedaco).not.toBeNull();
+    expect(pedaco!.sizeBytes).toBe(32);
+    const texto = new TextDecoder().decode(
+      await new Response(pedaco!.body).arrayBuffer(),
+    );
+    expect(texto).toBe(RECHEIO_VIDEO.repeat(2));
+
+    await removeMedia(ctx, row.id);
+    criadas.pop();
+    expect(await headObject(alvo.objectKey)).toBeNull();
+  });
+
+  it("vídeo: o R2 recusa PUT de imagem na URL assinada para mp4", async () => {
+    const started = await startUpload(ctx, {
+      planId: PLANO,
+      purpose: "memory",
+      contentType: "video/mp4",
+      sizes: { full: VIDEO.size, thumb: THUMB.size },
+    });
+    assinadosVideo.push(started.uploadId);
+
+    expect(await put(started.full.url, VIDEO, "image/webp")).toBe(403);
   });
 
   it("o bucket é privado: GET sem credencial não devolve o objeto", async () => {

@@ -20,12 +20,19 @@ import { NotFoundError } from "@/lib/errors";
  */
 export type MediaRow = typeof media.$inferSelect;
 
+/**
+ * Uma foto **ou um vídeo** do plano (D-184). O nome ficou: a grade, as ações
+ * e o seletor continuam sendo "de fotos" para quem lê o código, e o vídeo é
+ * uma foto que tem `mimeType` de vídeo e duração.
+ */
 export type PlanPhoto = {
   id: string;
   purpose: MediaRow["purpose"];
   position: number;
   width: number | null;
   height: number | null;
+  mimeType: string;
+  durationMs: number | null;
   createdAt: Date;
 };
 
@@ -35,6 +42,8 @@ const PHOTO_COLUMNS = {
   position: media.position,
   width: media.width,
   height: media.height,
+  mimeType: media.mimeType,
+  durationMs: media.durationMs,
   createdAt: media.createdAt,
 } as const;
 

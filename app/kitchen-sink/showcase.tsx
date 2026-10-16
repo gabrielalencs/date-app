@@ -27,8 +27,12 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/ui/status-pill";
+import { TrimRange } from "@/features/media/components/trim-range";
+import { VideoPosterMarks } from "@/features/media/components/video-tile";
+import type { TrimWindow } from "@/features/media/video/trim-window";
 import { PLAN_STATUSES } from "@/lib/status";
 
 const COLOR_TOKENS = [
@@ -76,6 +80,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function KitchenSinkShowcase() {
   const [selectedChip, setSelectedChip] = useState("Todos");
+  const [trecho, setTrecho] = useState<TrimWindow>({ start: 0, end: 60 });
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-4">
@@ -444,6 +449,51 @@ export function KitchenSinkShowcase() {
           description="Salve um link ou escreva uma ideia para começar a decidir junto."
           action={<Button variant="primary">Criar ideia</Button>}
         />
+      </Section>
+
+      <Section title="Vídeo">
+        <div className="grid items-start gap-8 lg:grid-cols-[1fr_1fr_12rem]">
+          <div className="flex flex-col gap-4">
+            <p className="type-meta text-text-muted">
+              TrimRange — vídeo de 10:00, trecho no teto. No teto, o início
+              desliza o trecho; o fim encurta.
+            </p>
+            <TrimRange
+              duration={600}
+              value={trecho}
+              onChange={(proximo) => setTrecho(proximo)}
+            />
+            <p className="type-meta text-text-muted">Desabilitado</p>
+            <TrimRange
+              duration={600}
+              value={{ start: 120, end: 162.5 }}
+              onChange={() => {}}
+              disabled
+            />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <p className="type-meta text-text-muted">
+              Progress — etapa longa, com nome e número. Não é spinner.
+            </p>
+            <Progress value={0.34} label="Preparando o vídeo" />
+            <Progress value={0.86} label="Enviando" />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <p className="type-meta text-text-muted">Ladrilho de vídeo</p>
+            <div className="border-border-subtle relative aspect-square w-48 overflow-hidden rounded-md border">
+              <Image
+                src="/brand/photos/coast.webp"
+                alt=""
+                fill
+                sizes="12rem"
+                className="object-cover"
+              />
+              <VideoPosterMarks durationMs={42_000} />
+            </div>
+          </div>
+        </div>
       </Section>
 
       <Section title="Sheet e Dialog">

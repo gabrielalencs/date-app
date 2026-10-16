@@ -338,8 +338,8 @@ export default async function Page({
               showReorder={false}
               title="Galeria"
               uploadPurpose="memory"
-              addLabel="Adicionar foto"
-              emptyText="Nenhuma foto ainda. Depois do rolê, é aqui que ficam as que vocês tiraram."
+              addLabel="Adicionar foto ou vídeo"
+              emptyText="Nada aqui ainda. Depois do rolê, é aqui que ficam as fotos e os vídeos que vocês fizeram."
               readOnly={somenteLeitura}
               canAdd={realizado}
             />

@@ -253,6 +253,23 @@ async function encodeWithinCap<TImage extends DecodedImage>(
 }
 
 /**
+ * A miniatura de uma imagem já decodificada. Mora fora de `processImageFile`
+ * porque o pôster de um vídeo (D-184) é exatamente isto: um quadro, reduzido
+ * para a grade pelo mesmo encode e pela mesma escada.
+ */
+export async function encodeThumbnail<TImage extends DecodedImage>(
+  runtime: ImageRuntime<TImage>,
+  image: TImage,
+): Promise<ProcessedVariant> {
+  return encodeWithinCap(
+    runtime,
+    image,
+    "thumb",
+    scaleToFit({ width: image.width, height: image.height }, MAX_EDGE.thumb),
+  );
+}
+
+/**
  * Recebe o `File` do input e devolve as duas saídas prontas para o PUT.
  * Nenhum acesso a rede: quem sobe é o chamador.
  */
@@ -287,12 +304,7 @@ export async function processImageFile<TImage extends DecodedImage>(
       "full",
       scaleToFit(source, MAX_EDGE.full),
     );
-    const thumb = await encodeWithinCap(
-      runtime,
-      image,
-      "thumb",
-      scaleToFit(source, MAX_EDGE.thumb),
-    );
+    const thumb = await encodeThumbnail(runtime, image);
 
     return { full, thumb, source };
   } finally {

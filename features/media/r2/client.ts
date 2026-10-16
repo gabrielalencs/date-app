@@ -11,9 +11,9 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import {
-  MAX_BYTES,
   SIGNED_URL_TTL_SECONDS,
-  isAllowedUploadMime,
+  isAllowedForVariant,
+  maxBytesFor,
   type MediaVariant,
 } from "@/features/media/constants";
 import type { SignedUpload } from "@/features/media/contract";
@@ -93,11 +93,13 @@ export async function signUpload(input: {
   contentType: string;
   contentLength: number;
 }): Promise<SignedUpload> {
-  if (!isAllowedUploadMime(input.contentType)) {
-    throw new R2Error("Tipo de imagem não permitido.");
+  /* O `thumb` só aceita imagem, mesmo num vídeo: ele é o pôster, desenhado com
+     `<img>` em toda grade. */
+  if (!isAllowedForVariant(input.variant, input.contentType)) {
+    throw new R2Error("Tipo de arquivo não permitido.");
   }
 
-  const teto = MAX_BYTES[input.variant];
+  const teto = maxBytesFor(input.variant, input.contentType);
   if (
     !Number.isSafeInteger(input.contentLength) ||
     input.contentLength <= 0 ||
@@ -184,13 +186,26 @@ export type ObjectBody = {
   sizeBytes: number | undefined;
 };
 
-/** Lê os bytes para a rota `/api/media/[id]` devolver. */
-export async function getObject(objectKey: string): Promise<ObjectBody | null> {
+/**
+ * Lê os bytes para a rota `/api/media/[id]` devolver.
+ *
+ * `range` é o cabeçalho já resolvido e limitado pela rota (`bytes=a-b`, nunca
+ * o que o navegador mandou cru): o R2 devolve só aquele pedaço, e
+ * `sizeBytes` passa a ser o tamanho do pedaço (D-184).
+ */
+export async function getObject(
+  objectKey: string,
+  range?: string,
+): Promise<ObjectBody | null> {
   const { client, config } = r2();
 
   try {
     const object = await client.send(
-      new GetObjectCommand({ Bucket: config.bucket, Key: objectKey }),
+      new GetObjectCommand({
+        Bucket: config.bucket,
+        Key: objectKey,
+        ...(range ? { Range: range } : {}),
+      }),
     );
 
     if (!object.Body) {

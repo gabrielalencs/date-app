@@ -24,8 +24,24 @@ import {
  * precisa saber por onde a imagem entrou.
  */
 type BitmapImage = DecodedImage & {
-  bitmap: ImageBitmap | HTMLImageElement;
+  bitmap: ImageBitmap | HTMLImageElement | HTMLCanvasElement | OffscreenCanvas;
 };
+
+/**
+ * Um canvas já desenhado, pronto para o mesmo encode da foto. É por aqui que
+ * entra o pôster do vídeo (D-184): o quadro sai da biblioteca de vídeo num
+ * canvas, e daí em diante é uma imagem como outra qualquer.
+ */
+export function imageFromCanvas(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+): BitmapImage {
+  return {
+    bitmap: canvas,
+    width: canvas.width,
+    height: canvas.height,
+    close: () => {},
+  };
+}
 
 const SEM_WEBP =
   "Este navegador não conseguiu gerar a imagem no formato usado pelo DATE. " +

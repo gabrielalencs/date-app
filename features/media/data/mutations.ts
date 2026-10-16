@@ -5,8 +5,17 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { media, plans } from "@/db/schema/index.ts";
 import {
-  MAX_BYTES,
+  MAX_VIDEO_DURATION_MS,
+  MAX_VIDEO_SECONDS,
+  OUTPUT_MIME,
+  acceptsVideo,
+  isAllowedForVariant,
   isAllowedUploadMime,
+  isImageMime,
+  isVideoMime,
+  maxBytesFor,
+  mediaKindOf,
+  type MediaKind,
   type MediaVariant,
   type UploadablePurpose,
 } from "@/features/media/constants";
@@ -35,11 +44,20 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
  *    (seção 5).
  * 3. Na remoção, a linha morre antes do objeto. Objeto órfão custa kilobytes;
  *    linha apontando para objeto inexistente é imagem quebrada (D-053).
+ *
+ * Vídeo (D-184) passa pelos mesmos três. O que ele acrescenta é regra de
+ * lugar: só entra com `purpose = 'memory'` — a Galeria — e nunca vira capa.
+ * As duas regras são conferidas aqui, na assinatura **e** na confirmação, e
+ * não só na tela: o frontend não é fonte de autoridade.
  */
+
+const VIDEO_SO_NA_GALERIA =
+  "Vídeo só entra pela Galeria, depois do rolê. A capa precisa ser uma foto.";
 
 export type StartUploadInput = {
   planId: string;
   purpose: UploadablePurpose;
+  /** MIME do `full`. Num vídeo, o `thumb` é sempre WebP: é o pôster. */
   contentType: string;
   /** Bytes medidos pelo browser. Entram na assinatura, não no banco. */
   sizes: Readonly<Record<MediaVariant, number>>;
@@ -54,17 +72,34 @@ export async function startUpload(
   input: StartUploadInput,
 ): Promise<StartedUpload> {
   if (!isAllowedUploadMime(input.contentType)) {
-    throw new ValidationError("Tipo de imagem não permitido.");
+    throw new ValidationError("Tipo de arquivo não permitido.");
   }
 
-  for (const variant of ["full", "thumb"] as const) {
+  const kind = mediaKindOf(input.contentType);
+
+  if (kind === "video" && !acceptsVideo(input.purpose)) {
+    throw new ValidationError(VIDEO_SO_NA_GALERIA);
+  }
+
+  /* O pôster de um vídeo é o WebP que o aparelho sempre produz; o `thumb` de
+     uma foto acompanha o tipo da foto, como sempre foi. */
+  const thumbContentType = kind === "video" ? OUTPUT_MIME : input.contentType;
+
+  for (const [variant, contentType] of [
+    ["full", input.contentType],
+    ["thumb", thumbContentType],
+  ] as const) {
     const bytes = input.sizes[variant];
     if (
       !Number.isSafeInteger(bytes) ||
       bytes <= 0 ||
-      bytes > MAX_BYTES[variant]
+      bytes > maxBytesFor(variant, contentType)
     ) {
-      throw new ValidationError("Essa imagem está acima do limite de envio.");
+      throw new ValidationError(
+        kind === "video"
+          ? "Esse vídeo está acima do limite de envio."
+          : "Essa imagem está acima do limite de envio.",
+      );
     }
   }
 
@@ -75,6 +110,7 @@ export async function startUpload(
     workspaceId: ctx.workspaceId,
     planId: input.planId,
     mediaUuid: uploadId,
+    kind,
   });
 
   const [full, thumb] = await Promise.all([
@@ -87,7 +123,7 @@ export async function startUpload(
     signUpload({
       objectKey: keys.thumb,
       variant: "thumb",
-      contentType: input.contentType,
+      contentType: thumbContentType,
       contentLength: input.sizes.thumb,
     }),
   ]);
@@ -101,7 +137,38 @@ export type ConfirmUploadInput = {
   purpose: UploadablePurpose;
   width: number;
   height: number;
+  /** Ausente é foto: é o que todo cliente anterior ao D-184 manda. */
+  kind?: MediaKind;
+  /** Obrigatória em vídeo, proibida em foto. */
+  durationMs?: number;
 };
+
+/**
+ * O par (tipo, duração) que a confirmação pode gravar. Recusa aqui, com
+ * frase, o que o CHECK do banco recusaria com erro cru.
+ */
+function durationFor(input: ConfirmUploadInput): number | null {
+  if (input.kind !== "video") {
+    if (input.durationMs !== undefined) {
+      throw new ValidationError("Foto não tem duração.");
+    }
+    return null;
+  }
+
+  const ms = input.durationMs;
+  if (
+    ms === undefined ||
+    !Number.isSafeInteger(ms) ||
+    ms <= 0 ||
+    ms > MAX_VIDEO_DURATION_MS
+  ) {
+    throw new ValidationError(
+      `O vídeo precisa ter até ${MAX_VIDEO_SECONDS} segundos.`,
+    );
+  }
+
+  return ms;
+}
 
 export type MediaRow = typeof media.$inferSelect;
 
@@ -112,12 +179,25 @@ export async function confirmUpload(
   ctx: AuthorizedContext,
   input: ConfirmUploadInput,
 ): Promise<MediaRow> {
+  const kind = input.kind ?? "image";
+
+  if (kind === "video" && !acceptsVideo(input.purpose)) {
+    throw new ValidationError(VIDEO_SO_NA_GALERIA);
+  }
+
+  const durationMs = durationFor({ ...input, kind });
+
   await assertPlanInWorkspace(ctx, input.planId);
 
+  /* A extensão da chave vem do tipo declarado. Um cliente que diga "vídeo"
+     tendo subido foto procura `full.mp4`, não acha, e cai no NotFound abaixo
+     — e o content-type que o R2 reporta é conferido logo depois de qualquer
+     forma. */
   const keys = buildObjectKeys({
     workspaceId: ctx.workspaceId,
     planId: input.planId,
     mediaUuid: input.uploadId,
+    kind,
   });
 
   const [fullFacts, thumbFacts] = await Promise.all([
@@ -126,19 +206,33 @@ export async function confirmUpload(
   ]);
 
   if (!fullFacts || !thumbFacts) {
-    throw new NotFoundError("Imagem enviada");
+    throw new NotFoundError(
+      kind === "video" ? "Vídeo enviado" : "Imagem enviada",
+    );
   }
 
   /* O que vai para o banco é o que o R2 reporta. Se o cliente declarou 1 MB e
-     subiu outra coisa, é este par que conta. */
+     subiu outra coisa, é este par que conta. O tipo também: um vídeo precisa
+     ter chegado como `video/mp4`, uma foto como imagem, e o `thumb` dos dois
+     como imagem. */
+  const tipoConfere =
+    kind === "video"
+      ? isVideoMime(fullFacts.contentType)
+      : isImageMime(fullFacts.contentType);
+
   if (
-    !isAllowedUploadMime(fullFacts.contentType) ||
-    fullFacts.sizeBytes > MAX_BYTES.full ||
-    thumbFacts.sizeBytes > MAX_BYTES.thumb
+    !tipoConfere ||
+    !isAllowedForVariant("thumb", thumbFacts.contentType) ||
+    fullFacts.sizeBytes > maxBytesFor("full", fullFacts.contentType) ||
+    thumbFacts.sizeBytes > maxBytesFor("thumb", thumbFacts.contentType)
   ) {
     // Objeto reprovado não vira linha; ele fica órfão e é faxina futura.
     await deleteObjects([keys.full, keys.thumb]);
-    throw new ValidationError("A imagem enviada não passou na conferência.");
+    throw new ValidationError(
+      kind === "video"
+        ? "O vídeo enviado não passou na conferência."
+        : "A imagem enviada não passou na conferência.",
+    );
   }
 
   return db.transaction(async (tx) => {
@@ -155,6 +249,7 @@ export async function confirmUpload(
         sizeBytes: fullFacts.sizeBytes,
         width: input.width,
         height: input.height,
+        durationMs,
         purpose: input.purpose,
         position,
         uploadedBy: ctx.profileId,
@@ -216,7 +311,7 @@ export async function setPlanCover(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [foto] = await tx
-      .select({ id: media.id })
+      .select({ id: media.id, mimeType: media.mimeType })
       .from(media)
       .where(
         and(
@@ -229,6 +324,13 @@ export async function setPlanCover(
 
     if (!foto) {
       throw new NotFoundError("Imagem");
+    }
+
+    /* A capa é desenhada com `<img>` em cinco telas (D-184). A tela nem
+       oferece a estrela num vídeo; esta é a recusa para quem chamar a action
+       direto. */
+    if (isVideoMime(foto.mimeType)) {
+      throw new ValidationError("Vídeo não pode ser capa. Escolha uma foto.");
     }
 
     await promoteToCover(tx, ctx, planId, foto.id);

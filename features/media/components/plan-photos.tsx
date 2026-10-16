@@ -5,7 +5,11 @@ import { Camera } from "lucide-react";
 import { MediaImage } from "@/features/media/components/media-image";
 import { PhotoActions } from "@/features/media/components/photo-actions";
 import { PhotoPicker } from "@/features/media/components/photo-picker";
-import type { UploadablePurpose } from "@/features/media/constants";
+import { VideoTile } from "@/features/media/components/video-tile";
+import {
+  isVideoMime,
+  type UploadablePurpose,
+} from "@/features/media/constants";
 import type { PlanPhoto } from "@/features/media/data/queries";
 
 /**
@@ -135,18 +139,31 @@ export function PlanPhotos({
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {photos.map((photo) => {
             const ehCapa = photo.id === coverMediaId;
+            /* Vídeo é uma linha de `media` como a foto (D-184): mesma grade,
+               mesmo quadrado. Muda o que se desenha dentro dele e o que tocar
+               faz. A duração vem do banco, onde o CHECK garante que todo vídeo
+               a tem — o `?? 0` só existe para o tipo. */
+            const ehVideo = isVideoMime(photo.mimeType);
 
             return (
               <li key={photo.id} className="flex flex-col gap-2">
                 <div className="border-border-subtle relative aspect-square w-full overflow-hidden rounded-md border">
-                  <MediaImage
-                    mediaId={photo.id}
-                    alt={
-                      ehCapa ? `Capa de ${planTitle}` : `Foto de ${planTitle}`
-                    }
-                    variant="thumb"
-                    sizes="(min-width: 1024px) 12rem, (min-width: 640px) 30vw, 45vw"
-                  />
+                  {ehVideo ? (
+                    <VideoTile
+                      mediaId={photo.id}
+                      planTitle={planTitle}
+                      durationMs={photo.durationMs ?? 0}
+                    />
+                  ) : (
+                    <MediaImage
+                      mediaId={photo.id}
+                      alt={
+                        ehCapa ? `Capa de ${planTitle}` : `Foto de ${planTitle}`
+                      }
+                      variant="thumb"
+                      sizes="(min-width: 1024px) 12rem, (min-width: 640px) 30vw, 45vw"
+                    />
+                  )}
                   {ehCapa ? (
                     <span className="bg-surface type-meta absolute top-2 left-2 rounded-full px-2.5 py-0.5">
                       Capa
@@ -158,6 +175,7 @@ export function PlanPhotos({
                     planId={planId}
                     mediaId={photo.id}
                     isCover={ehCapa}
+                    kind={ehVideo ? "video" : "image"}
                     showReorder={showReorder}
                     canMoveUp={visiveis.indexOf(photo.id) > 0}
                     canMoveDown={

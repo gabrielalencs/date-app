@@ -75,6 +75,21 @@ export async function limparMidiaDosPlanos(
     ),
   );
 
+  await removerObjetos(
+    linhas.flatMap((linha) => [linha.objectKey, linha.thumbObjectKey]),
+  );
+
+  return linhas.length;
+}
+
+/**
+ * Apaga objetos do bucket de development pela chave. Para o que sobe e não
+ * vira linha — o pôster de uma tentativa que falhou de propósito no teste —,
+ * que `limparMidiaDosPlanos` não alcança, porque ela parte das linhas.
+ */
+export async function removerObjetos(keys: readonly string[]): Promise<void> {
+  if (keys.length === 0) return;
+
   const { config } = resolveR2(process.env);
   const client = new S3Client({
     region: "auto",
@@ -86,15 +101,11 @@ export async function limparMidiaDosPlanos(
     },
   });
 
-  for (const linha of linhas) {
-    for (const Key of [linha.objectKey, linha.thumbObjectKey]) {
-      await client
-        .send(new DeleteObjectCommand({ Bucket: config.bucket, Key }))
-        .catch(() => {});
-    }
+  for (const Key of keys) {
+    await client
+      .send(new DeleteObjectCommand({ Bucket: config.bucket, Key }))
+      .catch(() => {});
   }
-
-  return linhas.length;
 }
 
 export { schema };
