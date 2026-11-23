@@ -13,6 +13,7 @@ import {
 } from "@/features/media/actions/media-actions";
 import { TrimRange } from "@/features/media/components/trim-range";
 import { MAX_VIDEO_SECONDS } from "@/features/media/constants";
+import { manterTelaAcesa } from "@/features/media/keep-screen-on";
 import { putWithProgress } from "@/features/media/put-with-progress";
 import {
   uploadVideo,
@@ -70,32 +71,20 @@ function fracaoDe(etapa: VideoUploadStage): number {
   return etapa.stage === "salvando" ? 1 : etapa.fraction;
 }
 
-/**
- * Converter um minuto de vídeo leva tempo, e o Android apaga a tela e congela
- * a aba nesse meio-tempo. Pedir a tela acesa durante o trabalho é o que deixa
- * a pessoa largar o celular na mesa. Sem suporte, segue sem.
- */
-async function manterTelaAcesa(): Promise<() => void> {
-  if (typeof navigator === "undefined" || !("wakeLock" in navigator)) {
-    return () => {};
-  }
-
-  try {
-    const trava = await navigator.wakeLock.request("screen");
-    return () => void trava.release().catch(() => {});
-  } catch {
-    return () => {};
-  }
-}
-
 export function VideoTrimSheet({
   file,
   planId,
+  queue,
   onClose,
   onUploaded,
 }: {
   file: File;
   planId: string;
+  /**
+   * Onde este vídeo está na fila, quando vieram vários na mesma escolha. Sem
+   * isto, fechar uma gaveta e ver outra abrir no lugar parece defeito.
+   */
+  queue?: { current: number; total: number };
   onClose: () => void;
   onUploaded: () => void;
 }) {
@@ -331,7 +320,11 @@ export function VideoTrimSheet({
     >
       <SheetContent
         title="Escolha o trecho"
-        description={`Até ${MAX_VIDEO_SECONDS / 60} minuto. Arraste as alças para marcar o começo e o fim.`}
+        description={`${
+          queue && queue.total > 1
+            ? `Vídeo ${queue.current} de ${queue.total}. `
+            : ""
+        }Até ${MAX_VIDEO_SECONDS / 60} minuto. Arraste as alças para marcar o começo e o fim.`}
         dismissOnOutside={!trabalhando}
       >
         <div className="flex flex-col gap-5">

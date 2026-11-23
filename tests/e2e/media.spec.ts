@@ -47,6 +47,10 @@ const PLANO_VIDEO_MEDIDAS = crypto.randomUUID();
 const PLANO_VIDEO_CAPA = crypto.randomUUID();
 const PLANO_VIDEO_REENVIO = crypto.randomUUID();
 const PLANO_VIDEO_CONFIRMA = crypto.randomUUID();
+/* Várias de uma vez: dois planos realizados, porque só a Galeria aceita. */
+const PLANO_VARIAS_FOTOS = crypto.randomUUID();
+const PLANO_VARIOS_VIDEOS = crypto.randomUUID();
+const PLANO_AVISO_E_VIDEO = crypto.randomUUID();
 const PLANOS_USADOS = [
   PLANO_EXIF,
   PLANO_CABECALHO,
@@ -58,6 +62,9 @@ const PLANOS_USADOS = [
   PLANO_VIDEO_CAPA,
   PLANO_VIDEO_REENVIO,
   PLANO_VIDEO_CONFIRMA,
+  PLANO_VARIAS_FOTOS,
+  PLANO_VARIOS_VIDEOS,
+  PLANO_AVISO_E_VIDEO,
 ] as const;
 
 /* O mesmo marcador que `fixtures/gerar-video.mjs` grava no átomo `©xyz`. */
@@ -175,6 +182,9 @@ test.beforeAll(async () => {
         PLANO_VIDEO_MEDIDAS,
         PLANO_VIDEO_REENVIO,
         PLANO_VIDEO_CONFIRMA,
+        PLANO_VARIAS_FOTOS,
+        PLANO_VARIOS_VIDEOS,
+        PLANO_AVISO_E_VIDEO,
       ]),
     );
 
@@ -822,6 +832,11 @@ test("vídeo escolhido na capa é recusado com uma frase, sem abrir o corte", as
   const gaveta = page.getByRole("dialog", { name: "Editar detalhes" });
   await expect(gaveta).toBeVisible();
 
+  // A capa é uma foto só: o seletor não deixa escolher várias.
+  await expect(gaveta.locator('input[type="file"]')).not.toHaveAttribute(
+    "multiple",
+  );
+
   await gaveta.locator('input[type="file"]').setInputFiles({
     name: "VID_20261011_201512.mp4",
     mimeType: "video/mp4",
@@ -834,6 +849,240 @@ test("vídeo escolhido na capa é recusado com uma frase, sem abrir o corte", as
   await expect(
     page.getByRole("dialog", { name: "Escolha o trecho" }),
   ).toHaveCount(0);
+});
+
+/** Qualquer aviso de lote: "não subiu", "não subiram", "nenhum… subiu". */
+const AVISO_DE_LOTE = /subiu|subiram/;
+
+/**
+ * Várias fotos numa escolha só, no telefone de 320px.
+ *
+ * A do meio não é imagem, e tem nome comprido sem espaço, como os do Pixel:
+ * ela tem que aparecer no aviso pelo nome sem empurrar a página para o lado,
+ * e as outras duas têm que subir mesmo assim — uma falha não para o lote.
+ */
+test("várias fotos de uma vez sobem em fila, e a que falha não para as outras", async ({
+  page,
+}) => {
+  /* Dois tamanhos, para a ordem ser conferida pelo que o banco gravou. A
+     grande vem primeiro de propósito: em paralelo, a pequena terminaria
+     antes e trocaria as posições; em fila, a ordem é a da escolha. */
+  const grande = readFileSync("public/brand/photos/table.webp"); // 1400×933
+  const pequena = readFileSync("public/brand/icons/icon-512.png"); // 512×512
+  const quebrada = "PXL_20261012_183000123.RAW-01.MP.COVER.quebrada.jpg";
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  await signIn(page);
+  await limparMidiaDosPlanos([PLANO_VARIAS_FOTOS]);
+  await page.goto(`/planos/${PLANO_VARIAS_FOTOS}`);
+
+  const campo = page.locator('input[type="file"]');
+  await expect(campo).toHaveAttribute("multiple");
+
+  const grade = page.locator('ul li img[src^="/api/media/"]');
+  await expect(grade).toHaveCount(0);
+
+  /* O PUT da última foto fica preso até o teste soltar. Enquanto isso, a
+     primeira já tem que estar na grade: cada foto aparece quando é
+     confirmada, e não todas juntas no fim do lote. */
+  let soltarUltima = () => {};
+  const ultimaPresa = new Promise<void>((resolve) => {
+    soltarUltima = resolve;
+  });
+  let putsDoFull = 0;
+  await page.route(/\/full\.webp\?/, async (rota) => {
+    if (rota.request().method() === "PUT" && ++putsDoFull === 2) {
+      await ultimaPresa;
+    }
+    await rota.continue();
+  });
+
+  await campo.setInputFiles([
+    { name: "IMG_0001.webp", mimeType: "image/webp", buffer: grande },
+    {
+      name: quebrada,
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("isto não é uma imagem"),
+    },
+    { name: "IMG_0003.png", mimeType: "image/png", buffer: pequena },
+  ]);
+
+  await expect(
+    page.locator("button").filter({ hasText: "Enviando 3 de 3" }),
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(grade).toHaveCount(1);
+  soltarUltima();
+
+  await expect(grade).toHaveCount(2, { timeout: 60_000 });
+
+  const aviso = page.getByRole("alert").filter({ hasText: AVISO_DE_LOTE });
+  await expect(aviso).toContainText("Um dos 3 arquivos não subiu.");
+  await expect(aviso).toContainText(quebrada);
+  await expect(aviso).not.toContainText("IMG_0001.webp");
+
+  const sobra = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(sobra).toBeLessThanOrEqual(0);
+
+  /* O botão e o campo voltam a aceitar uma escolha nova, e o campo foi
+     zerado — sem isso, escolher os mesmos arquivos de novo não dispararia
+     nada no celular. (O `setInputFiles` dispara sempre, então só o valor
+     prova.) `locator("button")` pelo mesmo motivo do teste de foco acima: o
+     input escondido tem o mesmo nome e papel de botão no Chromium. */
+  await expect(
+    page.locator("button").filter({ hasText: "Adicionar foto ou vídeo" }),
+  ).toBeEnabled();
+  await expect(campo).toBeEnabled();
+  expect(await campo.inputValue()).toBe("");
+
+  // Um lote inteiro que sobe apaga o aviso do anterior.
+  await campo.setInputFiles([
+    { name: "IMG_0001.webp", mimeType: "image/webp", buffer: grande },
+    { name: "IMG_0003.png", mimeType: "image/png", buffer: pequena },
+  ]);
+
+  await expect(grade).toHaveCount(4, { timeout: 60_000 });
+  await expect(
+    page.getByRole("alert").filter({ hasText: AVISO_DE_LOTE }),
+  ).toHaveCount(0);
+
+  const linhas = await fixtureDb()
+    .select({
+      purpose: schema.media.purpose,
+      width: schema.media.width,
+      height: schema.media.height,
+    })
+    .from(schema.media)
+    .where(eq(schema.media.planId, PLANO_VARIAS_FOTOS))
+    .orderBy(schema.media.position, schema.media.createdAt);
+
+  expect(linhas).toEqual([
+    { purpose: "memory", width: 1400, height: 933 },
+    { purpose: "memory", width: 512, height: 512 },
+    { purpose: "memory", width: 1400, height: 933 },
+    { purpose: "memory", width: 512, height: 512 },
+  ]);
+});
+
+/**
+ * Vídeos na mesma escolha viram uma fila de gavetas, depois das fotos. Fechar
+ * uma pula só aquele vídeo; a gaveta diz qual é a da vez. Nada é convertido
+ * aqui — o corte já tem testes próprios acima.
+ */
+test("vários vídeos na mesma escolha abrem a gaveta de corte um de cada vez", async ({
+  page,
+}) => {
+  const png = readFileSync("public/brand/icons/icon-512.png");
+  const video = readFileSync("tests/e2e/fixtures/video-65s.mp4");
+
+  await signIn(page);
+  await limparMidiaDosPlanos([PLANO_VARIOS_VIDEOS]);
+  await page.goto(`/planos/${PLANO_VARIOS_VIDEOS}`);
+
+  const grade = page.locator('ul li img[src^="/api/media/"]');
+  await expect(grade).toHaveCount(0);
+
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "VID_0001.mp4", mimeType: "video/mp4", buffer: video },
+    { name: "IMG_0002.png", mimeType: "image/png", buffer: png },
+    { name: "VID_0003.mp4", mimeType: "video/mp4", buffer: video },
+  ]);
+
+  const gaveta = page.getByRole("dialog", { name: "Escolha o trecho" });
+  await expect(gaveta).toBeVisible({ timeout: 60_000 });
+
+  /* A foto já estava confirmada quando a primeira gaveta abriu: a fila de
+     vídeos só começa depois do lote de fotos. O banco responde sem depender
+     de a grade ter repintado. */
+  const fotosAoAbrir = await fixtureDb()
+    .select({ id: schema.media.id })
+    .from(schema.media)
+    .where(eq(schema.media.planId, PLANO_VARIOS_VIDEOS));
+  expect(fotosAoAbrir).toHaveLength(1);
+  await expect(grade).toHaveCount(1);
+
+  await expect(gaveta.getByText(/^Vídeo 1 de 2\./)).toBeVisible();
+  await expect(gaveta.getByText("Trecho de 1:00")).toBeVisible({
+    timeout: 30_000,
+  });
+
+  /* Dois Escape seguidos — o toque duplo do teclado. O segundo cai na
+     gaveta seguinte, recém-aberta, e não pode fechá-la: a pessoa nem viu
+     qual é o vídeo. */
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(gaveta.getByText(/^Vídeo 2 de 2\./)).toBeVisible();
+  await expect(gaveta.getByText("Trecho de 1:00")).toBeVisible({
+    timeout: 30_000,
+  });
+  // Passado o instante de proteção, ela continua aberta.
+  await page.waitForTimeout(700);
+  await expect(gaveta.getByText(/^Vídeo 2 de 2\./)).toBeVisible();
+
+  // Agora sim, fechar é decisão: a fila acaba.
+  await page.keyboard.press("Escape");
+  await expect(gaveta).toHaveCount(0);
+
+  // Nenhum vídeo subiu, e nada sobrou de aviso: fechar não é erro.
+  await expect(grade).toHaveCount(1);
+  await expect(
+    page.getByRole("alert").filter({ hasText: AVISO_DE_LOTE }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator("button").filter({ hasText: "Adicionar foto ou vídeo" }),
+  ).toBeEnabled();
+});
+
+/**
+ * Uma foto que falha junto com um vídeo na mesma escolha. O aviso não pode
+ * nascer junto com a gaveta — o Radix esconde o resto da página do leitor de
+ * tela, e o alerta não seria anunciado —, e fala só do que já tem desfecho:
+ * uma foto, uma frase, sem contar o vídeo que a pessoa ainda pode cancelar.
+ */
+test("o aviso de uma foto que falhou espera a gaveta de vídeo fechar", async ({
+  page,
+}) => {
+  const video = readFileSync("tests/e2e/fixtures/video-65s.mp4");
+
+  await signIn(page);
+  await limparMidiaDosPlanos([PLANO_AVISO_E_VIDEO]);
+  await page.goto(`/planos/${PLANO_AVISO_E_VIDEO}`);
+
+  await page.locator('input[type="file"]').setInputFiles([
+    {
+      name: "quebrada.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("isto não é uma imagem"),
+    },
+    { name: "VID_0002.mp4", mimeType: "video/mp4", buffer: video },
+  ]);
+
+  const gaveta = page.getByRole("dialog", { name: "Escolha o trecho" });
+  await expect(gaveta.getByText("Trecho de 1:00")).toBeVisible({
+    timeout: 60_000,
+  });
+  // Um vídeo só: sem contador.
+  await expect(gaveta.getByText(/Vídeo \d de \d/)).toHaveCount(0);
+
+  /* Pelo DOM, e não pela árvore de acessibilidade: com a gaveta aberta, o
+     Radix marca o resto da página com `aria-hidden`, e um `getByRole` não
+     acharia o alerta mesmo que ele já existisse — que é justamente o defeito
+     a pegar. Ele não pode estar nem escondido. */
+  const avisoNoDom = page
+    .locator('[role="alert"]')
+    .filter({ hasText: /Não foi possível abrir essa imagem/ });
+  await expect(avisoNoDom).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(gaveta).toHaveCount(0);
+
+  // Uma foto com desfecho: a frase dela, sem resumo de lote.
+  const aviso = page
+    .getByRole("alert")
+    .filter({ hasText: /Não foi possível abrir essa imagem/ });
+  await expect(aviso).toBeVisible();
+  await expect(aviso).not.toContainText(AVISO_DE_LOTE);
 });
 
 /**

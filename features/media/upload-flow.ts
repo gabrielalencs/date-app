@@ -168,6 +168,93 @@ export async function uploadPhoto(
     : confirmada;
 }
 
+/** Em que pé está a foto da vez, para o botão dizer com palavras. */
+export type PhotoUploadStage = "preparando" | "enviando" | "salvando";
+
+export type PhotoBatchProgress = {
+  /** Posição da foto da vez, a partir de 1. */
+  current: number;
+  total: number;
+  stage: PhotoUploadStage;
+};
+
+export type PhotoBatchFailure = { file: File; error: string };
+
+/** A frase de quando algo lançou em vez de responder — rede, action, bug. */
+export const UNEXPECTED_UPLOAD_ERROR =
+  "Algo deu errado no envio. Tente de novo.";
+
+/**
+ * Várias fotos escolhidas de uma vez, **uma depois da outra**.
+ *
+ * Em fila, e não em paralelo: cada foto é decodificada inteira na memória
+ * antes do reencode — 12 MP são uns 48 MB de bitmap —, e a HEIC passa por uma
+ * libheif em JavaScript puro (D-183). Cinco ao mesmo tempo num Android
+ * intermediário fazem a aba morrer, e o envio não fica mais rápido por isso.
+ * Uma por vez também mantém a ordem da grade igual à da escolha, porque a
+ * posição é decidida na confirmação.
+ *
+ * Uma foto que falha não para o lote: ela entra na lista de falhas com o
+ * motivo, e as seguintes sobem. Isso vale também para exceção (a rede caiu
+ * no meio de uma action), que vira frase aqui em vez de derrubar o resto.
+ *
+ * `onUploaded` avisa a cada foto confirmada. A grade não depende dele: a
+ * confirmação revalida a página no servidor, e a resposta da action já a traz
+ * re-renderizada.
+ */
+export async function uploadPhotos(
+  ports: UploadPorts,
+  input: {
+    files: readonly File[];
+    planId: string;
+    purpose: UploadablePurpose;
+    onProgress?: (progress: PhotoBatchProgress) => void;
+    onUploaded?: (mediaId: string) => void;
+  },
+): Promise<{ uploaded: string[]; failures: PhotoBatchFailure[] }> {
+  const total = input.files.length;
+  const uploaded: string[] = [];
+  const failures: PhotoBatchFailure[] = [];
+
+  for (const [indice, file] of input.files.entries()) {
+    const current = indice + 1;
+    const avisar = (stage: PhotoUploadStage) =>
+      input.onProgress?.({ current, total, stage });
+
+    avisar("preparando");
+
+    let resultado: UploadOutcome;
+
+    try {
+      resultado = await uploadPhoto(
+        {
+          ...ports,
+          async start(dados) {
+            avisar("enviando");
+            return ports.start(dados);
+          },
+          async confirm(dados) {
+            avisar("salvando");
+            return ports.confirm(dados);
+          },
+        },
+        { file, planId: input.planId, purpose: input.purpose },
+      );
+    } catch {
+      resultado = { ok: false, error: UNEXPECTED_UPLOAD_ERROR };
+    }
+
+    if (resultado.ok) {
+      uploaded.push(resultado.mediaId);
+      input.onUploaded?.(resultado.mediaId);
+    } else {
+      failures.push({ file, error: resultado.error });
+    }
+  }
+
+  return { uploaded, failures };
+}
+
 /** Em que pé está o vídeo, para a tela dizer com palavras e porcentagem. */
 export type VideoUploadStage =
   | { stage: "convertendo"; fraction: number }

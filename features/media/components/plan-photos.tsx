@@ -99,8 +99,12 @@ export function PlanPhotos({
 
   return (
     <section className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="section-heading">{title}</h2>
+      {/* Topo, e não centro: o aviso de falha cresce embaixo do botão, e com
+          `items-center` o título descia junto para o meio da coluna. A altura
+          mínima do título é a do botão, então sem aviso os dois continuam
+          alinhados como antes. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="section-heading flex min-h-11 items-center">{title}</h2>
         {readOnly || canAdd === false ? null : (
           <PhotoPicker
             planId={planId}

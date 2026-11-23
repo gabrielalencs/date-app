@@ -7,7 +7,9 @@ import type {
   ImageRuntime,
 } from "@/features/media/image/process-image";
 import {
+  UNEXPECTED_UPLOAD_ERROR,
   uploadPhoto,
+  uploadPhotos,
   uploadVideo,
   type PutOptions,
   type UploadPorts,
@@ -204,6 +206,180 @@ describe("uploadPhoto", () => {
     const enviado = vi.mocked(p.confirm).mock.calls[0]?.[0];
     expect(enviado).not.toHaveProperty("kind");
     expect(enviado).not.toHaveProperty("durationMs");
+  });
+});
+
+/**
+ * Várias fotos de uma vez: em fila, uma falha não para as outras, e o botão
+ * sabe qual é a da vez.
+ */
+describe("uploadPhotos", () => {
+  const foto = (name: string) =>
+    ({ size: 4_000_000, type: "image/jpeg", name }) as File;
+
+  it("sobe uma de cada vez: a segunda só começa depois de a primeira confirmar", async () => {
+    const { ports: p, chamadas } = ports();
+    const base = p.runtime;
+    p.runtime = {
+      ...base,
+      decode: async (file) => {
+        chamadas.push(`decode:${file.name}`);
+        return base.decode(file);
+      },
+    };
+
+    await uploadPhotos(p, {
+      files: [foto("a.jpg"), foto("b.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+    });
+
+    expect(chamadas).toEqual([
+      "decode:a.jpg",
+      "start",
+      "put:full",
+      "put:thumb",
+      "confirm",
+      "decode:b.jpg",
+      "start",
+      "put:full",
+      "put:thumb",
+      "confirm",
+    ]);
+  });
+
+  it("uma recusa não para o lote, e a falha sai com o arquivo e o motivo", async () => {
+    let n = 0;
+    const { ports: p } = ports({
+      start: vi.fn(async () =>
+        ++n === 2
+          ? { ok: false as const, error: "não pode" }
+          : { ok: true as const, data: ASSINADA },
+      ),
+    });
+    const segunda = foto("b.jpg");
+
+    const resultado = await uploadPhotos(p, {
+      files: [foto("a.jpg"), segunda, foto("c.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+    });
+
+    expect(resultado.uploaded).toHaveLength(2);
+    expect(resultado.failures).toEqual([{ file: segunda, error: "não pode" }]);
+    expect(p.confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it("exceção no meio vira frase, e as seguintes sobem mesmo assim", async () => {
+    let n = 0;
+    const { ports: p } = ports({
+      confirm: vi.fn(async () => {
+        if (++n === 1) throw new TypeError("Failed to fetch");
+        return { ok: true as const, data: { mediaId: `media-${n}` } };
+      }),
+    });
+
+    const resultado = await uploadPhotos(p, {
+      files: [foto("a.jpg"), foto("b.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+    });
+
+    expect(resultado.uploaded).toEqual(["media-2"]);
+    expect(resultado.failures).toEqual([
+      {
+        file: expect.objectContaining({ name: "a.jpg" }),
+        error: expect.stringMatching(/Tente de novo/),
+      },
+    ]);
+  });
+
+  it("diz qual foto é a da vez e em que etapa, e avisa cada uma confirmada", async () => {
+    let n = 0;
+    const { ports: p } = ports({
+      confirm: vi.fn(async () => ({
+        ok: true as const,
+        data: { mediaId: `media-${++n}` },
+      })),
+    });
+    const etapas: string[] = [];
+    const confirmadas: string[] = [];
+
+    await uploadPhotos(p, {
+      files: [foto("a.jpg"), foto("b.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+      onProgress: ({ current, total, stage }) =>
+        etapas.push(`${current}/${total}:${stage}`),
+      onUploaded: (mediaId) => confirmadas.push(mediaId),
+    });
+
+    expect(etapas).toEqual([
+      "1/2:preparando",
+      "1/2:enviando",
+      "1/2:salvando",
+      "2/2:preparando",
+      "2/2:enviando",
+      "2/2:salvando",
+    ]);
+    expect(confirmadas).toEqual(["media-1", "media-2"]);
+  });
+
+  it("cada foto confirma com o purpose do lote", async () => {
+    const { ports: p } = ports();
+
+    await uploadPhotos(p, {
+      files: [foto("a.jpg"), foto("b.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+    });
+
+    expect(p.confirm).toHaveBeenCalledTimes(2);
+    for (const [enviado] of vi.mocked(p.confirm).mock.calls) {
+      expect(enviado).toMatchObject({ planId: PLANO, purpose: "memory" });
+    }
+  });
+
+  it("foto que não decodifica no meio do lote falha com a frase dela, sem assinar", async () => {
+    const { ports: p } = ports();
+    const base = p.runtime;
+    p.runtime = {
+      ...base,
+      decode: async (file) => {
+        if (file.name === "b.jpg") throw new DOMException("cannot decode");
+        return base.decode(file);
+      },
+    };
+
+    const resultado = await uploadPhotos(p, {
+      files: [foto("a.jpg"), foto("b.jpg"), foto("c.jpg")],
+      planId: PLANO,
+      purpose: "memory",
+    });
+
+    expect(resultado.uploaded).toHaveLength(2);
+    expect(resultado.failures).toHaveLength(1);
+    expect(resultado.failures[0]?.file.name).toBe("b.jpg");
+    // A frase é a do processamento, não a genérica de exceção.
+    expect(resultado.failures[0]?.error).not.toBe(UNEXPECTED_UPLOAD_ERROR);
+    // Só duas assinaturas: a foto que não abriu não pediu URL nenhuma.
+    expect(p.start).toHaveBeenCalledTimes(2);
+  });
+
+  it("lista vazia não chama nada", async () => {
+    const { ports: p } = ports();
+    const onProgress = vi.fn();
+
+    const resultado = await uploadPhotos(p, {
+      files: [],
+      planId: PLANO,
+      purpose: "memory",
+      onProgress,
+    });
+
+    expect(resultado).toEqual({ uploaded: [], failures: [] });
+    expect(p.start).not.toHaveBeenCalled();
+    expect(onProgress).not.toHaveBeenCalled();
   });
 });
 
